@@ -1,0 +1,24 @@
+# downloaded third-party material (fetch with reading/download.sh)
+reading/pdfs/
+reading/web/
+
+# secrets
+.env
+*.key
+
+# large artifacts
+*.pt
+*.safetensors
+*.npy
+*.npz
+activations/
+cache/
+outputs/
+slurm-*.out
+
+# python / os
+__pycache__/
+*.pyc
+.venv/
+.ipynb_checkpoints/
+.DS_Store

@@ -1,0 +1,27 @@
+# kind	id_or_url	local_name
+arxiv	2605.08513	kazemi2026_single_neuron_bypasses_safety
+arxiv	2406.11717	arditi2024_refusal_single_direction
+arxiv	2602.02132	joad2026_more_than_one_direction
+arxiv	2505.17306	wang2025_refusal_direction_universal_languages
+arxiv	2602.01283	2026_cross_lingual_shared_safety_neurons
+arxiv	2608.29936	2026_safety_language_identity_entanglement
+arxiv	2604.08881	2026_safety_neurons_multilingual_vlms
+arxiv	2608.18628	2026_safety_overrides_vision
+arxiv	2605.00583	2026_jailbreaking_vlms_visual_modality
+arxiv	2609.29287	2026_aegis_audio_lm_jailbreaks
+arxiv	2502.00718	gupta2025_i_am_bad_audio_jailbreaks
+arxiv	2406.14144	chen2024_safety_neurons
+arxiv	2509.11864	wu2025_neurostrike
+arxiv	2602.12158	wang2026_safeneuron
+arxiv	2601.22594	arora2026_circuits_sparse_in_neuron_basis
+arxiv	2309.08600	cunningham2023_sparse_autoencoders
+arxiv	2408.05147	lieberum2024_gemma_scope
+arxiv	2501.17148	wu2025_axbench
+arxiv	2605.31183	2026_saes_can_outperform_baselines
+arxiv	2502.16681	kantamneni2025_are_saes_useful_sparse_probing
+web	https://already-clean.goodfire.com/	goodfire2026_already_clean
+web	https://www.alignmentforum.org/posts/4uXCAJNuPKtKBsi28/negative-results-for-saes-on-downstream-tasks	gdm2025_sae_negative_results
+web	https://www.alignmentforum.org/posts/osNKnwiJWHxDYvQTD/takeaways-from-our-recent-work-on-sae-probing	2025_sae_probing_takeaways
+web	https://transformer-circuits.pub/2023/monosemantic-features	bricken2023_towards_monosemanticity
+web	https://transformer-circuits.pub/2024/scaling-monosemanticity	templeton2024_scaling_monosemanticity
+web	https://machinelearning.apple.com/research/single-neuron-safety-alignment	apple2026_single_neuron_page
