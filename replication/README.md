@@ -33,5 +33,18 @@ Goal: recover their refusal neurons and approximate ASR with our own code. No of
 
 Qwen3 is run with thinking disabled.
 
+## Results log
+
+### 2026-10-19: Milestone 1, published neurons behave as described (`neuron_check.py`)
+Setup: JailbreakBench (100 prompts) vs held-out Alpaca (100) for separation. Bypass measured on the first 30 JailbreakBench prompts, greedy decoding, 96 new tokens, string-match refusal check (rough; not the paper's judge). V100-32GB.
+
+| Model, neuron | AUROC | Refusal rate at pin = none / +10 / +20 / +40 / +80 | Notes |
+|---|---|---|---|
+| Qwen3-1.7B L13:F3270 (fp16) | 0.999 | 0.67 / 0.40 / 0.20 / 0.03 / 0.00 | Fires about −8 to −9 at the newline tokens after `<|im_end|>`, after `assistant`, and after `</think>`; harmless ≈ 0 |
+| Qwen3-1.7B L13:F3270 (fp32) | 0.999 | identical | fp16 is fine on V100 (no bf16 needed) |
+| Qwen3-8B L14:F7924 (fp16) | 0.997 | 0.97 / 0.53 / 0.03 / 0.00 / 0.00 | Peak at the newline after `<|im_end|>` (−4.0 vs −0.1). At +80 the output is gibberish, so we need a coherence-aware judge |
+
+Panther notes: run downloads as SLURM jobs (the login node kills them); install torch from PyPI; don't `module load` CUDA (it shadows torch's bundled libraries).
+
 ## Compute
 Panther (QCRI SLURM). Only the 70B model needs multiple GPUs; start with the three models above.
