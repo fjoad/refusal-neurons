@@ -3,7 +3,7 @@
 #SBATCH -p cpu-all
 #SBATCH -c 4
 #SBATCH --mem=16G
-#SBATCH -t 01:00:00
+#SBATCH -t 03:00:00
 #SBATCH --chdir=/export/home/fjoad/refusal-neurons
 #SBATCH -o logs/%x-%j.out
 
