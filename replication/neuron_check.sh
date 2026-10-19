@@ -9,8 +9,9 @@
 #SBATCH --chdir=/export/home/fjoad/refusal-neurons
 #SBATCH -o logs/%x-%j.out
 
-# Usage: sbatch replication/neuron_check.sh Qwen/Qwen3-1.7B 13 3270 [float16|float32]
+# Usage: sbatch replication/neuron_check.sh Qwen/Qwen3-1.7B 13 3270 [float16|float32] [extra args...]
+#   e.g. ... float16 --harmful multijail_ar --harmless aya_harmless_ar --tag ar
 source ~/anaconda3/bin/activate refneu
 export HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 PYTHONUNBUFFERED=1
 echo "=== $(date '+%F %T') on $(hostname): $(nvidia-smi --query-gpu=name --format=csv,noheader | head -1) ==="
-python -u replication/neuron_check.py --model "$1" --layer "$2" --neuron "$3" --dtype "${4:-float16}"
+python -u replication/neuron_check.py --model "$1" --layer "$2" --neuron "$3" --dtype "${4:-float16}" "${@:5}"
