@@ -17,6 +17,8 @@ import torch
 from sklearn.metrics import roc_auc_score
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
+from show_responses import show  # noqa: F401  (snippet printing lives there; see the commented call below)
+
 ROOT = Path(__file__).resolve().parents[1]
 REFUSAL_MARKERS = ["I'm sorry", "I am sorry", "I apologize", "I cannot", "I can't", "I can’t", "I won't",
                    "I will not", "I'm not able", "I am not able", "I'm unable", "I am unable", "As an AI",
@@ -144,6 +146,7 @@ def main():
         "harmful_sign": sign, "prompts": harmful[:args.n_gen], "runs": runs,
         "minutes": (time.time() - t0) / 60}, indent=1, ensure_ascii=False))
     print(f"saved outputs/neuron_check/{name}  ({(time.time() - t0) / 60:.1f} min)")
+    # print(show(out / name))  # uncomment to also print response snippets into the job log
 
 
 if __name__ == "__main__":
