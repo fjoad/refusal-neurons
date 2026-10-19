@@ -10,7 +10,6 @@
 #SBATCH -o logs/%x-%j.out
 
 # Usage: sbatch replication/neuron_check.sh Qwen/Qwen3-1.7B 13 3270 [float16|float32]
-module load cuda12.2/toolkit/12.2.1
 source ~/anaconda3/bin/activate refneu
 export HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 PYTHONUNBUFFERED=1
 echo "=== $(date '+%F %T') on $(hostname): $(nvidia-smi --query-gpu=name --format=csv,noheader | head -1) ==="
