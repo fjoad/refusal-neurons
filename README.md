@@ -1,4 +1,4 @@
-# Gatekeeper
+# Refusal Neurons
 
 **Is safety refusal gated by the same single neuron across languages and modalities?**
 
