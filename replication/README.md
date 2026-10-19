@@ -43,6 +43,24 @@ Setup: JailbreakBench (100 prompts) vs held-out Alpaca (100) for separation. Byp
 | Qwen3-1.7B L13:F3270 (fp16) | 0.999 | 0.67 / 0.40 / 0.20 / 0.03 / 0.00 | Fires about −8 to −9 at the newline tokens after `<|im_end|>`, after `assistant`, and after `</think>`; harmless ≈ 0 |
 | Qwen3-1.7B L13:F3270 (fp32) | 0.999 | identical | fp16 is fine on V100 (no bf16 needed) |
 | Qwen3-8B L14:F7924 (fp16) | 0.997 | 0.97 / 0.53 / 0.03 / 0.00 / 0.00 | Peak at the newline after `<|im_end|>` (−4.0 vs −0.1). At +80 the output is gibberish, so we need a coherence-aware judge |
+| Llama-3.1-8B-Instruct L11:F4258 (fp16) | 1.000 | 1.00 / 0.00 / 0.00 / 0.00 / 0.00 (pin is negative here) | Fires **positive** on harmful prompts (+1.0 vs 0.0 at the final `\n\n`), matching the paper's sign for Llama |
+
+### 2026-10-20: Arabic teaser, same neuron on parallel English/Arabic prompts
+Data (`data/prepare_arabic.py`): 100 MultiJail prompts, the same prompts in English and in human-translated Arabic, vs 100 human-written Aya prompts in the matching language. Same model and neuron (Qwen3-8B L14:F7924), with no search in Arabic yet. Refusal measured on the first 30 prompts with string-match; Arabic markers were added, but the check is rough.
+
+| Language | AUROC | Peak token (newline after `<|im_end|>`): harmful vs harmless | Refusal rate at pin = none / +10 / +20 / +40 / +80 |
+|---|---|---|---|
+| English | 0.977 | −3.21 vs −0.24 | 0.47 / 0.23 / 0.17 / 0.00 / 0.00 |
+| Arabic | 0.954 | −3.10 vs −0.27 | 0.43 / 0.17 / 0.10 / 0.07 / 0.00 |
+
+Takeaways:
+- **The English neuron transfers to Arabic.** It fires at the same token with nearly the same magnitude on the Arabic versions of the same prompts, and separation drops only slightly (0.977 → 0.954).
+- **Intervening has the same effect in both languages** under this rough check.
+- **Caveats:**
+  - The baseline refusal rate is low (~0.45) in both languages. MultiJail comes from red-teaming data and includes many borderline prompts, and string-match misses some refusals.
+  - We need a proper multilingual judge before these numbers mean anything.
+  - The harmless sets are not parallel across languages.
+  - n = 30 for refusal.
 
 Panther notes: run downloads as SLURM jobs (the login node kills them); install torch from PyPI; don't `module load` CUDA (it shadows torch's bundled libraries).
 

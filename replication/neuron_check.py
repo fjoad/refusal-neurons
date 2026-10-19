@@ -132,7 +132,7 @@ def main():
         texts = generate(model, tok, hook, gen_prompts, args.bs, args.max_new)
         rr = float(np.mean([is_refusal(t) for t in texts]))
         runs[str(hook.value)] = {"refusal_rate_stringmatch": rr, "responses": texts}
-        print(f"pin={hook.value}: string-match refusal rate {rr:.2f}  | e.g. {texts[0][:120]!r}")
+        print(f"pin={hook.value}: string-match refusal rate {rr:.2f}")  # responses go to the JSON only
     hook.value = None
 
     out = ROOT / "outputs" / "neuron_check"
