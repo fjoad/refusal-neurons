@@ -14,6 +14,7 @@ Update the docs as part of the work, not as a separate handoff:
 - **Decision made:** add it under "Decisions so far" in the README, with a one-line reason.
 - **New script or panther gotcha:** add it to the README's script table, or to the panther section below.
 - **Roadmap page:** [docs/roadmap.html](docs/roadmap.html) is published as the Claude artifact https://claude.ai/artifact/4PRLSoKRUAcC7JLZndxh6R. When the roadmap changes, edit the file and republish it to that URL.
+- **How-it-works page:** [docs/how_it_works.html](docs/how_it_works.html) is published as the Claude artifact https://claude.ai/artifact/C5GrXjo3rgnNuMGvEZmoWx. It explains Kazemi et al.'s method and the neuron concepts with our M1 numbers. Edit the file and republish it to that URL when those numbers or the method notes change.
 
 ## Working with the user
 - Faaiz (the user) was first author on the EMNLP refusal-directions paper, but is newer to neuron-level interpretability. Explain neuron terms plainly. Extend docs/glossary.md rather than re-explaining in chat.

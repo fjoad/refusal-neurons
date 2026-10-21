@@ -1,0 +1,732 @@
+<title>How the Refusal Neuron Works</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=IBM+Plex+Mono:wght@400;500&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap">
+<style>
+/* Layout: one reading column that follows the mechanism in order (where → what → find → switch off → our question);
+   figures break wider than the text. Color encodes activation sign (neg / pos) and the hooked neuron (accent). */
+:root {
+  --bg: #f1f4f3;
+  --surface: #ffffff;
+  --fg: #15201e;
+  --muted: #586763;
+  --line: #d4dcd9;
+  --accent: #9c5600;        /* the hooked neuron, the pin */
+  --accent-soft: #f5e8d5;
+  --neg: #bd2f57;           /* negative activation */
+  --pos: #2c64b4;           /* positive activation */
+  --on-strong: #ffffff;
+  --done: #1d7448; --done-bg: #e0f1e7;
+  --todo: #6a5a00; --todo-bg: #f6efcf;
+  --display: "Bricolage Grotesque", "Avenir Next", system-ui, sans-serif;
+  --body: "Source Serif 4", Georgia, "Times New Roman", serif;
+  --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f1514; --surface: #162020; --fg: #e2eae7; --muted: #95a49f; --line: #2a3634;
+    --accent: #f2a646; --accent-soft: #3a2a15; --neg: #ff7598; --pos: #7eaaff; --on-strong: #10161a;
+    --done: #74d6a2; --done-bg: #173226; --todo: #e8cf6a; --todo-bg: #33301a;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f1514; --surface: #162020; --fg: #e2eae7; --muted: #95a49f; --line: #2a3634;
+  --accent: #f2a646; --accent-soft: #3a2a15; --neg: #ff7598; --pos: #7eaaff; --on-strong: #10161a;
+  --done: #74d6a2; --done-bg: #173226; --todo: #e8cf6a; --todo-bg: #33301a;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--fg);
+  font-family: var(--body); font-size: 17px; line-height: 1.6;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 44px 72px;
+}
+main { max-width: 920px; margin: 0 auto; display: grid; gap: 64px; }
+.col { max-width: 680px; }
+h1, h2, h3 { font-family: var(--display); text-wrap: balance; margin: 0; letter-spacing: -0.015em; }
+h1 { font-size: clamp(32px, 5.4vw, 52px); line-height: 1.04; font-weight: 700; }
+h2 { font-size: clamp(25px, 3.4vw, 32px); line-height: 1.12; font-weight: 700; }
+h3 { font-size: 18px; line-height: 1.25; font-weight: 600; letter-spacing: -0.005em; }
+p { margin: 0; }
+a { color: var(--accent); text-underline-offset: 2px; }
+a:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+code, .mono { font-family: var(--mono); font-size: 0.82em; }
+p code, li code, td code { background: var(--accent-soft); padding: 1px 5px; border-radius: 4px; }
+.eyebrow { font-family: var(--mono); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.lede { font-size: 20px; line-height: 1.5; max-width: 40ch; }
+.muted { color: var(--muted); }
+.neg-t { color: var(--neg); font-weight: 600; }
+.pos-t { color: var(--pos); font-weight: 600; }
+.acc-t { color: var(--accent); font-weight: 600; }
+
+section { display: grid; gap: 22px; }
+.sec-head { display: grid; gap: 8px; }
+.stack { display: grid; gap: 14px; }
+.stack ul, .stack ol { margin: 0; padding-left: 1.2em; display: grid; gap: 6px; }
+
+header { display: grid; gap: 22px; }
+.spec { display: flex; flex-wrap: wrap; gap: 8px 28px; font-family: var(--mono); font-size: 13px; color: var(--muted); }
+.spec b { color: var(--fg); font-weight: 500; }
+
+figure { margin: 0; display: grid; gap: 10px; }
+figcaption { font-size: 14.5px; line-height: 1.5; color: var(--muted); max-width: 72ch; }
+figcaption b { color: var(--fg); font-weight: 600; }
+.src { font-family: var(--mono); font-size: 11.5px; letter-spacing: 0.02em; color: var(--muted); }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 18px; min-width: 0; }
+.scroll { overflow-x: auto; }
+svg.dia { display: block; width: 100%; height: auto; color: var(--fg); font-family: var(--mono); font-size: 12px; }
+svg.dia .box { fill: var(--surface); stroke: currentColor; stroke-width: 1.2; }
+svg.dia .ln { stroke: currentColor; stroke-width: 1.4; fill: none; }
+svg.dia .thin { stroke: var(--muted); stroke-width: 1; fill: none; }
+svg.dia .dash { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 4 4; fill: none; }
+svg.dia .acc { stroke: var(--accent); fill: none; stroke-width: 2; }
+svg.dia .grid { stroke: var(--line); stroke-width: 1; }
+svg.dia text { fill: currentColor; }
+svg.dia .m { fill: var(--muted); }
+svg.dia .a { fill: var(--accent); }
+svg.dia .n { fill: var(--neg); }
+svg.dia .p { fill: var(--pos); }
+svg.dia .tick { fill: var(--muted); font-size: 11px; }
+svg.dia .ttl { font-family: var(--display); font-size: 15px; font-weight: 600; }
+svg.dia .big { font-family: var(--display); font-size: 17px; font-weight: 700; }
+
+/* per-token activation strip */
+.strip { display: grid; grid-template-columns: 128px repeat(var(--n), minmax(62px, 1fr)); gap: 3px; min-width: calc(128px + var(--n) * 65px); }
+.strip .lab { font-family: var(--mono); font-size: 12px; display: flex; flex-direction: column; justify-content: center; padding-right: 8px; line-height: 1.25; }
+.strip .lab small { color: var(--muted); font-size: 10.5px; }
+.strip .tok { display: flex; align-items: flex-end; justify-content: center; padding-bottom: 4px; min-height: 30px; }
+.strip .tok code { font-size: 11px; color: var(--muted); white-space: nowrap; }
+.strip .tok.peak code { color: var(--accent); font-weight: 500; }
+.strip .cell {
+  font-family: var(--mono); font-size: 12.5px; font-variant-numeric: tabular-nums;
+  display: flex; align-items: center; justify-content: center; height: 44px; border-radius: 4px;
+  background: color-mix(in oklab, var(--c) calc(var(--a) * 100%), var(--surface));
+  color: var(--fg); border: 1px solid var(--line);
+}
+.strip .cell.neg { --c: var(--neg); }
+.strip .cell.pos { --c: var(--pos); }
+.strip .cell.strong { color: var(--on-strong); border-color: transparent; }
+.strip .cell.peak { outline: 2px solid var(--accent); outline-offset: 1px; }
+.scale { display: flex; align-items: center; gap: 10px; font-family: var(--mono); font-size: 11.5px; color: var(--muted); flex-wrap: wrap; }
+.scale i { display: inline-block; width: 120px; height: 10px; border-radius: 3px; background: linear-gradient(90deg, var(--neg), var(--surface), var(--pos)); border: 1px solid var(--line); }
+
+/* two-up and stat rows */
+.two { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+.two > * { min-width: 0; }
+.stat { display: grid; gap: 4px; }
+.stat .v { font-family: var(--display); font-size: 34px; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
+.stat .k { font-size: 14.5px; color: var(--muted); }
+
+/* formula block */
+.eq { font-family: var(--mono); font-size: 14.5px; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 12px 14px; overflow-x: auto; white-space: nowrap; }
+.eq .c { color: var(--muted); }
+
+/* search steps: a real sequence, so numbered */
+.steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; counter-reset: s; }
+.steps li { counter-increment: s; display: grid; grid-template-columns: 34px 1fr; gap: 0 14px; padding-bottom: 20px; position: relative; }
+.steps li::before { content: counter(s); font-family: var(--mono); font-size: 13px; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; border: 1.5px solid var(--fg); background: var(--bg); position: relative; z-index: 1; }
+.steps li:not(:last-child)::after { content: ""; position: absolute; left: 14px; top: 28px; bottom: 0; width: 1.5px; background: var(--line); }
+.steps li:last-child::before { border-color: var(--accent); color: var(--accent); }
+.steps li > div { display: grid; gap: 6px; min-width: 0; padding-top: 2px; }
+
+/* bar charts */
+.bars { display: grid; grid-template-columns: auto 1fr 3.4em; gap: 7px 12px; align-items: center; font-family: var(--mono); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+.bars .t { height: 18px; background: color-mix(in oklab, var(--line) 45%, transparent); border-radius: 3px; position: relative; overflow: hidden; }
+.bars .t span { position: absolute; inset: 0 auto 0 0; background: var(--muted); border-radius: 3px; }
+.bars .t.win span { background: var(--accent); }
+.bars .lbl.win, .bars .val.win { color: var(--accent); font-weight: 500; }
+.bars .val { text-align: right; }
+.bars-title { font-family: var(--display); font-size: 15px; font-weight: 600; }
+
+/* tables */
+.tbl { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 14px; font-variant-numeric: tabular-nums; }
+th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+th { font-family: var(--mono); font-size: 11.5px; font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+td.num, th.num { text-align: right; }
+tr.ours td { background: var(--accent-soft); }
+td .tag { font-family: var(--mono); font-size: 10.5px; color: var(--accent); margin-left: 6px; }
+
+/* anchor slider */
+.slider { display: grid; gap: 8px; }
+.slider label { font-family: var(--mono); font-size: 12.5px; color: var(--muted); }
+.slider input { width: 100%; accent-color: var(--accent); }
+.readout { display: flex; flex-wrap: wrap; gap: 6px 22px; font-family: var(--mono); font-size: 13px; font-variant-numeric: tabular-nums; }
+.readout b { font-weight: 500; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 20px; font-family: var(--mono); font-size: 12px; color: var(--muted); }
+.legend span::before { content: ""; display: inline-block; width: 22px; height: 0; border-top: 2px solid var(--c); vertical-align: middle; margin-right: 7px; }
+.legend .l-const { --c: var(--muted); }
+.legend .l-k1 { --c: var(--accent); }
+.legend .l-k2 { --c: var(--pos); }
+
+/* status chips for our project */
+.qs { display: grid; gap: 12px; }
+.q { display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; align-items: start; padding: 14px 16px; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; }
+.q > div { min-width: 0; display: grid; gap: 4px; }
+.chip { font-family: var(--mono); font-size: 11px; letter-spacing: 0.04em; text-transform: uppercase; padding: 3px 8px; border-radius: 999px; white-space: nowrap; }
+.chip.done { color: var(--done); background: var(--done-bg); }
+.chip.todo { color: var(--todo); background: var(--todo-bg); }
+
+.note { font-size: 15px; color: var(--muted); border-left: 2px solid var(--line); padding-left: 14px; }
+footer { display: grid; gap: 10px; font-size: 14.5px; color: var(--muted); border-top: 1px solid var(--line); padding-top: 22px; }
+footer ul { margin: 0; padding-left: 1.2em; display: grid; gap: 4px; }
+
+@media (max-width: 560px) {
+  body { font-size: 16px; }
+  .lede { font-size: 18px; }
+  .strip { grid-template-columns: 104px repeat(var(--n), minmax(58px, 1fr)); min-width: calc(104px + var(--n) * 61px); }
+  .panel { padding: 12px; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<main>
+
+<header>
+  <div class="eyebrow">Kazemi, Chegini &amp; Safi (Apple), 2026 · arXiv 2605.08513</div>
+  <h1>One number inside <span style="white-space: nowrap">Qwen3-8B</span> can switch off refusal</h1>
+  <p class="lede">Out of 294,912 MLP neurons searched, one coordinate fires when a harmful request ends and the model is about to answer. Pin it the other way and the model stops refusing.</p>
+
+  <figure class="panel">
+    <div class="scroll">
+<div class="strip" style="--n:9">
+<div class="lab"></div>
+<div class="tok"><code>&lt;|im_end|&gt;</code></div>
+<div class="tok peak"><code>\n</code></div>
+<div class="tok"><code>&lt;|im_start|&gt;</code></div>
+<div class="tok"><code>assistant</code></div>
+<div class="tok"><code>\n</code></div>
+<div class="tok"><code>&lt;think&gt;</code></div>
+<div class="tok"><code>\n\n</code></div>
+<div class="tok"><code>&lt;/think&gt;</code></div>
+<div class="tok"><code>\n\n</code></div>
+<div class="lab">harmful<small>JailbreakBench</small></div>
+<div class="cell neg" style="--a:0.22">−0.99</div>
+<div class="cell neg strong peak" style="--a:0.90">−4.04</div>
+<div class="cell neg" style="--a:0.27">−1.21</div>
+<div class="cell neg" style="--a:0.01">−0.06</div>
+<div class="cell neg" style="--a:0.26">−1.19</div>
+<div class="cell neg" style="--a:0.01">−0.07</div>
+<div class="cell neg" style="--a:0.04">−0.17</div>
+<div class="cell neg" style="--a:0.01">−0.05</div>
+<div class="cell neg" style="--a:0.40">−1.81</div>
+<div class="lab">harmless<small>Alpaca</small></div>
+<div class="cell pos" style="--a:0.01">+0.04</div>
+<div class="cell neg peak" style="--a:0.03">−0.12</div>
+<div class="cell pos" style="--a:0.00">0.00</div>
+<div class="cell pos" style="--a:0.01">+0.03</div>
+<div class="cell neg" style="--a:0.00">0.00</div>
+<div class="cell neg" style="--a:0.01">−0.02</div>
+<div class="cell pos" style="--a:0.01">+0.07</div>
+<div class="cell neg" style="--a:0.00">−0.01</div>
+<div class="cell neg" style="--a:0.14">−0.63</div>
+</div>
+    </div>
+    <div class="scale"><span>−4.5</span><i></i><span>+4.5</span><span>· outlined: the newline after <code>&lt;|im_end|&gt;</code></span></div>
+    <figcaption><b>Qwen3-8B, layer 14, neuron 7924, at the chat-template tokens that follow the user's message.</b> Each cell is the mean activation over 100 prompts. On harmful prompts the neuron drops to −4.0 at the newline after <code>&lt;|im_end|&gt;</code>; on harmless prompts it stays near zero (−0.1). AUROC 0.997.<br><span class="src">Our M1 run, 2026-10-19 · JailbreakBench vs held-out Alpaca · fp16</span></figcaption>
+  </figure>
+
+  <div class="spec">
+    <span>model <b>Qwen3-8B</b></span>
+    <span>neuron <b>L14:F7924</b></span>
+    <span>pinned to <b>+20</b></span>
+    <span>JailbreakBench ASR <b>95%</b> (vs 5% unmodified, Llama Guard judge)</span>
+  </div>
+</header>
+
+<!-- 1 -->
+<section>
+  <div class="sec-head col">
+    <div class="eyebrow">1 · Where it lives</div>
+    <h2>Inside the MLP, not in the residual stream</h2>
+  </div>
+  <div class="stack col">
+    <p>Arditi et al. and our EMNLP paper work in the <b>residual stream</b>: the 4,096-number vector each token carries from layer to layer. There, refusal shows up as a <em>direction</em>, a weighted mix of all 4,096 coordinates. A single coordinate means nothing on its own, because nothing in the model treats the axes specially. Rotate them and every computation downstream is unchanged.</p>
+    <p>Each layer's MLP block expands that vector to 12,288 numbers and passes each one through its own nonlinearity. That one-coordinate-at-a-time step makes the axes special. This is what a <b>privileged basis</b> means: coordinate 7924 can learn a job of its own. The paper calls each of these coordinates a <b>neuron</b>.</p>
+  </div>
+
+  <figure class="panel">
+    <div class="scroll">
+      <svg class="dia" viewBox="0 0 760 236" role="img" aria-label="Left: in the residual stream a refusal direction is a mix of coordinates, and rotating the axes changes nothing. Right: in the MLP each coordinate passes through its own SiLU, so individual coordinates are meaningful.">
+        <defs>
+          <marker id="pa" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker>
+          <marker id="paa" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--accent)"/></marker>
+          <symbol id="silu" viewBox="0 0 50 50"><polyline points="0.0,40.9 1.2,41.0 2.5,41.1 3.7,41.3 5.0,41.4 6.2,41.6 7.5,41.8 8.8,42.0 10.0,42.2 11.3,42.4 12.5,42.6 13.7,42.8 15.0,43.0 16.2,43.1 17.5,43.3 18.8,43.3 20.0,43.3 21.2,43.2 22.5,43.1 23.8,42.7 25.0,42.3 26.2,41.6 27.5,40.8 28.8,39.8 30.0,38.7 31.2,37.3 32.5,35.8 33.8,34.1 35.0,32.3 36.2,30.4 37.5,28.3 38.8,26.2 40.0,24.0 41.2,21.8 42.5,19.5 43.8,17.2 45.0,14.9 46.2,12.6 47.5,10.3 48.8,8.0 50.0,5.7" fill="none" stroke="currentColor" stroke-width="2.2"/></symbol>
+        </defs>
+        <text x="20" y="22" class="ttl">Residual stream</text>
+        <text x="20" y="40" class="m">meaning lives in directions</text>
+        <line x1="80" y1="138" x2="260" y2="138" class="ln"/>
+        <line x1="170" y1="58" x2="170" y2="218" class="ln"/>
+        <line x1="92" y1="183" x2="248" y2="93" class="dash"/>
+        <line x1="125" y1="60" x2="215" y2="216" class="dash"/>
+        <line x1="170" y1="138" x2="236" y2="84" class="acc" marker-end="url(#paa)"/>
+        <text x="242" y="80" class="a">r̂ refusal direction</text>
+        <text x="20" y="232" class="m">rotated axes (dashed): same vector, same model</text>
+
+        <line x1="380" y1="14" x2="380" y2="226" class="grid"/>
+
+        <text x="404" y="22" class="ttl">MLP neurons</text>
+        <text x="404" y="40" class="m">each coordinate has its own curve</text>
+        <line x1="404" y1="70" x2="740" y2="70" class="ln"/>
+        <text x="404" y="62" class="m">input from x</text>
+        <g>
+          <line x1="440" y1="70" x2="440" y2="94" class="ln" marker-end="url(#pa)"/>
+          <rect x="415" y="96" width="50" height="50" class="box"/><use href="#silu" x="415" y="96" width="50" height="50"/>
+          <line x1="440" y1="146" x2="440" y2="176" class="ln" marker-end="url(#pa)"/><text x="440" y="196" text-anchor="middle">h₁</text>
+
+          <line x1="510" y1="70" x2="510" y2="94" class="ln" marker-end="url(#pa)"/>
+          <rect x="485" y="96" width="50" height="50" class="box"/><use href="#silu" x="485" y="96" width="50" height="50"/>
+          <line x1="510" y1="146" x2="510" y2="176" class="ln" marker-end="url(#pa)"/><text x="510" y="196" text-anchor="middle">h₂</text>
+
+          <text x="575" y="126" text-anchor="middle" class="m big">…</text>
+
+          <line x1="640" y1="70" x2="640" y2="94" class="ln" marker-end="url(#pa)"/>
+          <rect x="615" y="96" width="50" height="50" class="box" style="stroke: var(--accent); stroke-width: 2"/><use href="#silu" x="615" y="96" width="50" height="50" style="color: var(--accent)"/>
+          <line x1="640" y1="146" x2="640" y2="176" class="acc" marker-end="url(#paa)"/><text x="640" y="196" text-anchor="middle" class="a">h₇₉₂₄</text>
+
+          <line x1="710" y1="70" x2="710" y2="94" class="ln" marker-end="url(#pa)"/>
+          <rect x="685" y="96" width="50" height="50" class="box"/><use href="#silu" x="685" y="96" width="50" height="50"/>
+          <line x1="710" y1="146" x2="710" y2="176" class="ln" marker-end="url(#pa)"/><text x="710" y="196" text-anchor="middle">h₁₂₂₈₈</text>
+        </g>
+        <text x="404" y="232" class="m">elementwise step: rotating the axes would change the output</text>
+      </svg>
+    </div>
+    <figcaption><b>Why a neuron can mean something and a residual coordinate can't.</b> The paper tested this directly by running the same search over single residual-stream coordinates. The best one reaches 39% ASR on Qwen3-8B and 45% on Llama-3.1-8B, against 91–95% for the MLP neuron, and its harmful and harmless activations mostly overlap.</figcaption>
+  </figure>
+
+  <div class="stack col">
+    <h3>Where the hook sits</h3>
+    <p>The neuron is read at one exact spot: after the gate and value are multiplied, just before <code>down_proj</code> projects the 12,288 numbers back to 4,096 and adds them into the residual stream. Everything the paper measures and every intervention it makes happens on that one coordinate of <code>h</code>.</p>
+  </div>
+
+  <figure class="panel">
+    <div class="scroll">
+      <svg class="dia" viewBox="0 0 800 300" role="img" aria-label="The MLP block of Qwen3-8B layer 14. The residual stream x feeds W_gate and W_up. The gate goes through SiLU and is multiplied by the value to give h, 12,288 numbers. A hook on coordinate 7924 of h reads or pins it before W_down projects h back into the residual stream.">
+        <defs>
+          <marker id="ma" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker>
+          <marker id="maa" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--accent)"/></marker>
+        </defs>
+        <text x="20" y="24" class="m">residual stream x · 4,096 numbers per token</text>
+        <text x="780" y="24" text-anchor="end" class="m">Qwen3-8B · layer 14 of 36</text>
+        <line x1="20" y1="44" x2="778" y2="44" class="ln" marker-end="url(#ma)"/>
+        <circle cx="720" cy="44" r="11" class="box"/><text x="720" y="48.5" text-anchor="middle">+</text>
+
+        <line x1="90" y1="44" x2="90" y2="220" class="ln"/>
+        <line x1="90" y1="120" x2="138" y2="120" class="ln" marker-end="url(#ma)"/>
+        <line x1="90" y1="220" x2="138" y2="220" class="ln" marker-end="url(#ma)"/>
+        <rect x="140" y="100" width="100" height="40" rx="4" class="box"/><text x="190" y="124.5" text-anchor="middle">W_gate</text>
+        <rect x="140" y="200" width="100" height="40" rx="4" class="box"/><text x="190" y="224.5" text-anchor="middle">W_up</text>
+        <text x="190" y="174" text-anchor="middle" class="tick">4,096 → 12,288</text>
+
+        <line x1="240" y1="120" x2="278" y2="120" class="ln" marker-end="url(#ma)"/><text x="259" y="112" text-anchor="middle" class="m">g</text>
+        <rect x="280" y="100" width="80" height="40" rx="4" class="box"/><text x="320" y="124.5" text-anchor="middle">SiLU</text>
+        <polyline points="360,120 420,120 420,154" class="ln" marker-end="url(#ma)"/><text x="390" y="112" text-anchor="middle" class="m">gate</text>
+        <polyline points="240,220 420,220 420,186" class="ln" marker-end="url(#ma)"/><text x="330" y="212" text-anchor="middle" class="m">value u</text>
+        <circle cx="420" cy="170" r="14" class="box"/><text x="420" y="175" text-anchor="middle" class="big">×</text>
+        <line x1="434" y1="170" x2="466" y2="170" class="ln" marker-end="url(#ma)"/>
+
+        <g>
+          <rect x="468" y="86" width="26" height="16" rx="2" class="box"/>
+          <rect x="468" y="106" width="26" height="16" rx="2" class="box"/>
+          <rect x="468" y="126" width="26" height="16" rx="2" class="box"/>
+          <rect x="468" y="146" width="26" height="16" rx="2" class="box"/>
+          <rect x="468" y="166" width="26" height="16" rx="2" class="box"/>
+          <rect x="468" y="186" width="26" height="16" rx="2" class="box"/>
+          <rect x="468" y="206" width="26" height="16" rx="2" style="fill: var(--accent); stroke: var(--accent)"/>
+          <rect x="468" y="226" width="26" height="16" rx="2" class="box"/>
+          <rect x="468" y="246" width="26" height="16" rx="2" class="box"/>
+        </g>
+        <text x="481" y="74" text-anchor="middle" class="ttl">h</text>
+        <text x="481" y="284" text-anchor="middle" class="tick">12,288 neurons</text>
+
+        <line x1="494" y1="170" x2="558" y2="170" class="ln" marker-end="url(#ma)"/>
+        <rect x="560" y="150" width="90" height="40" rx="4" class="box"/><text x="605" y="174.5" text-anchor="middle">W_down</text>
+        <text x="605" y="208" text-anchor="middle" class="tick">down_proj · 12,288 → 4,096</text>
+        <polyline points="650,170 720,170 720,57" class="ln" marker-end="url(#ma)"/>
+        <text x="712" y="118" text-anchor="end" class="m">adds back</text>
+
+        <polyline points="498,214 536,248" class="acc" marker-start="url(#maa)"/>
+        <text x="542" y="254" class="a">hook on neuron 7924: read it, or pin it</text>
+        <text x="542" y="272" class="tick">register_forward_pre_hook on down_proj</text>
+      </svg>
+    </div>
+    <figcaption><b>The SwiGLU MLP block, with the hooked coordinate.</b> In our code this is <code>model.model.layers[14].mlp.down_proj.register_forward_pre_hook(hook)</code> in <code>replication/neuron_check.py</code>. The hook sees all of <code>h</code> and touches only index 7924.</figcaption>
+  </figure>
+</section>
+
+<!-- 2 -->
+<section>
+  <div class="sec-head col">
+    <div class="eyebrow">2 · What one neuron computes</div>
+    <h2>Gate × value</h2>
+  </div>
+  <div class="stack col">
+    <p>Qwen3 and Llama-3.1 use a SwiGLU MLP. For one neuron <code>i</code> the value at the hook is</p>
+  </div>
+  <div class="eq col">h<sub>i</sub> = SiLU(g<sub>i</sub>) × u<sub>i</sub> &nbsp;&nbsp;<span class="c">where g = W_gate·x, u = W_up·x</span></div>
+  <div class="stack col">
+    <p>The <b>value</b> <code>u</code> is what the neuron says, and it can have either sign. The <b>gate</b> <code>SiLU(g)</code> is how much of it gets through, like a tap on a pipe. SiLU is close to zero for negative <code>g</code> and close to <code>g</code> for positive <code>g</code>, so most of the time the gate is either shut or open and the value decides the sign of <code>h</code>.</p>
+  </div>
+
+  <figure class="panel">
+    <div class="scroll">
+      <svg class="dia" viewBox="0 0 760 250" role="img" aria-label="Left: the SiLU curve, which dips to a minimum of minus 0.28 near g equals minus 1.28. Right: the four sign combinations of gate and value. An open gate passes the value's sign. In the small negative dip, a negative value gives a small positive h: the double negative.">
+        <text x="50" y="18" class="ttl">The gate: SiLU(g)</text>
+        <line x1="50" y1="195.2" x2="330" y2="195.2" class="thin"/>
+        <line x1="218.0" y1="30" x2="218.0" y2="222" class="thin"/>
+        <polyline points="50.0,195.8 51.4,195.9 52.8,195.9 54.2,195.9 55.6,195.9 57.0,196.0 58.4,196.0 59.8,196.0 61.2,196.1 62.6,196.1 64.0,196.1 65.4,196.2 66.8,196.2 68.2,196.3 69.6,196.3 71.0,196.3 72.4,196.4 73.8,196.4 75.2,196.5 76.6,196.5 78.0,196.6 79.4,196.7 80.8,196.7 82.2,196.8 83.6,196.8 85.0,196.9 86.4,197.0 87.8,197.0 89.2,197.1 90.6,197.2 92.0,197.3 93.4,197.3 94.8,197.4 96.2,197.5 97.6,197.6 99.0,197.7 100.4,197.8 101.8,197.9 103.2,198.0 104.6,198.1 106.0,198.2 107.4,198.3 108.8,198.4 110.2,198.5 111.6,198.7 113.0,198.8 114.4,198.9 115.8,199.0 117.2,199.2 118.6,199.3 120.0,199.5 121.4,199.6 122.8,199.8 124.2,199.9 125.6,200.1 127.0,200.2 128.4,200.4 129.8,200.6 131.2,200.7 132.6,200.9 134.0,201.1 135.4,201.3 136.8,201.5 138.2,201.7 139.6,201.8 141.0,202.0 142.4,202.2 143.8,202.4 145.2,202.6 146.6,202.8 148.0,203.1 149.4,203.3 150.8,203.5 152.2,203.7 153.6,203.9 155.0,204.1 156.4,204.3 157.8,204.5 159.2,204.7 160.6,204.9 162.0,205.1 163.4,205.2 164.8,205.4 166.2,205.6 167.6,205.8 169.0,205.9 170.4,206.1 171.8,206.2 173.2,206.3 174.6,206.4 176.0,206.5 177.4,206.6 178.8,206.7 180.2,206.7 181.6,206.7 183.0,206.7 184.4,206.7 185.8,206.6 187.2,206.6 188.6,206.5 190.0,206.3 191.4,206.2 192.8,206.0 194.2,205.7 195.6,205.5 197.0,205.2 198.4,204.8 199.8,204.4 201.2,204.0 202.6,203.5 204.0,203.0 205.4,202.5 206.8,201.8 208.2,201.2 209.6,200.5 211.0,199.7 212.4,198.9 213.8,198.1 215.2,197.2 216.6,196.2 218.0,195.2 219.4,194.2 220.8,193.0 222.2,191.9 223.6,190.7 225.0,189.4 226.4,188.1 227.8,186.7 229.2,185.3 230.6,183.9 232.0,182.4 233.4,180.8 234.8,179.2 236.2,177.6 237.6,175.9 239.0,174.2 240.4,172.4 241.8,170.6 243.2,168.8 244.6,166.9 246.0,165.0 247.4,163.1 248.8,161.1 250.2,159.1 251.6,157.1 253.0,155.1 254.4,153.0 255.8,150.9 257.2,148.8 258.6,146.7 260.0,144.6 261.4,142.4 262.8,140.2 264.2,138.0 265.6,135.8 267.0,133.6 268.4,131.4 269.8,129.2 271.2,126.9 272.6,124.7 274.0,122.5 275.4,120.2 276.8,117.9 278.2,115.7 279.6,113.4 281.0,111.1 282.4,108.9 283.8,106.6 285.2,104.3 286.6,102.1 288.0,99.8 289.4,97.5 290.8,95.3 292.2,93.0 293.6,90.7 295.0,88.5 296.4,86.2 297.8,83.9 299.2,81.7 300.6,79.4 302.0,77.2 303.4,74.9 304.8,72.7 306.2,70.5 307.6,68.2 309.0,66.0 310.4,63.8 311.8,61.5 313.2,59.3 314.6,57.1 316.0,54.9 317.4,52.7 318.8,50.5 320.2,48.3 321.6,46.1 323.0,43.9 324.4,41.7 325.8,39.5 327.2,37.3 328.6,35.1 330.0,33.0" class="ln" style="stroke-width: 2"/>
+        <circle cx="182.2" cy="206.7" r="4" style="fill: var(--neg)"/>
+        <text x="182.2" y="236" text-anchor="middle" class="n">dips to −0.28</text>
+        <line x1="182.2" y1="206.7" x2="182.2" y2="224" class="dash"/>
+        <text x="330" y="196" text-anchor="end" class="tick">g →</text>
+        <text x="300" y="56" text-anchor="end" class="m">open: ≈ g</text>
+        <text x="60" y="186" class="m">shut: ≈ 0</text>
+
+        <line x1="380" y1="10" x2="380" y2="240" class="grid"/>
+
+        <text x="420" y="18" class="ttl">Sign of h</text>
+        <rect x="420" y="32" width="320" height="136" style="fill: none; stroke: var(--line)"/>
+        <rect x="420" y="172" width="320" height="56" style="fill: var(--accent-soft); stroke: var(--line)"/>
+        <line x1="580" y1="32" x2="580" y2="228" class="thin"/>
+        <text x="500" y="92" text-anchor="middle" class="big n">h &lt; 0</text>
+        <text x="500" y="112" text-anchor="middle" class="m">gate open, u &lt; 0</text>
+        <text x="660" y="92" text-anchor="middle" class="big p">h &gt; 0</text>
+        <text x="660" y="112" text-anchor="middle" class="m">gate open, u &gt; 0</text>
+        <text x="500" y="196" text-anchor="middle" class="a" style="font-weight: 600">small h &gt; 0</text>
+        <text x="500" y="214" text-anchor="middle" class="a">double negative</text>
+        <text x="660" y="196" text-anchor="middle">small h &lt; 0</text>
+        <text x="660" y="214" text-anchor="middle" class="m">dip, u &gt; 0</text>
+        <text x="420" y="244" class="tick">u &lt; 0</text>
+        <text x="740" y="244" text-anchor="end" class="tick">u &gt; 0</text>
+        <text x="736" y="48" text-anchor="end" class="tick">gate open</text>
+        <text x="736" y="186" text-anchor="end" class="tick">dip</text>
+      </svg>
+    </div>
+    <figcaption><b>The double-negative quirk.</b> SiLU is not quite zero below zero: it dips to −0.28. In that dip a negative value gives a <em>positive</em> <code>h</code>. So a positive reading can come from two different mechanisms, and the weaker side-effect one can fill a neuron's list of top-activating examples. Goodfire recommends checking which case applies before interpreting a neuron.</figcaption>
+  </figure>
+
+  <p class="note col">We have not yet split <code>h</code> into gate and value for our three neurons. It costs one extra hook on <code>W_gate</code>, and it would tell us whether −4 at the turn boundary is an open gate on a negative value, which is the reading the paper assumes.</p>
+</section>
+
+<!-- 3 -->
+<section>
+  <div class="sec-head col">
+    <div class="eyebrow">3 · Two poles and a sign</div>
+    <h2>Which way the neuron fires depends on the model</h2>
+  </div>
+  <div class="stack col">
+    <p>A neuron can be strongly positive or strongly negative, and each side can mean something different. The paper calls the side a neuron takes on harmful prompts its <b>harmful pole</b>, and the opposite side its <b>safe pole</b>. They looked at the top-activating text on each side across 20K documents from The Pile:</p>
+    <ul>
+      <li>The <b>harmful pole</b> mostly fires on explicit, age-restricted or legally regulated material.</li>
+      <li>The <b>safe pole</b>, when it has a coherent theme, fires on <em>talk about</em> restrictions: content warnings, disclaimers, privacy and regulatory notices. Qwen3-14B L17:F2154 is the clearest case. Qwen3-8B L14:F7924 has no coherent safe pole, so it behaves like a one-sided detector.</li>
+    </ul>
+    <p>The sign itself is arbitrary. In Qwen3 1.7B–14B the harmful pole is negative; in Qwen3-32B and both Llama models it is positive. The intervention always pins the neuron <em>opposite</em> to its harmful pole, so <span class="pos-t">+20</span> for Qwen3-8B and <span class="neg-t">−4</span> for Llama-3.1-8B.</p>
+  </div>
+
+  <figure class="panel">
+    <div class="scroll">
+<div class="strip" style="--n:5">
+<div class="lab"></div>
+<div class="tok"><code>&lt;|eot_id|&gt;</code></div>
+<div class="tok"><code>&lt;|start_header_id|&gt;</code></div>
+<div class="tok"><code>assistant</code></div>
+<div class="tok"><code>&lt;|end_header_id|&gt;</code></div>
+<div class="tok"><code>\n\n</code></div>
+<div class="lab">harmful<small>JailbreakBench</small></div>
+<div class="cell pos" style="--a:0.51">+0.72</div>
+<div class="cell pos" style="--a:0.09">+0.12</div>
+<div class="cell pos" style="--a:0.47">+0.66</div>
+<div class="cell pos strong" style="--a:0.90">+1.26</div>
+<div class="cell pos strong" style="--a:0.71">+1.00</div>
+<div class="lab">harmless<small>Alpaca</small></div>
+<div class="cell neg" style="--a:0.00">0.00</div>
+<div class="cell pos" style="--a:0.00">+0.01</div>
+<div class="cell pos" style="--a:0.01">+0.02</div>
+<div class="cell neg" style="--a:0.00">0.00</div>
+<div class="cell pos" style="--a:0.00">0.00</div>
+</div>
+    </div>
+    <div class="scale"><span>−1.4</span><i></i><span>+1.4</span></div>
+    <figcaption><b>Llama-3.1-8B, layer 11, neuron 4258: the same gate with the opposite sign.</b> It fires positive on harmful prompts, peaking at <code>&lt;|end_header_id|&gt;</code> and the final <code>\n\n</code>, and sits at zero on harmless ones. AUROC 1.000. Note the smaller scale than Qwen3-8B.<br><span class="src">Our M1 run, 2026-10-19 · JailbreakBench vs held-out Alpaca</span></figcaption>
+  </figure>
+
+  <figure>
+    <div class="tbl panel">
+      <table>
+        <thead><tr><th>Model</th><th>Neuron</th><th>Best token t*</th><th class="num">a harmful</th><th class="num">a harmless</th><th class="num">gap d</th><th class="num">m*</th></tr></thead>
+        <tbody>
+          <tr class="ours"><td>Qwen3-1.7B<span class="tag">ours</span></td><td><code>L13:F3270</code></td><td><code>\n</code></td><td class="num">−10.28</td><td class="num">−0.25</td><td class="num">−10.03</td><td class="num">+30</td></tr>
+          <tr><td>Qwen3-4B</td><td><code>L14:F5590</code></td><td><code>\n</code></td><td class="num">−3.12</td><td class="num">−0.05</td><td class="num">−3.07</td><td class="num">+18</td></tr>
+          <tr class="ours"><td>Qwen3-8B<span class="tag">ours</span></td><td><code>L14:F7924</code></td><td><code>\n</code></td><td class="num">−4.41</td><td class="num">−0.23</td><td class="num">−4.19</td><td class="num">+20</td></tr>
+          <tr><td>Qwen3-14B</td><td><code>L17:F2154</code></td><td><code>assistant</code></td><td class="num">−7.04</td><td class="num">−0.31</td><td class="num">−6.74</td><td class="num">+40</td></tr>
+          <tr><td>Qwen3-32B</td><td><code>L40:F15515</code></td><td><code>\n</code></td><td class="num">+9.06</td><td class="num">+0.12</td><td class="num">+8.95</td><td class="num">−80</td></tr>
+          <tr class="ours"><td>Llama-3.1-8B<span class="tag">ours</span></td><td><code>L11:F4258</code></td><td><code>&lt;|eot_id|&gt;</code></td><td class="num">+1.11</td><td class="num">−0.00</td><td class="num">+1.11</td><td class="num">−4</td></tr>
+          <tr><td>Llama-3.1-70B</td><td><code>L25:F10201</code></td><td><code>assistant</code></td><td class="num">+0.23</td><td class="num">0.00</td><td class="num">+0.22</td><td class="num">−8</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <figcaption><b>The seven published refusal neurons</b> (paper, Table 5). <code>a</code> is the mean activation at the best token on the 128 + 128 training prompts; <code>m*</code> is the pinned value that won the rerank. The sign of <code>m*</code> is always opposite to the sign of <code>d</code>. Highlighted rows are the models we use.</figcaption>
+  </figure>
+</section>
+
+<!-- 4 -->
+<section>
+  <div class="sec-head col">
+    <div class="eyebrow">4 · Finding it</div>
+    <h2>Score every neuron, then let attack success pick</h2>
+  </div>
+  <div class="stack col">
+    <p>For Qwen3-8B the search covers the first two thirds of the model: 24 layers × 12,288 neurons = 294,912 candidates. It needs one forward and one backward pass per training prompt.</p>
+  </div>
+
+  <ol class="steps col">
+    <li><div>
+      <h3>Run the training prompts</h3>
+      <p>128 harmful prompts (AdvBench, MaliciousInstruct, TDC2023) and 128 harmless ones (Alpaca), the Arditi et al. splits. Record <code>h</code> at the <b>post-instruction tokens</b>: the template tokens between the end of the user's message and the start of the answer.</p>
+    </div></li>
+    <li><div>
+      <h3>Measure how much each neuron pushes refusal</h3>
+      <p>Define <code>p_refusal</code> as the probability of the model's own refusal phrases (for Qwen3: “I'm sorry, but I can't help with that request.” and “I'm unable to assist”). The loss is the negative refusal log-odds, and its gradient with respect to each <code>h<sub>i</sub></code> says which way moving that neuron moves refusal.</p>
+      <div class="eq">L = −log( p_refusal / (1 − p_refusal) )</div>
+    </div></li>
+    <li><div>
+      <h3>Score = gradient × activation gap</h3>
+      <div class="eq">score<sub>i,t</sub> = (ḡ<sub>harmful</sub> + ḡ<sub>harmless</sub>) × (ā<sub>harmless</sub> − ā<sub>harmful</sub>)</div>
+      <p>Keep each neuron's best token <code>t*</code>. Drop any neuron that is not more active, in absolute size, on harmful prompts than on harmless ones.</p>
+    </div></li>
+    <li><div>
+      <h3>Rerank the top 5 by attack success</h3>
+      <p>For each of the 5 best-scoring neurons, sweep the pinned value <code>m</code> from 0 to 20 in steps of 2, then 20 to 200 in steps of 5 (47 values), in the direction opposite to the harmful pole. Measure ASR on 191 HarmBench prompts. The best <code>(layer, neuron, m*)</code> wins and goes to the JailbreakBench test set unchanged.</p>
+    </div></li>
+    <li><div>
+      <h3>Result for Qwen3-8B</h3>
+      <p><code>(14, 7924, +20)</code></p>
+    </div></li>
+  </ol>
+
+  <div class="two">
+    <div class="panel stack">
+      <h3>Why the product finds gates</h3>
+      <p style="font-size: 15.5px">Take L14:F7924 at the newline. The gap is −0.23 − (−4.41) = <b>+4.18</b>. Pushing the neuron positive cuts refusal, so the loss goes up and the gradient is <b>positive</b>. The product is large and positive.</p>
+      <p style="font-size: 15.5px">A neuron that separates the prompts but doesn't affect refusal has a gradient near zero. One that affects refusal but fires the same on both sets has a gap near zero. Only a neuron that does both scores high. For Llama, both signs flip and the product is still positive.</p>
+    </div>
+    <figure class="panel stack">
+      <div class="bars-title">Qwen3-8B top 5: HarmBench ASR by score rank</div>
+      <div class="bars" role="img" aria-label="HarmBench ASR for Qwen3-8B's top five candidates by score rank: rank 1, 51 percent; rank 2, 83; rank 3, 93; rank 4, 42; rank 5, 72.">
+        <span class="lbl">rank 1</span><div class="t"><span style="width: 51%"></span></div><span class="val">51%</span>
+        <span class="lbl">rank 2</span><div class="t"><span style="width: 83%"></span></div><span class="val">83%</span>
+        <span class="lbl win">rank 3</span><div class="t win"><span style="width: 93%"></span></div><span class="val win">93%</span>
+        <span class="lbl">rank 4</span><div class="t"><span style="width: 42%"></span></div><span class="val">42%</span>
+        <span class="lbl">rank 5</span><div class="t"><span style="width: 72%"></span></div><span class="val">72%</span>
+      </div>
+      <figcaption>The top-scoring neuron is not the best attacker. The winner, which became the published L14:F7924, ranked third. The score narrows 294,912 neurons to five; generation decides among them.<br><span class="src">Paper, Fig. 3</span></figcaption>
+    </figure>
+  </div>
+
+  <figure class="panel stack">
+    <div class="bars-title">What the <em>m</em> sweep looks like: Qwen3-8B L14:F7924</div>
+    <div class="bars" role="img" aria-label="Refusal rate by pinned value: unpinned 97 percent, plus 10 gives 53, plus 20 gives 3, plus 40 and plus 80 give 0.">
+      <span class="lbl">unpinned</span><div class="t"><span style="width: 97%"></span></div><span class="val">97%</span>
+      <span class="lbl">+10</span><div class="t"><span style="width: 53%"></span></div><span class="val">53%</span>
+      <span class="lbl win">+20</span><div class="t win"><span style="width: 3%"></span></div><span class="val win">3%</span>
+      <span class="lbl">+40</span><div class="t"><span style="width: 0%"></span></div><span class="val">0%</span>
+      <span class="lbl">+80</span><div class="t"><span style="width: 0%"></span></div><span class="val">0%</span>
+    </div>
+    <figcaption><b>Refusal rate as the pin grows.</b> Refusal collapses by +20, the same <code>m*</code> the paper found. Past that, refusal stays at zero but the text degrades: at +80 the output is gibberish. That is why ASR needs a judge that checks coherence, and why the sweep can't simply take the largest value.<br><span class="src">Our M1 run · first 30 JailbreakBench prompts · 96 new tokens · string-match refusal check (rough)</span></figcaption>
+  </figure>
+
+  <p class="note col">Our status (M2): the search is written and reviewed. The acceptance test is whether it puts L13:F3270 and L14:F7924 in its own top 5, and then picks them in the rerank.</p>
+</section>
+
+<!-- 5 -->
+<section>
+  <div class="sec-head col">
+    <div class="eyebrow">5 · Switching it off</div>
+    <h2>Constant pin or anchor</h2>
+  </div>
+  <div class="two">
+    <div class="stack">
+      <h3>Constant</h3>
+      <div class="eq">h<sub>i</sub> ← m*</div>
+      <p style="font-size: 16px">The same value at every token, during the prompt and during generation. It works, but it forces the neuron far outside its normal range on every prompt, including harmless ones. Average cost across the seven models: −8.8 points MMLU, −1.2 GSM8K.</p>
+    </div>
+    <div class="stack">
+      <h3>Anchor</h3>
+      <div class="eq">h<sub>i</sub> ← clamp( k · m* · v / d − d, m* )</div>
+      <p style="font-size: 16px">First a clean forward pass reads the prompt's own activation <code>v</code>: the minimum over the post-instruction tokens when <code>d &lt; 0</code>, the maximum when <code>d &gt; 0</code>. Prompts that fire like harmful ones get pushed to <code>m*</code>. Prompts near zero get only a small offset, about <code>|d|</code>. The clamp stops overshoot, and <code>k</code> ∈ {1, 2} is picked on HarmBench.</p>
+    </div>
+  </div>
+
+  <figure class="panel stack">
+    <div class="scroll">
+      <svg class="dia" viewBox="0 0 640 292" role="img" aria-label="Pinned value against the prompt's own activation v for Qwen3-8B. The constant intervention is flat at plus 20. The anchor lines rise from about plus 4 at v equals 0 and reach the plus 20 clamp near v equals minus 3.3 for k equals 1 and minus 1.7 for k equals 2.">
+        <line x1="60.0" y1="30" x2="60.0" y2="250" class="grid"/><text x="60.0" y="268" text-anchor="middle" class="tick">−6</text>
+<line x1="144.6" y1="30" x2="144.6" y2="250" class="grid"/><text x="144.6" y="268" text-anchor="middle" class="tick">−5</text>
+<line x1="229.2" y1="30" x2="229.2" y2="250" class="grid"/><text x="229.2" y="268" text-anchor="middle" class="tick">−4</text>
+<line x1="313.8" y1="30" x2="313.8" y2="250" class="grid"/><text x="313.8" y="268" text-anchor="middle" class="tick">−3</text>
+<line x1="398.5" y1="30" x2="398.5" y2="250" class="grid"/><text x="398.5" y="268" text-anchor="middle" class="tick">−2</text>
+<line x1="483.1" y1="30" x2="483.1" y2="250" class="grid"/><text x="483.1" y="268" text-anchor="middle" class="tick">−1</text>
+<line x1="567.7" y1="30" x2="567.7" y2="250" class="grid"/><text x="567.7" y="268" text-anchor="middle" class="tick">0</text>
+<line x1="60" y1="231.7" x2="610" y2="231.7" class="grid"/><text x="52" y="235.7" text-anchor="end" class="tick">0</text>
+<line x1="60" y1="185.8" x2="610" y2="185.8" class="grid"/><text x="52" y="189.8" text-anchor="end" class="tick">5</text>
+<line x1="60" y1="140.0" x2="610" y2="140.0" class="grid"/><text x="52" y="144.0" text-anchor="end" class="tick">10</text>
+<line x1="60" y1="94.2" x2="610" y2="94.2" class="grid"/><text x="52" y="98.2" text-anchor="end" class="tick">15</text>
+<line x1="60" y1="48.3" x2="610" y2="48.3" class="grid"/><text x="52" y="52.3" text-anchor="end" class="tick">20</text>
+        <line x1="60" y1="48.3" x2="610" y2="48.3" style="stroke: var(--muted); stroke-width: 2; stroke-dasharray: 6 5"/>
+        <polyline points="60.0,48.3 427.6,48.3 610.0,237.0" style="fill: none; stroke: var(--pos); stroke-width: 2.4"/>
+        <polyline points="60.0,48.3 287.4,48.3 610.0,215.1" style="fill: none; stroke: var(--accent); stroke-width: 2.4"/>
+        <line x1="194.5" y1="30" x2="194.5" y2="250" style="stroke: var(--neg); stroke-width: 1.2; stroke-dasharray: 2 3"/>
+        <text x="194.5" y="22" text-anchor="middle" class="n" style="font-size: 11px">mean harmful −4.41</text>
+        <line x1="548.2" y1="30" x2="548.2" y2="250" style="stroke: var(--muted); stroke-width: 1.2; stroke-dasharray: 2 3"/>
+        <text x="548.2" y="22" text-anchor="middle" class="m" style="font-size: 11px">harmless −0.23</text>
+        <line id="vline" x1="0" y1="30" x2="0" y2="250" style="stroke: var(--fg); stroke-width: 1.4" visibility="hidden"/>
+        <text x="335" y="288" text-anchor="middle" class="m">v, the prompt's own activation</text>
+        <text x="16" y="140" text-anchor="middle" class="m" transform="rotate(-90 16 140)">pinned value</text>
+      </svg>
+    </div>
+    <div class="legend"><span class="l-const">constant: always +20</span><span class="l-k1">anchor, k = 1</span><span class="l-k2">anchor, k = 2</span></div>
+    <div class="slider">
+      <label for="vslider">Move v to see what each method pins (Qwen3-8B: d = −4.19, m* = +20)</label>
+      <input type="range" id="vslider" min="-6" max="0.5" step="0.01" value="-1">
+      <div class="readout" id="readout"><span>v = <b>−1.00</b></span><span>constant <b>+20.00</b></span><span class="acc-t">k = 1: <b>+8.96</b></span><span class="pos-t">k = 2: <b>+13.74</b></span></div>
+    </div>
+    <figcaption><b>The anchor scales the pin by how harmful the prompt looks to the neuron itself.</b> A typical harmful prompt (−4.41) gets the full +20 either way. A typical harmless one (−0.23) gets about +5 to +6 instead of +20. Values computed from Eq. 7 with the paper's Table 5 numbers.</figcaption>
+  </figure>
+
+  <figure>
+    <div class="tbl panel">
+      <table>
+        <thead><tr><th>Method, 7-model average</th><th class="num">JBB ASR, Llama Guard</th><th class="num">JBB ASR, LLM judge</th><th class="num">MMLU Δ</th><th class="num">GSM8K Δ</th></tr></thead>
+        <tbody>
+          <tr><td>Constant pin (one neuron)</td><td class="num">91.9%</td><td class="num">91.7%</td><td class="num">−8.8</td><td class="num">−1.2</td></tr>
+          <tr><td>Anchor (one neuron)</td><td class="num">90.1%</td><td class="num">90.4%</td><td class="num">−0.6</td><td class="num">−0.1</td></tr>
+          <tr><td>Arditi direction ablation (every layer)</td><td class="num">91.6%</td><td class="num">93.1%</td><td class="num">−0.3</td><td class="num">−0.5</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <figcaption><b>One scalar at one layer matches a full direction ablation.</b> The anchor keeps the attack and drops almost all of the capability cost. Paper, Fig. 5 and Table 1. We have not implemented the anchor yet; it is part of M3.</figcaption>
+  </figure>
+</section>
+
+<!-- 6 -->
+<section>
+  <div class="sec-head col">
+    <div class="eyebrow">6 · What we ask on top</div>
+    <h2>Is it the same neuron in every language and modality?</h2>
+  </div>
+  <div class="stack col">
+    <p>The paper is English-only and text-only. Our question is whether the gate is universal: when the harmful request arrives in Arabic, as an image, or as speech, does the same coordinate fire at the same turn boundary, and does pinning it still switch off refusal?</p>
+  </div>
+
+  <figure class="panel">
+    <div class="scroll">
+<div class="strip" style="--n:9">
+<div class="lab"></div>
+<div class="tok"><code>&lt;|im_end|&gt;</code></div>
+<div class="tok peak"><code>\n</code></div>
+<div class="tok"><code>&lt;|im_start|&gt;</code></div>
+<div class="tok"><code>assistant</code></div>
+<div class="tok"><code>\n</code></div>
+<div class="tok"><code>&lt;think&gt;</code></div>
+<div class="tok"><code>\n\n</code></div>
+<div class="tok"><code>&lt;/think&gt;</code></div>
+<div class="tok"><code>\n\n</code></div>
+<div class="lab">harmful EN<small>MultiJail</small></div>
+<div class="cell neg" style="--a:0.20">−0.89</div>
+<div class="cell neg strong peak" style="--a:0.71">−3.21</div>
+<div class="cell neg" style="--a:0.31">−1.41</div>
+<div class="cell neg" style="--a:0.01">−0.06</div>
+<div class="cell neg" style="--a:0.35">−1.59</div>
+<div class="cell neg" style="--a:0.01">−0.07</div>
+<div class="cell neg" style="--a:0.02">−0.11</div>
+<div class="cell neg" style="--a:0.01">−0.06</div>
+<div class="cell neg" style="--a:0.33">−1.49</div>
+<div class="lab">harmful AR<small>MultiJail</small></div>
+<div class="cell neg" style="--a:0.21">−0.93</div>
+<div class="cell neg strong peak" style="--a:0.69">−3.10</div>
+<div class="cell neg" style="--a:0.26">−1.19</div>
+<div class="cell neg" style="--a:0.01">−0.05</div>
+<div class="cell neg" style="--a:0.37">−1.66</div>
+<div class="cell neg" style="--a:0.00">−0.01</div>
+<div class="cell neg" style="--a:0.03">−0.12</div>
+<div class="cell neg" style="--a:0.01">−0.02</div>
+<div class="cell neg" style="--a:0.13">−0.60</div>
+<div class="lab">harmless EN<small>Aya</small></div>
+<div class="cell neg" style="--a:0.01">−0.03</div>
+<div class="cell neg peak" style="--a:0.05">−0.24</div>
+<div class="cell neg" style="--a:0.01">−0.05</div>
+<div class="cell pos" style="--a:0.00">+0.01</div>
+<div class="cell neg" style="--a:0.07">−0.33</div>
+<div class="cell neg" style="--a:0.01">−0.04</div>
+<div class="cell pos" style="--a:0.00">+0.01</div>
+<div class="cell neg" style="--a:0.00">−0.02</div>
+<div class="cell neg" style="--a:0.14">−0.61</div>
+<div class="lab">harmless AR<small>Aya</small></div>
+<div class="cell neg" style="--a:0.03">−0.15</div>
+<div class="cell neg peak" style="--a:0.06">−0.27</div>
+<div class="cell neg" style="--a:0.04">−0.17</div>
+<div class="cell neg" style="--a:0.01">−0.03</div>
+<div class="cell neg" style="--a:0.18">−0.79</div>
+<div class="cell neg" style="--a:0.00">−0.01</div>
+<div class="cell neg" style="--a:0.01">−0.07</div>
+<div class="cell neg" style="--a:0.00">−0.01</div>
+<div class="cell neg" style="--a:0.08">−0.35</div>
+</div>
+    </div>
+    <div class="scale"><span>−4.5</span><i></i><span>+4.5</span></div>
+    <figcaption><b>The English-found neuron on the same 100 prompts in English and in human-translated Arabic.</b> Qwen3-8B L14:F7924 fires at the same newline with nearly the same strength (−3.21 English, −3.10 Arabic). Separation drops only slightly: AUROC 0.977 → 0.954.<br><span class="src">Our Arabic teaser, 2026-10-20 · MultiJail en/ar vs Aya en/ar · harmless sets are not parallel</span></figcaption>
+  </figure>
+
+  <div class="qs">
+    <div class="q"><span class="chip done">done</span><div><h3>Weak test: does the English neuron fire in Arabic?</h3><p style="font-size: 15.5px">Yes, at the same token, and pinning it lowers refusal in both languages under a rough string-match check. It can't tell us whether Arabic has its own, stronger gate.</p></div></div>
+    <div class="q"><span class="chip todo">next</span><div><h3>Strong test: run the search in Arabic</h3><p style="font-size: 15.5px">Score all 294,912 neurons on Arabic splits and rerank. If <code>(14, 7924)</code> comes out on top again, the gate is shared. If a different neuron wins, refusal is gated per language. This needs M2 to pass first, and one judge that reads both languages.</p></div></div>
+    <div class="q"><span class="chip todo">later</span><div><h3>Images and speech</h3><p style="font-size: 15.5px">Use vision and audio models built on the same Qwen3 or Llama backbone, so the same <code>(layer, neuron)</code> exists. Then ask the same two questions when the request is an image of text or spoken audio.</p></div></div>
+    <div class="q"><span class="chip todo">later</span><div><h3>Neurons, directions, SAEs</h3><p style="font-size: 15.5px">Our EMNLP paper found several category-specific refusal directions sharing a core. Working hypothesis: one gate neuron decides <em>whether</em> to refuse, and the category directions shape <em>how</em>.</p></div></div>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head col">
+    <div class="eyebrow">Also in the paper</div>
+  </div>
+  <div class="stack col">
+    <ul>
+      <li><b>The neurons exist before alignment.</b> In Qwen3-8B-Base the same L14:F7924 already separates harmful from harmless prompts, but it fires on the harmful content words rather than at the turn boundary. Alignment seems to rewire <em>when</em> it fires.</li>
+      <li><b>One neuron is a decent detector.</b> On XSTest, Llama-3.1-8B L11:F4258 alone reaches AUROC 0.969, against 0.975 for Llama-Guard-3-8B.</li>
+      <li><b>Concept neurons work the other way.</b> Adding to a single “suicide” neuron makes the model bring the topic into innocent prompts. Refusal neurons gate whether harmful knowledge comes out; concept neurons hold the knowledge.</li>
+    </ul>
+  </div>
+</section>
+
+<footer>
+  <p>Built for Faaiz Joad and Nadir Durrani, QCRI / HBKU, October 2026. Numbers marked “ours” come from the results log in <code>replication/README.md</code>; the rest are from the paper.</p>
+  <ul>
+    <li>Paper: <a href="https://arxiv.org/abs/2605.08513">Kazemi, Chegini &amp; Safi, “A Single Neuron Is Sufficient to Bypass Safety Alignment in Large Language Models”</a></li>
+    <li>Repo and plain-language glossary: <a href="https://github.com/fjoad/refusal-neurons/blob/main/docs/glossary.md">github.com/fjoad/refusal-neurons</a></li>
+    <li>Project roadmap: <a href="https://claude.ai/artifact/4PRLSoKRUAcC7JLZndxh6R">Refusal Neurons Roadmap</a></li>
+  </ul>
+</footer>
+
+</main>
+
+<script>
+(function () {
+  var D = -4.19, M = 20;
+  var s = document.getElementById("vslider"), out = document.getElementById("readout"), line = document.getElementById("vline");
+  if (!s || !out || !line) return;
+  function f(x) { return (x < 0 ? "−" : "+") + Math.abs(x).toFixed(2); }
+  function anchor(v, k) { return Math.min(k * M * v / D - D, M); }
+  function update() {
+    var v = parseFloat(s.value), x = 60 + (v + 6) / 6.5 * 550;
+    line.setAttribute("x1", x); line.setAttribute("x2", x); line.setAttribute("visibility", "visible");
+    out.innerHTML = '<span>v = <b>' + f(v) + '</b></span><span>constant <b>+20.00</b></span>' +
+      '<span class="acc-t">k = 1: <b>' + f(anchor(v, 1)) + '</b></span><span class="pos-t">k = 2: <b>' + f(anchor(v, 2)) + '</b></span>';
+  }
+  s.addEventListener("input", update);
+  update();
+})();
+</script>
