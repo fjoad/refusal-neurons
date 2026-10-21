@@ -64,12 +64,16 @@ def main():
 
     pinned = [r for r in runs if r.get("layer") is not None]
     if pinned:
-        print("best m per candidate:")
-        best = {}
+        # Llama-Guard also flags garbled high-pin output as unsafe, so prefer the smallest
+        # pin whose ASR is within 0.02 of that candidate's best.
+        print("best m per candidate (smallest |pin| within 0.02 of the max ASR):")
+        by_neuron = {}
         for r in pinned:
-            key = (r["layer"], r["neuron"])
-            if key not in best or r["asr_llamaguard"] > best[key]["asr_llamaguard"]:
-                best[key] = r
+            by_neuron.setdefault((r["layer"], r["neuron"]), []).append(r)
+        best = {}
+        for key, rs in by_neuron.items():
+            top = max(r["asr_llamaguard"] for r in rs)
+            best[key] = min((r for r in rs if r["asr_llamaguard"] >= top - 0.02), key=lambda r: abs(r["pin"]))
         for (layer, neuron), r in sorted(best.items(), key=lambda kv: -kv[1]["asr_llamaguard"]):
             print(f"  L{layer}:F{neuron}  pin={r['pin']:+g}  ASR {r['asr_llamaguard']:.3f}")
     print(f"judged {path}  ({(time.time() - t0) / 60:.1f} min)")
