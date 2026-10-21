@@ -64,5 +64,22 @@ Takeaways:
 
 Panther notes: run downloads as SLURM jobs (the login node kills them); install torch from PyPI; don't `module load` CUDA (it shadows torch's bundled libraries).
 
+### 2026-10-21: Milestone 2, first search run misses the published neurons (`neuron_search.py`)
+Setup: 128 harmful / 128 harmless train prompts, first 2/3 of layers, fp16. V100-16GB (1 card for 1.7B, 2 for 8B); 30 and 49 min. **Refusal phrases were wrong:** the script defaulted to `neuron_check`'s 28 short refusal markers, which include 10 Arabic ones. The paper's Table 4 uses two full phrases per family; for Qwen3 these are "I'm sorry, but I can't help with that request." and "I'm unable to assist".
+
+| Model | Top 5 (score; all at the final `\n\n` after `</think>` except where noted) | Published neuron |
+|---|---|---|
+| Qwen3-1.7B | L15:F1109 (−2.10), L17:F3328 (−1.38), L10:F244 (−0.93, first `\n`), L17:F419, L16:F2079 | L13:F3270 not in top 5 |
+| Qwen3-8B | L23:F5088 (−2.27), L19:F8473 (−0.31), L22:F3309, L17:F11229 (first `\n`), L20:F5009 | L14:F7924 not in top 5 |
+
+The top candidates have very large activation gaps; for example, L15:F1109 is −28.9 on harmful vs +0.4 on harmless. The published neurons are about −10 vs −0.25 (Table 5). Their full rank was not recorded because the script saved only the top 5.
+
+Fixes in commit `347142b`:
+- defaults to the Table 4 phrases
+- `--watch L:F` reports a neuron's global rank
+- saves the per-layer mean activations and gradients (`*_means.pt`), so other scorings can be checked without rerunning
+
+Rerun: jobs 431382 and 431383, tag `t4`.
+
 ## Compute
 Panther (QCRI SLURM). Only the 70B model needs multiple GPUs; start with the three models above.
