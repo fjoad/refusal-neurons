@@ -94,6 +94,7 @@ README.md               this file: the project guide, decisions and roadmap
 AGENTS.md               rules for AI agents (CLAUDE.md just imports it)
 RESEARCH_DIRECTIONS.md  the five open directions and how they map to papers
 docs/glossary.md        plain-language explanations of neurons, poles, superposition, etc.
+docs/roadmap.html       roadmap page, published as a Claude artifact
 reading/                reading list (README.md), sources.tsv, download.sh
   pdfs/, web/           downloaded copies (gitignored; run reading/download.sh)
 env/                    conda env job and requirements

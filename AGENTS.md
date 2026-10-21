@@ -13,6 +13,7 @@ Update the docs as part of the work, not as a separate handoff:
 - **Step finished or started:** update its state in the README's Roadmap.
 - **Decision made:** add it under "Decisions so far" in the README, with a one-line reason.
 - **New script or panther gotcha:** add it to the README's script table, or to the panther section below.
+- **Roadmap page:** [docs/roadmap.html](docs/roadmap.html) is published as the Claude artifact https://claude.ai/artifact/4PRLSoKRUAcC7JLZndxh6R. When the roadmap changes, edit the file and republish it to that URL.
 
 ## Working with the user
 - Faaiz (the user) was first author on the EMNLP refusal-directions paper, but is newer to neuron-level interpretability. Explain neuron terms plainly. Extend docs/glossary.md rather than re-explaining in chat.
