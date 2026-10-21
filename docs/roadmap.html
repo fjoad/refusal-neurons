@@ -142,7 +142,7 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line)
       <div class="now-row">
         <div><strong>Replication:</strong> our search and rerank recover Apple's neuron <em>and</em> pin value on both 8B models; Qwen3-1.7B is a near-tie, as in the paper</div>
         <div><strong>Arabic:</strong> a search run in Arabic finds the same neuron on both 8B models; one neuron detects Arabic harmful prompts better than Llama-Guard-3 (<span class="num">0.956</span> vs <span class="num">0.910</span>)</div>
-        <div><strong>Running now:</strong> M3 attacks and capability cost, Arditi baseline, App. G, §3.1–3.3</div>
+        <div><strong>Running now:</strong> M3 attacks and capability cost, §3.3 residual baseline, Arabic own-phrase searches</div>
       </div>
     </div>
   </header>
@@ -231,13 +231,13 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line)
           <tr><td class="sec">§2.4</td><td>JailbreakBench ASR, constant pin<span class="sub">Llama-Guard-3 only (no API judge)</span></td><td><span class="pill doing">Running</span></td><td>Replication, Paper A</td></tr>
           <tr><td class="sec">§2.4</td><td>Anchor intervention (scaled pin)</td><td><span class="pill doing">Running</span></td><td>Replication</td></tr>
           <tr><td class="sec">§2.4</td><td>Capability cost on MMLU and GSM8K</td><td><span class="pill doing">Running</span></td><td>Replication</td></tr>
-          <tr><td class="sec">§3.1</td><td>Per-token activations (fires at the turn boundary)<span class="sub">plus XSTest controls: harmful words, benign intent</span></td><td><span class="pill doing">Running</span></td><td>Paper A: same token in Arabic?</td></tr>
-          <tr><td class="sec">§3.2</td><td>Neuron already present in base models</td><td><span class="pill doing">Running</span></td><td>Paper C</td></tr>
+          <tr><td class="sec">§3.1</td><td>Per-token activations (fires at the turn boundary)<span class="sub">XSTest controls: benign prompts with harmful words get a partial response (~35%), not silence</span></td><td><span class="pill done">Reproduced</span></td><td>Paper A: same token in Arabic?</td></tr>
+          <tr><td class="sec">§3.2</td><td>Neuron already present in base models<span class="sub">Qwen3-8B-Base fires on harmful content, not the turn boundary</span></td><td><span class="pill done">Reproduced</span></td><td>Paper C</td></tr>
           <tr><td class="sec">§3.3</td><td>Single residual-stream dims do worse (39–45% ASR)</td><td><span class="pill doing">Running</span></td><td>Paper C</td></tr>
           <tr><td class="sec">§3.4</td><td>Neuron as a detector on XSTest vs Llama-Guard-3<span class="sub">also MultiJail en/ar: neuron 0.956 vs Llama-Guard 0.910 in Arabic</span></td><td><span class="pill done">Reproduced</span></td><td>Paper A: a per-language guard</td></tr>
           <tr><td class="sec">§3.5</td><td>What the neuron responds to (max-activating Pile text)</td><td><span class="pill skip">Optional</span></td><td>Paper C</td></tr>
           <tr><td class="sec">§4</td><td>Suicide concept neurons</td><td><span class="pill skip">Skip</span></td><td>Not part of our question</td></tr>
-          <tr><td class="sec">App. G</td><td>Alignment with Arditi's refusal direction<span class="sub">plus the Arditi ablation baseline (Fig. 5)</span></td><td><span class="pill doing">Running</span></td><td>Paper C: our 11 directions</td></tr>
+          <tr><td class="sec">App. G</td><td>Alignment with Arditi's refusal direction<span class="sub">8B direction layer and top neuron match Table 7; published neuron is the most aligned in its own layer in all 3 models. Arditi ablation ASR 0.91–0.95</span></td><td><span class="pill done">Reproduced</span></td><td>Paper C: our 11 directions</td></tr>
           <tr><td class="sec">Models</td><td>7 models: Qwen3 1.7B–32B, Llama-3.1 8B and 70B</td><td><span class="pill doing">3 of 7</span></td><td>Larger models only if needed</td></tr>
         </tbody>
       </table>
