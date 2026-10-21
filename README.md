@@ -26,7 +26,7 @@ The work runs in this order; each step gates the next. Keep the state column cur
 | **M2**: rediscover the neurons | Our gradient × activation search finds the published neurons in its top 5; then a rerank on HarmBench ASR with an *m* sweep picks the best attacker | 🟡 search ✅ for all 3 models (ranks 4, 5, 3; activations match Table 5); rerank not built yet |
 | Judge | One judge used for every language | ✅ Llama-Guard-3-8B (free, on panther); Arabic handling still open |
 | **M3**: full evaluation | JailbreakBench ASR, anchor variant, MMLU/GSM8K cost, XSTest detection AUROC; English first | ⬜ |
-| Arabic search | Run the search on Arabic splits: same neuron or a different one? | 🟡 Qwen3-8B: same neuron (rank 3 with the Arabic refusal phrase, 1 with English phrases); 1.7B, Llama and the Arabic rerank not done |
+| Arabic search | Run the search on Arabic splits: same neuron or a different one? | 🟡 Same neuron for Qwen3-8B and Llama-3.1-8B (rank 1 in Arabic); not for Qwen3-1.7B (its neuron barely fires on Arabic). Own-phrase reruns and the Arabic rerank pending |
 | Modalities | Image and speech, using models that share a backbone with our text models | ⬜ |
 
 ## Decisions so far, and why

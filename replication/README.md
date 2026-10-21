@@ -119,6 +119,42 @@ Fixes in commit `347142b`:
 
 The rerun and the later fixes are in the entry above.
 
+### 2026-10-21: Detection, the neuron vs Llama-Guard-3 (paper Section 3.4) (`neuron_check.py`, `guard_detect.py`)
+Neuron score: min (or max) activation over Table 3's tokens, as in the paper. Llama-Guard-3-8B classifies the prompt alone, scored by P(unsafe).
+
+| Data | Qwen3-1.7B L13:F3270 | Qwen3-8B L14:F7924 | Llama-3.1-8B L11:F4258 | Llama-Guard-3 (AUROC; precision / recall) |
+|---|---|---|---|---|
+| XSTest (200 unsafe / 250 safe) | 0.852 | 0.901 | 0.963 (paper 0.97) | 0.975; 0.96 / 0.82 (paper recall 0.83) |
+| MultiJail-en vs Aya-en (100 / 100) | 0.962* | 0.972 | 0.991 | 0.967; 1.00 / 0.58 |
+| MultiJail-**ar** vs Aya-ar (100 / 100) | 0.898 | **0.956** | 0.927 | **0.910**; 0.97 / 0.57 |
+
+\* This is the whole-suffix AUROC; the job ran before the Table 3 AUROC was added.
+
+Takeaways:
+- **In Arabic, one neuron of Qwen3-8B (0.956) beats Llama-Guard-3 (0.910) as a harmful-prompt detector.** Llama-Guard-3 doesn't officially support Arabic.
+- Its recall at its own threshold is low in both languages (0.57–0.58): MultiJail has many borderline prompts.
+- Llama's XSTest AUROC and Llama-Guard's recall match the paper.
+
+Caveats: n = 100 per side for MultiJail, and Aya harmless prompts are not parallel across languages. Logs: `detect-431437`, `arabic-431433/4`.
+
+### 2026-10-21: Arabic search on Qwen3-1.7B and Llama-3.1-8B (`neuron_search.py`)
+Same splits as the Qwen3-8B entry below: 128 parallel MultiJail en/ar prompts vs Aya train.
+
+| Model, published neuron | English search rank | Arabic search rank (English phrases) | Harmful activation, en / ar |
+|---|---|---|---|
+| Llama-3.1-8B L11:F4258 | 4 | **1** | +0.50 / +0.56 |
+| Qwen3-8B L14:F7924 (entry below) | 1 | **1** | −3.24 / −3.19 |
+| Qwen3-1.7B L13:F3270 | 4 | **568** | −6.44 / **−1.07** |
+
+- **Both 8B models:** the English refusal neuron is the top neuron in Arabic too.
+- **Qwen3-1.7B:** the neuron barely fires on Arabic harmful prompts. Two other neurons, L12:F4580 and L15:F1109, rank first and second in both languages; they are also 1.7B rerank candidates.
+- **Unpinned refusal is lower in Arabic** for both models (string match, rough): 1.7B 0.40 en / 0.20 ar; Llama 0.77 en / 0.58 ar.
+- **Arabic refusal openings** (`refusal_openings.py`, 100 unpinned responses):
+  - Qwen3-1.7B: "لا أستطيع أن أقدم" (8)
+  - Llama: "لا أستطيع تقديم معلومات" (31), "لا أستطيع مساعدتك في" (10)
+
+A rerun with each model's own Arabic phrases is job `search_ar2-431457`.
+
 ### 2026-10-21: Arabic search on Qwen3-8B finds the same neuron (`neuron_search.py`)
 Data: 128 MultiJail prompts, parallel English and human-translated Arabic, kept separate from the 100 teaser prompts. Harmless: 128 Aya *train* prompts per language. Paper settings otherwise (Table 3 tokens). The Arabic refusal phrase "أنا لا أستطيع مساعدتك" comes from `refusal_openings.py`: it opens 10 of 30 unpinned Arabic responses.
 
