@@ -87,6 +87,7 @@ Experiments run on **panther** (QCRI SLURM). The repo is cloned at `~/refusal-ne
 | `replication/judge.py` | Llama-Guard-3 verdicts and ASR for a rerank or neuron_check output; writes verdicts back into the JSON |
 | `replication/refusal_openings.py` | Counts the stock openings of unpinned responses, to find a model's refusal phrases in a language; never prints full responses |
 | `scripts/pssh.sh` | Runs a command on panther, retrying when the VPN drops the connection |
+| `scripts/cpu.sh` | SLURM wrapper that runs one repo script on a CPU node (e.g. `summarize.py`, `refusal_openings.py`) |
 | `replication/show_responses.py` | Prints or writes a few generated responses from an output JSON, for a human to read |
 
 Examples:
