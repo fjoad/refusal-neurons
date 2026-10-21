@@ -33,7 +33,7 @@ This is jailbreak research. Prompts are harmful by design, and pinned models pro
 - SLURM needs `source /etc/profile.d/modules.sh; module load slurm` in each non-interactive ssh command.
 - **Loop:** edit locally → commit and push → `ssh panther.qcri.org 'cd ~/refusal-neurons && git pull -q && source /etc/profile.d/modules.sh && module load slurm && sbatch <script> <args>'`. Panther is a plain git clone; don't rsync over it. `scripts/pssh.sh '<command>'` does the ssh with retries when the VPN is flaky.
 - Logs go to `~/refusal-neurons/logs/<job-name>-<id>.out`; results go to `outputs/neuron_check/` and `outputs/neuron_search/` as JSON. Both are gitignored, so copy the numbers into the results log.
-- **SLURM style:** short scripts like the existing `.sh` files: `gpu-all` partition, one `v100nv_32GB` GPU, conda env `refneu`, `HF_HUB_OFFLINE=1`, at most ~3 jobs at a time. `--exclude=crimv3mgpu018` is carried over from the llm safety project's scripts.
+- **SLURM style:** short scripts like the existing `.sh` files: `gpu-all` partition, one `v100nv_32GB` GPU, conda env `refneu`, `HF_HUB_OFFLINE=1`. `--exclude=crimv3mgpu018` is carried over from the llm safety project's scripts.
 - **GPU sizing:** Qwen3-1.7B fits a 16 GB card. The 8B models and an 8B judge need one V100-32GB (or 2× 16 GB split). V100s have no bf16, so use fp16.
 - **Gotchas, each learned the hard way:**
   - The login node kills large downloads. Download models with `sbatch scripts/download_models.sh <repo> ...`.

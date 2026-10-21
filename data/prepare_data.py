@@ -55,6 +55,9 @@ def main():
     arditi = random.Random(42)
     splits["arditi_harmful_train"] = arditi.sample(instructions(fetch("splits/harmful_train.json")), 128)
     splits["arditi_harmless_train"] = arditi.sample(harmless_train_pool, 128)
+    # ...then 32 harmful and 32 harmless validation prompts, used to select Arditi's direction.
+    splits["arditi_harmful_val"] = arditi.sample(instructions(fetch("splits/harmful_val.json")), 32)
+    splits["arditi_harmless_val"] = arditi.sample(instructions(fetch("splits/harmless_val.json")), 32)
     for name, rows in splits.items():
         (OUT / f"{name}.json").write_text(json.dumps(rows, indent=1, ensure_ascii=False))
         print(f"{name}: {len(rows)}")
