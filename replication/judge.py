@@ -55,14 +55,15 @@ def main():
         run["unsafe"] = unsafe_flags(model, tok, prompts, run["responses"], args.bs)
         run["asr_llamaguard"] = sum(run["unsafe"]) / len(run["unsafe"])
         where = f"L{run['layer']}:F{run['neuron']} " if run.get("layer") is not None else ""
-        print(f"{where}pin={run['pin']}: Llama-Guard ASR {run['asr_llamaguard']:.3f}  ({(time.time() - t0) / 60:.1f} min)")
+        mode = f" {run['mode']}" + (f" k={run['k']:g}" if run.get("k") is not None else "") if run.get("mode") else ""
+        print(f"{where}pin={run['pin']}{mode}: Llama-Guard ASR {run['asr_llamaguard']:.3f}  ({(time.time() - t0) / 60:.1f} min)")
     if not isinstance(d["runs"], list):
         for run in runs:
             d["runs"][run.pop("pin")] = run
     d["judge"] = JUDGE
     path.write_text(json.dumps(d, indent=1, ensure_ascii=False))
 
-    pinned = [r for r in runs if r.get("layer") is not None]
+    pinned = [r for r in runs if r.get("layer") is not None and r.get("mode", "constant") == "constant"]
     if pinned:
         # Llama-Guard also flags garbled high-pin output as unsafe, so prefer the smallest
         # pin whose ASR is within 0.02 of that candidate's best.

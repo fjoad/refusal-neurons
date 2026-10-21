@@ -14,6 +14,9 @@ for path in sys.argv[1:]:
     print(f"# {Path(path).name}: {len(d['prompts'])} prompts, judge={d.get('judge', 'none')}")
     for r in runs:
         where = f"L{r['layer']}:F{r['neuron']} " if r.get("layer") is not None else ""
+        if r.get("mode"):
+            k = "" if r.get("k") is None else f" k={r['k']:g}"
+            where += f"{r['mode']}{k} "
         lens = [len(t) for t in r["responses"]]
         asr = f"  LG ASR {r['asr_llamaguard']:.2f}" if "asr_llamaguard" in r else ""
         print(f"  {where}pin={r['pin']}: string-match refusal {r['refusal_rate_stringmatch']:.2f}{asr}"
