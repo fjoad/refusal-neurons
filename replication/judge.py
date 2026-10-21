@@ -77,6 +77,16 @@ def main():
             best[key] = min((r for r in rs if r["asr_llamaguard"] >= top - 0.02), key=lambda r: abs(r["pin"]))
         for (layer, neuron), r in sorted(best.items(), key=lambda kv: -kv[1]["asr_llamaguard"]):
             print(f"  L{layer}:F{neuron}  pin={r['pin']:+g}  ASR {r['asr_llamaguard']:.3f}")
+        # Our selection rule (see replication/README.md): the candidate reaching ASR >= 0.90 at the
+        # smallest |pin|. Llama-Guard rewards garbled high-pin output, so max ASR alone misleads.
+        reach = {key: min((r for r in rs if r["asr_llamaguard"] >= 0.90), key=lambda r: abs(r["pin"]), default=None)
+                 for key, rs in by_neuron.items()}
+        ranked = sorted(((k, r) for k, r in reach.items() if r), key=lambda kv: (abs(kv[1]["pin"]), -kv[1]["asr_llamaguard"]))
+        print("first pin reaching ASR >= 0.90 (selection rule):")
+        for (layer, neuron), r in ranked:
+            print(f"  L{layer}:F{neuron}  pin={r['pin']:+g}  ASR {r['asr_llamaguard']:.3f}")
+        for key in sorted(k for k, r in reach.items() if r is None):
+            print(f"  L{key[0]}:F{key[1]}  never reaches 0.90")
     print(f"judged {path}  ({(time.time() - t0) / 60:.1f} min)")
 
 
