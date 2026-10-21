@@ -1,7 +1,9 @@
-"""Milestone 2: localize refusal neurons using the two training splits.
+"""Milestone 2: localize refusal features using the two training splits.
 
 Hooks observe h = SiLU(W_gate x) * W_up x before down_proj in the first
-floor(2 * n_layers / 3) layers. All layer/neuron/token indices are zero-based.
+floor(2 * n_layers / 3) layers. With --space residual, observe decoder-layer inputs
+(resid_pre) instead; F / neuron then indexes a residual-stream dimension.
+All layer/feature/token indices are zero-based. Residual output names add _residual.
 Refusal probability is the mass of the paper's Table 4 refusal phrases for the model
 family (or --refusal_phrases), with duplicate/overlapping token prefixes removed
 before summing phrase probabilities.
@@ -13,6 +15,7 @@ including when selecting the best token. This is equivalent to maximizing the
 paper's Eq. 4, which uses the opposite activation gap (harmless - harmful).
 
 Usage: python replication/neuron_search.py --model Qwen/Qwen3-1.7B --watch 13:3270
+       python replication/neuron_search.py --model meta-llama/Llama-3.1-8B-Instruct --space residual --watch 12:291
 This script only ranks candidates; it does not intervene or run the ASR sweep.
 """
 import argparse
@@ -39,7 +42,7 @@ def refusal_prefixes(tok, phrases):
 
 
 class SearchHook:
-    """Pre-down_proj hook with CPU sums of shape [post_tokens, neurons].
+    """Pre-down_proj or resid_pre hook with CPU sums of shape [post_tokens, features].
 
     A tensor backward hook collects dL/dh without retaining a full h.grad tensor.
     Only the first otherwise-untracked h is made a leaf; subsequent layers stay
@@ -59,8 +62,8 @@ class SearchHook:
         self.grad_sum.zero_()
         self.backward_calls = 0
 
-    def __call__(self, module, args):
-        h = args[0]  # [batch, prompt + teacher-forced continuation, d_ff]
+    def __call__(self, module, args, kwargs=None):
+        h = args[0] if args else kwargs["hidden_states"]  # [batch, tokens, features]
         start, stop = self.prompt_len - self.n_post, self.prompt_len
         if self.record_acts:
             self.act_sum.add_(h[:, start:stop].detach().float().sum(0).cpu())
@@ -239,6 +242,8 @@ def paper_phrases(model):
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--model", required=True)
+    ap.add_argument("--space", choices=["mlp", "residual"], default="mlp",
+                    help="rank MLP neurons (default) or decoder-input residual dimensions")
     ap.add_argument("--dtype", default="float16", choices=["float16", "bfloat16", "float32"])
     ap.add_argument("--bs", type=int, default=1, help="prompt batch size; backward uses more memory than inference")
     ap.add_argument("--harmful", default="arditi_harmful_train", help="split name in data/splits/ (default: Arditi's exact sample)")
@@ -250,7 +255,7 @@ def main():
     ap.add_argument("--score_tokens", type=int, default=None,
                     help="score only the first N post-instruction tokens (default: Table 3 for the family; 0 = all)")
     ap.add_argument("--watch", nargs="*", default=[], metavar="L:F",
-                    help="also report the rank of these neurons, e.g. 14:7924")
+                    help="also report layer:feature ranks; F is a dimension with --space residual")
     args = ap.parse_args()
     if args.bs < 1 or not math.isfinite(args.grad_scale) or args.grad_scale <= 0:
         ap.error("--bs must be positive and --grad_scale must be finite and positive")
@@ -259,7 +264,7 @@ def main():
     try:
         watch = [tuple(int(x) for x in w.split(":")) for w in args.watch]
     except ValueError:
-        ap.error("--watch expects layer:neuron pairs, e.g. 14:7924")
+        ap.error("--watch expects layer:feature pairs, e.g. 14:7924")
 
     t0 = time.time()
     harmful, harmless = load(args.harmful), load(args.harmless)
@@ -293,9 +298,14 @@ def main():
     hooks, handles = [], []
     try:
         for layer in layers[:n_layers]:
-            hook = SearchHook(n_post, layer.mlp.down_proj.in_features, args.grad_scale)
+            width = model.config.hidden_size if args.space == "residual" else layer.mlp.down_proj.in_features
+            hook = SearchHook(n_post, width, args.grad_scale)
             hooks.append(hook)
-            handles.append(layer.mlp.down_proj.register_forward_pre_hook(hook))
+            if args.space == "residual":
+                # Transformers 4.51.3 passes hidden_states positionally; accept keywords too.
+                handles.append(layer.register_forward_pre_hook(hook, with_kwargs=True))
+            else:
+                handles.append(layer.mlp.down_proj.register_forward_pre_hook(hook))
         print(f"model: {args.model}; layers: 0..{n_layers - 1}; train: {len(harmful)} harmful / {len(harmless)} harmless")
         print(f"post-instruction tokens: {post_tokens}")
         print(f"refusal prefixes: {len(prefixes)} (full phrase probabilities, two passes per batch)")
@@ -325,7 +335,8 @@ def main():
     out = ROOT / "outputs" / "neuron_search"
     out.mkdir(parents=True, exist_ok=True)
     tag = f"_{args.tag}" if args.tag else ""
-    name = f"{args.model.rstrip('/').split('/')[-1]}_{args.dtype}{tag}.json"
+    space = "_residual" if args.space == "residual" else ""
+    name = f"{args.model.rstrip('/').split('/')[-1]}_{args.dtype}{tag}{space}.json"
     # Per-layer mean activations and gradients, so other scores or neurons can be checked without rerunning.
     torch.save({"harmful": harm_means, "harmless": safe_means, "post_tokens": post_tokens},
                out / name.replace(".json", "_means.pt"))

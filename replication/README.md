@@ -19,6 +19,17 @@ Goal: recover their refusal neurons and approximate ASR with our own code. No of
    - Capability cost: MMLU and GSM8K.
    - Detection: XSTest AUROC.
 
+The Section 3.3 residual-stream baseline uses `neuron_search.py --space residual`:
+the same gradient × activation score and filter, applied to individual dimensions at
+each decoder layer's input (`resid_pre`) in the first two-thirds of layers. `L:F` and
+the JSON's `neuron` field then mean layer:dimension. `rerank.py` infers the space from
+the search JSON (or accepts a matching `--space residual`) and sweeps both +m and -m
+for each top-5 candidate at every token. Search JSON, saved means and rerank output
+names add `_residual`; `judge.py` works unchanged. Section 3.3 reports only about
+45% ASR for the best Llama-3.1-8B residual feature (L12:F291) and 39% for Qwen3-8B,
+well below the MLP neurons. These are paper reference numbers, not our results;
+the baseline is implemented but has not been run on the pretrained models here.
+
 ## Data
 - **Train:** 128 harmful (AdvBench, MaliciousInstruct, TDC2023) and 128 harmless (Alpaca) prompts: Arditi et al.'s exact sample (`arditi_*_train` splits). Our own seed-42 sample (`harmful_train`/`harmless_train`) gave different rankings.
 - **Validation:** HarmBench minus the 9 prompts that overlap with JailbreakBench.
