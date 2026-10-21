@@ -50,7 +50,7 @@ def mmlu_preds(model, tok, pin, prompts, values, bs):
     for i in range(0, len(prompts), bs):
         batch = tok(prompts[i:i + bs], return_tensors="pt", padding=True, add_special_tokens=False).to(model.device)
         pin.values = values[i:i + bs] if isinstance(values, list) else values
-        logits = model(**batch).logits[:, -1, ids]
+        logits = model(**batch, logits_to_keep=1).logits[:, -1, ids]  # last position only: vocab is 128k-151k
         preds += logits.argmax(-1).tolist()
         pin.records.clear()
     pin.values = None
