@@ -49,6 +49,12 @@ def main():
         "jailbreakbench": jbb,
         "harmless_heldout": rng.sample(harmless_test_pool, 100),
     }
+    # Arditi's exact training sample (pipeline/run_pipeline.py: random.seed(42), then
+    # harmful train, then harmless train, 128 each from his pre-made splits). Kazemi et al.
+    # say they follow Arditi, so this is our best guess at their training prompts.
+    arditi = random.Random(42)
+    splits["arditi_harmful_train"] = arditi.sample(instructions(fetch("splits/harmful_train.json")), 128)
+    splits["arditi_harmless_train"] = arditi.sample(harmless_train_pool, 128)
     for name, rows in splits.items():
         (OUT / f"{name}.json").write_text(json.dumps(rows, indent=1, ensure_ascii=False))
         print(f"{name}: {len(rows)}")
