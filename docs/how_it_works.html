@@ -539,7 +539,7 @@ footer ul { margin: 0; padding-left: 1.2em; display: grid; gap: 4px; }
     <figcaption><b>Refusal rate as the pin grows.</b> Refusal collapses by +20, the same <code>m*</code> the paper found. Past that, refusal stays at zero but the text degrades: at +80 the output is gibberish. That is why ASR needs a judge that checks coherence, and why the sweep can't simply take the largest value.<br><span class="src">Our M1 run · first 30 JailbreakBench prompts · 96 new tokens · string-match refusal check (rough)</span></figcaption>
   </figure>
 
-  <p class="note col">Our status (M2): the search is written and reviewed. The acceptance test is whether it puts L13:F3270 and L14:F7924 in its own top 5, and then picks them in the rerank.</p>
+  <p class="note col">Our status (M2): the search puts all three published neurons in its own top 5 (L13:F3270 4th, L14:F7924 5th, L11:F4258 3rd), once it uses the paper's exact refusal phrases, scored tokens and training sample. The rerank, which should pick them out of the five, is still to build.</p>
 </section>
 
 <!-- 5 -->
