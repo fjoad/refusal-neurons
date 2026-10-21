@@ -48,7 +48,7 @@ def anchor_values(model, tok, pin, prompts, post_tokens, m_star, d, k, bs):
     for i in range(0, len(prompts), bs):
         batch = tok(prompts[i:i + bs], return_tensors="pt", padding=True, add_special_tokens=False).to(model.device)
         pin.records.clear()
-        model(**batch)
+        model(**batch, logits_to_keep=1)  # only the hook's record is needed; skip full-vocab logits
         acts = pin.records[0][:, -n_post:][:, :n_paper]  # left padding: suffix is the last n_post tokens
         v = acts.max(1).values if d > 0 else acts.min(1).values
         h = k * m_star * v / d - d
