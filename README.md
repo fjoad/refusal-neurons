@@ -26,7 +26,7 @@ The work runs in this order; each step gates the next. Keep the state column cur
 | **M2**: rediscover the neurons | Our search finds the published neurons in its top 5; a rerank on HarmBench ASR with an *m* sweep picks the best attacker | ✅ Search: all 3. Rerank: published neuron and m* recovered for Qwen3-8B (+20) and Llama (−4); Qwen3-1.7B is a near-tie (L10:F244 edges L13:F3270) |
 | Judge | One judge used for every language | ✅ Llama-Guard-3-8B (free, on panther); Arabic handling still open |
 | **M3**: full evaluation | JailbreakBench ASR, anchor variant, MMLU/GSM8K cost, XSTest detection AUROC; English first | ⬜ |
-| Arabic search | Run the search on Arabic splits: same neuron or a different one? | 🟡 Same neuron for Qwen3-8B and Llama-3.1-8B (rank 1 in Arabic); not for Qwen3-1.7B (its neuron barely fires on Arabic). Own-phrase reruns and the Arabic rerank pending |
+| Arabic search | Run the search on Arabic splits: same neuron or a different one? | 🟡 **Same neuron in all 3 models**: the English refusal neuron ranks 1st in an Arabic search that targets the model's own Arabic refusal phrases. Arabic rerank (ASR) pending |
 | Modalities | Image and speech, using models that share a backbone with our text models | ⬜ |
 
 ## Decisions so far, and why
@@ -45,6 +45,7 @@ These were settled in discussion. Don't reopen them without a new reason.
 - **One judge for every language.** Comparing English numbers from one judge with Arabic numbers from another would not be valid.
 - **Rerank selection: the candidate reaching ASR ≥ 0.90 at the smallest pin**, not max ASR, because Llama-Guard rewards garbled high-pin output. This rule recovers Apple's neuron and m* on both 8B models.
 - **Rerank is cheaper than the paper's:** a 9-value *m* grid (2–60) and 128 new tokens instead of their ~47 values and 512 tokens, so it fits P100/V100s. Refine around the best *m* later if needed.
+- **Arabic searches score each model's own Arabic refusal phrases** (from `refusal_openings.py`). With English phrases, Qwen3-1.7B's neuron fell to rank 568; with its own Arabic phrases it is rank 1.
 - **Arabic search scores Qwen's own Arabic refusal phrase.** Unpinned, Qwen3-8B refuses Arabic prompts in Arabic, usually opening with "أنا لا أستطيع مساعدتك" ("I can't help you"; 10 of 30 responses). The English phrases would target a reply the model doesn't give in Arabic.
 - **Refusal is scored automatically and responses stay out of logs.** Generated text goes to the output JSON only. Read it with `replication/show_responses.py`.
 - **Several papers from one codebase** (below), not everything in one paper.

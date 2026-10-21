@@ -141,7 +141,7 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line)
       <span class="eyebrow">Where we are</span>
       <div class="now-row">
         <div><strong>Replication:</strong> our search and rerank recover Apple's neuron <em>and</em> pin value on both 8B models; Qwen3-1.7B is a near-tie, as in the paper</div>
-        <div><strong>Arabic:</strong> a search run in Arabic finds the same neuron on both 8B models; one neuron detects Arabic harmful prompts better than Llama-Guard-3 (<span class="num">0.956</span> vs <span class="num">0.910</span>)</div>
+        <div><strong>Arabic:</strong> a search run in Arabic finds the same refusal neuron in all three models; one neuron detects Arabic harmful prompts better than Llama-Guard-3 (<span class="num">0.956</span> vs <span class="num">0.910</span>)</div>
         <div><strong>Running now:</strong> M3 attacks and capability cost, §3.3 residual baseline, Arabic own-phrase searches</div>
       </div>
     </div>
@@ -204,7 +204,7 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line)
         <div class="step-body">
           <div class="step-title"><h3>Search in Arabic</h3><span class="pill doing">First results</span></div>
           <p>Run the search on Arabic prompts. Same neuron, or a different one? This is the core question for Paper A.</p>
-          <p class="result">On parallel MultiJail prompts, both 8B models' English neurons rank 1st in the Arabic search: <span class="mono">L14:F7924</span> fires at −3.19 in Arabic vs −3.24 in English, <span class="mono">L11:F4258</span> at +0.56 vs +0.50. Qwen3-1.7B's neuron barely fires in Arabic (−1.07 vs −6.44), and two other neurons lead in both languages.</p>
+          <p class="result">On parallel MultiJail prompts, an Arabic search that targets each model's own Arabic refusal phrases ranks the English refusal neuron <strong>1st in all three models</strong>. It fires at the same token with nearly the same strength: <span class="mono">L13:F3270</span> −5.59 in Arabic vs −6.44 in English, <span class="mono">L14:F7924</span> −3.19 vs −3.24, <span class="mono">L11:F4258</span> +0.56 vs +0.50.</p>
         </div>
       </li>
       <li class="step" data-state="todo">
