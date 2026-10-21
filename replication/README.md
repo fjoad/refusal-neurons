@@ -4,7 +4,7 @@ Goal: recover their refusal neurons and approximate ASR with our own code. No of
 
 ## Method to reimplement
 1. **Hook:** read the pre-`down_proj` activation `h = SiLU(W_gate x) ⊙ W_up x` at every layer in the first 2/3 of the model. Each coordinate `h_i` is a neuron.
-2. **Score:** compute the gradient of the refusal log-odds `L = −log(p_refusal / (1 − p_refusal))`, where `p_refusal` is the probability mass on the model-family refusal phrases (their Table 4). Take it at the post-instruction template tokens (their Table 3). Then:
+2. **Score:** compute the gradient of the refusal log-odds `L = −log(p_refusal / (1 − p_refusal))`, where `p_refusal` is the probability mass on the model-family refusal phrases (their Table 4). Take it at the post-instruction template tokens highlighted red in their Table 3. For Qwen3 these are `<|im_end|>\n<|im_start|>assistant\n`, not the `<think>` block; for Llama they are `<|eot_id|><|start_header_id|>assistant<|end_header_id|>`. Then:
    - `G = mean gradient (harmful) + mean gradient (harmless)`
    - `score = G × (mean act harmful − mean act harmless)`
    - Take the best token per neuron.
@@ -20,7 +20,7 @@ Goal: recover their refusal neurons and approximate ASR with our own code. No of
    - Detection: XSTest AUROC.
 
 ## Data
-- **Train:** 128 harmful (AdvBench, MaliciousInstruct, TDC2023) and 128 harmless (Alpaca) prompts, following Arditi et al.
+- **Train:** 128 harmful (AdvBench, MaliciousInstruct, TDC2023) and 128 harmless (Alpaca) prompts: Arditi et al.'s exact sample (`arditi_*_train` splits). Our own seed-42 sample (`harmful_train`/`harmless_train`) gave different rankings.
 - **Validation:** HarmBench minus the 9 prompts that overlap with JailbreakBench.
 - **Test:** JailbreakBench.
 
@@ -64,6 +64,33 @@ Takeaways:
 
 Panther notes: run downloads as SLURM jobs (the login node kills them); install torch from PyPI; don't `module load` CUDA (it shadows torch's bundled libraries).
 
+### 2026-10-21: Milestone 2 passes, our search finds all three published neurons (`neuron_search.py`)
+It took three fixes, each a place where our first version differed from the paper. Together they reproduce the paper's search:
+
+| Run | Refusal phrases | Scored tokens | Training sample | Qwen3-1.7B L13:F3270 rank | Qwen3-8B L14:F7924 rank | Llama-3.1-8B L11:F4258 rank |
+|---|---|---|---|---|---|---|
+| 1 | 28 short markers (wrong) | whole suffix (wrong) | ours, seed 42 | not in top 5 | not in top 5 | — |
+| 2 | Table 4 | whole suffix (wrong) | ours | 29 | 6 | — |
+| 3 | Table 4 | Table 3 red tokens | ours | 11 (fp16), 10 (fp32), 11 (bf16) | 2 | 4 |
+| **4** | **Table 4** | **Table 3 red tokens** | **Arditi's exact sample** | **4** | **5** | **3** |
+
+Run 4 activations at the winning token match Table 5 closely, which suggests we now have the paper's training prompts:
+
+| Neuron | Token | Ours, harmful / harmless | Table 5 |
+|---|---|---|---|
+| Qwen3-1.7B L13:F3270 | `\n` after `<|im_end|>` | −10.25 / +0.05 | −10.28 / −0.25 |
+| Qwen3-8B L14:F7924 | `\n` after `<|im_end|>` | −4.41 / −0.16 | −4.41 / −0.23 |
+| Llama-3.1-8B L11:F4258 | `<|eot_id|>` | +1.11 / −0.01 | +1.11 / −0.00 |
+
+What each fix was:
+- **Refusal phrases:** the paper's Table 4 uses two full phrases per family; for Qwen3 these are "I'm sorry, but I can't help with that request." and "I'm unable to assist". We had reused `neuron_check`'s 28 short markers, which include Arabic ones.
+- **Scored tokens:** Table 3 highlights only some template tokens in red; we found this by rendering the PDF page, since text extraction drops the color. For Qwen3 they are `<|im_end|>\n<|im_start|>assistant\n`, not the empty `<think>` block. For Llama they are `<|eot_id|><|start_header_id|>assistant<|end_header_id|>`, without the final `\n\n`. Scoring the whole suffix let neurons at the last `\n\n` dominate, with huge activations such as −28.9 vs +0.4.
+- **Training sample:** Arditi's pipeline uses `random.seed(42)`, then samples 128 from his `splits/harmful_train.json`, then 128 from `splits/harmless_train.json`. Our own sample shared only 25 of 128 harmful prompts with his. Precision (fp16/bf16/fp32) made no difference.
+
+The published neuron is in the top 5 for every model, as the paper requires. It isn't always first there either: their Figure 3 rerank picks candidate 4 (1.7B), 3 (8B) and 4 (Llama). Our ranks among close scores (8B scores span −0.29 to −0.25) differ by one or two places. These are now the search defaults. Runs took 1.4–5.6 min on P100s, with logs `neuron_search-431393/4/5`.
+
+**Next for M2:** the rerank. Sweep *m* for each top-5 candidate on HarmBench and choose the best attacker; this needs the judge.
+
 ### 2026-10-21: Milestone 2, first search run misses the published neurons (`neuron_search.py`)
 Setup: 128 harmful / 128 harmless train prompts, first 2/3 of layers, fp16. V100-16GB (1 card for 1.7B, 2 for 8B); 30 and 49 min. **Refusal phrases were wrong:** the script defaulted to `neuron_check`'s 28 short refusal markers, which include 10 Arabic ones. The paper's Table 4 uses two full phrases per family; for Qwen3 these are "I'm sorry, but I can't help with that request." and "I'm unable to assist".
 
@@ -79,7 +106,7 @@ Fixes in commit `347142b`:
 - `--watch L:F` reports a neuron's global rank
 - saves the per-layer mean activations and gradients (`*_means.pt`), so other scorings can be checked without rerunning
 
-Rerun: jobs 431382 and 431383, tag `t4`.
+The rerun and the later fixes are in the entry above.
 
 ## Compute
 Panther (QCRI SLURM). Only the 70B model needs multiple GPUs; start with the three models above.

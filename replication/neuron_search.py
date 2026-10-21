@@ -258,8 +258,8 @@ def main():
     ap.add_argument("--model", required=True)
     ap.add_argument("--dtype", default="float16", choices=["float16", "bfloat16", "float32"])
     ap.add_argument("--bs", type=int, default=1, help="prompt batch size; backward uses more memory than inference")
-    ap.add_argument("--harmful", default="harmful_train", help="split name in data/splits/")
-    ap.add_argument("--harmless", default="harmless_train", help="split name in data/splits/")
+    ap.add_argument("--harmful", default="arditi_harmful_train", help="split name in data/splits/ (default: Arditi's exact sample)")
+    ap.add_argument("--harmless", default="arditi_harmless_train", help="split name in data/splits/")
     ap.add_argument("--tag", default="", help="suffix for the output file, e.g. ar")
     ap.add_argument("--grad_scale", type=float, default=128.0, help="fixed backward scale, undone in gradient hooks")
     ap.add_argument("--refusal_phrases", nargs="+", default=None,

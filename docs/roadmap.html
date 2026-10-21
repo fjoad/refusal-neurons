@@ -140,9 +140,9 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line)
     <div class="now">
       <span class="eyebrow">Where we are</span>
       <div class="now-row">
-        <div><strong>Replication:</strong> the published neurons check out on all 3 models; our own search is written but not yet run</div>
+        <div><strong>Replication:</strong> the published neurons check out on all 3 models, and our own search rediscovers all three</div>
         <div><strong>Arabic:</strong> the English neuron transfers (AUROC <span class="num">0.954</span> vs <span class="num">0.977</span>)</div>
-        <div><strong>Next:</strong> M2 acceptance run on panther</div>
+        <div><strong>Next:</strong> pick the judge, then build the rerank</div>
       </div>
     </div>
   </header>
@@ -179,8 +179,9 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line)
       <li class="step" data-state="doing">
         <div class="dot">2</div>
         <div class="step-body">
-          <div class="step-title"><h3>M2 · Rediscover the neurons ourselves</h3><span class="pill doing">Code ready, not run</span></div>
-          <p>Gradient × activation search over the first two-thirds of layers (written by Codex, checked against the paper). Pass: it finds <span class="mono">L13:F3270</span> and <span class="mono">L14:F7924</span> in its top 5. Still to build: the rerank, which sweeps the pin value <em>m</em> on HarmBench and keeps the best attacker.</p>
+          <div class="step-title"><h3>M2 · Rediscover the neurons ourselves</h3><span class="pill doing">Search done, rerank left</span></div>
+          <p>Gradient × activation search over the first two-thirds of layers. It passed once three settings matched the paper's appendix exactly: the Table 4 refusal phrases, only Table 3's red template tokens, and Arditi's exact 128/128 training sample. Still to build: the rerank, which sweeps the pin value <em>m</em> on HarmBench and keeps the best attacker.</p>
+          <p class="result">Published neuron rank in our top 5: <span class="mono">L13:F3270</span> 4th · <span class="mono">L14:F7924</span> 5th · <span class="mono">L11:F4258</span> 3rd. Activations match Table 5 (for example −4.41 vs −4.41 on Qwen3-8B).</p>
         </div>
       </li>
       <li class="step" data-state="todo">
@@ -223,7 +224,7 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line)
       <table>
         <thead><tr><th>Section</th><th>Experiment</th><th>Us</th><th>Needed for</th></tr></thead>
         <tbody>
-          <tr><td class="sec">§2.3</td><td>Neuron search (gradient × activation)<span class="sub">Top-5 candidates per model</span></td><td><span class="pill doing">Code ready</span></td><td>Everything; it is our main tool</td></tr>
+          <tr><td class="sec">§2.3</td><td>Neuron search (gradient × activation)<span class="sub">Top-5 candidates per model</span></td><td><span class="pill done">Reproduced</span></td><td>Everything; it is our main tool</td></tr>
           <tr><td class="sec">§2.3</td><td>Rerank top 5 by HarmBench ASR, sweeping <em>m</em></td><td><span class="pill todo">To build</span></td><td>Replication</td></tr>
           <tr><td class="sec">§2.4</td><td>JailbreakBench ASR, constant pin<span class="sub">LLM judge + Llama-Guard-3</span></td><td><span class="pill doing">Rough only</span></td><td>Replication, Paper A</td></tr>
           <tr><td class="sec">§2.4</td><td>Anchor intervention (scaled pin)</td><td><span class="pill todo">To build</span></td><td>Replication</td></tr>
@@ -279,8 +280,8 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line)
     <div class="section-head"><h2>Recommendation</h2></div>
     <div class="rec">
       <ol>
-        <li><strong>Run the M2 acceptance test now.</strong> Two GPU jobs, already scripted. If the published neurons are in the top 5, our search works.</li>
-        <li><strong>Build the rerank and settle the judge</strong> while those jobs run.</li>
+        <li><strong>Settle the judge.</strong> The rerank needs it, and so does everything after it.</li>
+        <li><strong>Build the rerank</strong>: an <em>m</em> sweep per top-5 candidate on HarmBench. It should pick the published neurons.</li>
         <li><strong>Do the core of M3:</strong> JailbreakBench ASR, anchor, MMLU/GSM8K and XSTest. Leave §3.2, §3.3, §3.5 and §4 for Paper C or skip them.</li>
         <li><strong>Then the Arabic search</strong>, which is the first real result for Paper A.</li>
       </ol>

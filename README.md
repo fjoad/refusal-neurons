@@ -23,7 +23,7 @@ The work runs in this order; each step gates the next. Keep the state column cur
 | Setup | `refneu` env, models and data splits on panther | ✅ |
 | **M1**: check published neurons | Apple's neuron IDs separate harmful from harmless prompts, and pinning them stops refusal | ✅ Qwen3-1.7B, Qwen3-8B, Llama-3.1-8B |
 | Arabic teaser | The English-found neuron on parallel Arabic prompts | ✅ transfers (AUROC 0.954 vs 0.977 in English) |
-| **M2**: rediscover the neurons | Our gradient × activation search should find L13:F3270 (Qwen3-1.7B) and L14:F7924 (Qwen3-8B) by itself, at least in its top 5, and then pick the right one by reranking on HarmBench ASR with an *m* sweep | 🟡 search code written and reviewed; acceptance run and rerank step pending |
+| **M2**: rediscover the neurons | Our gradient × activation search finds the published neurons in its top 5; then a rerank on HarmBench ASR with an *m* sweep picks the best attacker | 🟡 search ✅ for all 3 models (ranks 4, 5, 3; activations match Table 5); rerank not built yet |
 | Judge | One judge used for every language (see Open questions) | ⬜ |
 | **M3**: full evaluation | JailbreakBench ASR, anchor variant, MMLU/GSM8K cost, XSTest detection AUROC; English first | ⬜ |
 | Arabic search | Run the search on Arabic splits: same neuron or a different one? | ⬜ |
@@ -36,7 +36,8 @@ These were settled in discussion. Don't reopen them without a new reason.
 - **Replicate first, extend second.** Every direction depends on finding the neuron ourselves. Apple released no code, so we reimplement from the paper (Section 2 and Appendix A).
 - **Models:** Qwen3-1.7B, Qwen3-8B, Llama-3.1-8B-Instruct. They cover both families in the paper and fit on one V100-32GB. Larger models come later, if needed.
 - **fp16 on V100.** V100s have no native bf16. An fp16-vs-fp32 check on Qwen3-1.7B gave identical results.
-- **Data follows Arditi et al. exactly**, as Apple did: 128 harmful and 128 harmless train prompts, HarmBench validation (191 after removing JailbreakBench overlaps, which matches the paper's count), and JailbreakBench as the test set.
+- **Data follows Arditi et al. exactly**, as Apple did: HarmBench validation (191 after removing JailbreakBench overlaps, which matches the paper's count) and JailbreakBench as the test set. For training, use **Arditi's exact 128/128 sample** (`arditi_*_train`, built by `data/prepare_data.py`). With it, the search reproduces Table 5's activations; with our own sample, Qwen3-1.7B's neuron dropped to rank 11.
+- **The search follows the paper's appendix to the letter:** Table 4 refusal phrases, and only Table 3's red post-instruction tokens. Each of these changed the result (see the M2 entry in the results log). When the PDF text is ambiguous, render the page and look; the red highlighting was invisible in extracted text.
 - **Arabic only for now.** If we get a full replication plus an Arabic contribution, that is enough for Paper A even if other languages don't work. Modalities come after Arabic. Add languages along a resource spectrum later (for example French or Chinese, then Swahili or Bengali).
 - **Human-translated multilingual data, not our own machine translation**, so reviewers can't blame the translations. That means MultiJail (MIT) for harmful prompts and the Aya dataset (Apache-2.0) for harmless ones.
 - **The search is the main tool of the project**, not just a replication step. "Same neuron in Arabic?" is only answered honestly by running the search in Arabic. Checking whether the English neuron fires in Arabic is the weaker test.
@@ -77,13 +78,15 @@ Experiments run on **panther** (QCRI SLURM). The repo is cloned at `~/refusal-ne
 | `data/prepare_data.py` | Builds the Arditi/Apple splits in `data/splits/` |
 | `data/prepare_arabic.py` | Builds parallel MultiJail en/ar (100 prompts) and Aya harmless en/ar splits |
 | `replication/neuron_check.py` (+ `.sh`) | M1: given a known (layer, neuron), measures separation (AUROC, per-token activations) and refusal rate when pinning it to several values. `--harmful/--harmless` choose splits, `--tag` labels the output |
-| `replication/neuron_search.py` (+ `.sh`) | M2: Apple's gradient × activation search over the first 2/3 of layers; prints and saves the top-5 candidates |
+| `replication/neuron_search.py` (+ `.sh`) | M2: Apple's gradient × activation search over the first 2/3 of layers; prints and saves the top-5 candidates. `--watch L:F` reports a neuron's rank; per-layer means are saved to `*_means.pt` |
+| `replication/rescore.py` | Re-ranks neurons from a saved `*_means.pt` with a different token subset, without rerunning the model (CPU only) |
 | `replication/show_responses.py` | Prints or writes a few generated responses from an output JSON, for a human to read |
 
 Examples:
 ```bash
 sbatch replication/neuron_check.sh Qwen/Qwen3-8B 14 7924 float16
 sbatch replication/neuron_check.sh Qwen/Qwen3-8B 14 7924 float16 --harmful multijail_ar --harmless aya_harmless_ar --tag mj_ar
+sbatch replication/neuron_search.sh Qwen/Qwen3-8B float16 --watch 14:7924   # paper settings are the defaults
 python replication/show_responses.py outputs/neuron_check/<file>.json --out /tmp/responses.txt
 ```
 
