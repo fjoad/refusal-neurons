@@ -2,8 +2,9 @@
 
 Hooks observe h = SiLU(W_gate x) * W_up x before down_proj in the first
 floor(2 * n_layers / 3) layers. All layer/neuron/token indices are zero-based.
-Refusal probability is the mass of response prefixes in REFUSAL_MARKERS, with
-duplicate/overlapping token prefixes removed before summing phrase probabilities.
+Refusal probability is the mass of the paper's Table 4 refusal phrases for the model
+family (or --refusal_phrases), with duplicate/overlapping token prefixes removed
+before summing phrase probabilities.
 
 Sign convention: the README requests L = -log(p / (1-p)) and
 score = (mean_grad_harmful + mean_grad_harmless) * (mean_act_harmful - mean_act_harmless).
@@ -11,7 +12,7 @@ Refusal features have NEGATIVE scores under this convention: smaller is better,
 including when selecting the best token. This is equivalent to maximizing the
 paper's Eq. 4, which uses the opposite activation gap (harmless - harmful).
 
-Usage: python replication/neuron_search.py --model Qwen/Qwen3-1.7B
+Usage: python replication/neuron_search.py --model Qwen/Qwen3-1.7B --watch 13:3270
 This script only ranks candidates; it does not intervene or run the ASR sweep.
 """
 import argparse
@@ -22,7 +23,7 @@ import time
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
-from neuron_check import REFUSAL_MARKERS, ROOT, build_prompts, load
+from neuron_check import ROOT, build_prompts, load
 
 
 def refusal_prefixes(tok, phrases):
@@ -192,6 +193,48 @@ def top_candidates(harmful, harmless, post_tokens, k=5):
     return sorted(candidates, key=lambda x: (x["score"], x["layer"], x["neuron"]))[:k]
 
 
+def watch_ranks(harmful, harmless, post_tokens, watch):
+    """Global rank (1 = best) of each watched (layer, neuron) under the same score and filter."""
+    act_harm, grad_harm = harmful
+    act_safe, grad_safe = harmless
+    best, valid = [], []
+    for ah, gh, ash, gs in zip(act_harm, grad_harm, act_safe, grad_safe):
+        score, token = ((gh + gs) * (ah - ash)).min(dim=0)
+        neurons = torch.arange(score.shape[0])
+        best.append((score, token))
+        valid.append(ah[token, neurons].abs() > ash[token, neurons].abs())
+    pool = torch.cat([s[v] for (s, _), v in zip(best, valid)])
+    out = []
+    for layer, neuron in watch:
+        if layer >= len(best):
+            out.append({"layer": layer, "neuron": neuron, "searched": False})
+            continue
+        score, token = best[layer][0][neuron], int(best[layer][1][neuron])
+        out.append({
+            "layer": layer, "neuron": neuron, "searched": True, "score": float(score),
+            "rank": int((pool < score).sum()) + 1, "passes_filter": bool(valid[layer][neuron]),
+            "post_token_index": token, "post_token": post_tokens[token],
+            "mean_act_harmful": float(act_harm[layer][token, neuron]),
+            "mean_act_harmless": float(act_safe[layer][token, neuron]),
+            "combined_grad": float(grad_harm[layer][token, neuron] + grad_safe[layer][token, neuron]),
+        })
+    return out
+
+
+# Table 4 of Kazemi et al. (2026): the log-odds targets per model family.
+PAPER_PHRASES = {
+    "qwen3": ["I'm sorry, but I can't help with that request.", "I'm unable to assist"],
+    "llama": ["I can't help with that.", "I'm unable to assist"],
+}
+
+
+def paper_phrases(model):
+    for family, phrases in PAPER_PHRASES.items():
+        if family in model.lower():
+            return phrases
+    raise ValueError(f"No Table 4 phrases for {model}; pass --refusal_phrases")
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--model", required=True)
@@ -201,11 +244,19 @@ def main():
     ap.add_argument("--harmless", default="harmless_train", help="split name in data/splits/")
     ap.add_argument("--tag", default="", help="suffix for the output file, e.g. ar")
     ap.add_argument("--grad_scale", type=float, default=128.0, help="fixed backward scale, undone in gradient hooks")
-    ap.add_argument("--refusal_phrases", nargs="+", default=REFUSAL_MARKERS,
-                    help="response-prefix targets; defaults to neuron_check.py's refusal markers")
+    ap.add_argument("--refusal_phrases", nargs="+", default=None,
+                    help="response-prefix targets; defaults to the paper's Table 4 phrases for the model family")
+    ap.add_argument("--watch", nargs="*", default=[], metavar="L:F",
+                    help="also report the rank of these neurons, e.g. 14:7924")
     args = ap.parse_args()
     if args.bs < 1 or not math.isfinite(args.grad_scale) or args.grad_scale <= 0:
         ap.error("--bs must be positive and --grad_scale must be finite and positive")
+    if args.refusal_phrases is None:
+        args.refusal_phrases = paper_phrases(args.model)
+    try:
+        watch = [tuple(int(x) for x in w.split(":")) for w in args.watch]
+    except ValueError:
+        ap.error("--watch expects layer:neuron pairs, e.g. 14:7924")
 
     t0 = time.time()
     harmful, harmless = load(args.harmful), load(args.harmless)
@@ -254,10 +305,21 @@ def main():
         print(f"  {rank}. (layer={candidate['layer']}, neuron={candidate['neuron']}, score={candidate['score']:+.8g})"
               f"  L{candidate['layer']}:F{candidate['neuron']}"
               f"  token[{candidate['post_token_index']}]={candidate['post_token']!r}")
+    watched = watch_ranks(harm_means, safe_means, post_tokens, watch)
+    for w in watched:
+        if not w["searched"]:
+            print(f"  watch L{w['layer']}:F{w['neuron']}: layer not searched")
+            continue
+        print(f"  watch L{w['layer']}:F{w['neuron']}: rank {w['rank']}, score={w['score']:+.6g},"
+              f" filter={'pass' if w['passes_filter'] else 'FAIL'}, token[{w['post_token_index']}]={w['post_token']!r},"
+              f" act harmful/harmless={w['mean_act_harmful']:+.3f}/{w['mean_act_harmless']:+.3f}")
     out = ROOT / "outputs" / "neuron_search"
     out.mkdir(parents=True, exist_ok=True)
     tag = f"_{args.tag}" if args.tag else ""
     name = f"{args.model.rstrip('/').split('/')[-1]}_{args.dtype}{tag}.json"
+    # Per-layer mean activations and gradients, so other scores or neurons can be checked without rerunning.
+    torch.save({"harmful": harm_means, "harmless": safe_means, "post_tokens": post_tokens},
+               out / name.replace(".json", "_means.pt"))
     (out / name).write_text(json.dumps({
         "args": vars(args), "n_layers_searched": n_layers,
         "n_harmful": len(harmful), "n_harmless": len(harmless),
@@ -266,7 +328,7 @@ def main():
         "loss": "-log(p_refusal / (1 - p_refusal))",
         "score": "(mean_grad_harmful + mean_grad_harmless) * (mean_act_harmful - mean_act_harmless)",
         "ranking": "ascending; select minimum-score token, then apply magnitude filter",
-        "candidates": candidates, "minutes": (time.time() - t0) / 60,
+        "candidates": candidates, "watched": watched, "minutes": (time.time() - t0) / 60,
     }, indent=1, ensure_ascii=False, allow_nan=False))
     print(f"saved outputs/neuron_search/{name}  ({(time.time() - t0) / 60:.1f} min)")
 
