@@ -119,6 +119,52 @@ Fixes in commit `347142b`:
 
 The rerun and the later fixes are in the entry above.
 
+### 2026-10-21: Appendix G alignment and the Arditi ablation baseline (`arditi.py`)
+Arditi's direction was selected with his pipeline rules on his exact 128/128 train and 32/32 val samples, filtered by refusal score:
+- candidates: every layer × every post-instruction position
+- discard the last 20% of layers, KL > 0.1, or induce < 0
+- choose the lowest bypass score
+
+The ablation projects the direction out at every layer.
+
+| Model | Selected (pos, layer); paper's layer | Top \|cos\| neuron in that layer: ours / paper | E[max] | Published neuron's own-layer rank by cosine |
+|---|---|---|---|---|
+| Qwen3-8B | (−1, **20**); 20 ✅ | **F8719** 0.154 / F8719 0.200 ✅ | 0.070 | L14:F7924 **1st** (cos −0.149) |
+| Llama-3.1-8B | (−1, **12**); 12 ✅ | **F5760** 0.198 / F5760 0.148 ✅ | 0.071 | L11:F4258 **1st** (cos +0.583) |
+| Qwen3-1.7B | (−8, 15); 13 | F1109 0.174 / F3270 0.186 | 0.096 | L13:F3270 **1st** (cos −0.323) |
+
+Union-bound p-values are ≤ 1e-11 for all three.
+
+- **On both 8B models, the direction layer and its top neuron reproduce Table 7.**
+- **Bonus check: in all three models, the published refusal neuron is the neuron in its own layer most aligned with Arditi's direction.** This convergence is stronger than the paper reports (2 of 7).
+- **On 1.7B, our direction picks layer 15, and its top neuron is L15:F1109.** That's the same neuron that tops our 1.7B Arabic search and wins the 1.7B rerank on max ASR. 1.7B kept only 8 of 32 harmful val prompts after filtering, because it complies with many, so the selection is noisy.
+
+Ablation on JailbreakBench (100 prompts, 512 tokens, Llama-Guard-3 ASR):
+
+| Model | Unpinned | Arditi ablation |
+|---|---|---|
+| Qwen3-1.7B | 0.18 | 0.92 |
+| Qwen3-8B | 0.04 | 0.91 |
+| Llama-3.1-8B | 0.04 | 0.95 |
+
+Paper's Llama-Guard average for Arditi: 91.6%. Logs: `arditi-431444/5/6`.
+
+### 2026-10-21: Per-token firing (3.1) and base models (3.2) (`token_acts.py`)
+Mean peak activation of each published neuron, on content tokens (the user's text) vs Table 3 tokens. Inputs: 100 JailbreakBench, 100 held-out Alpaca and 100 XSTest-safe prompts. XSTest-safe prompts contain harmful words with benign intent, like "kill a Python process".
+
+| Model | Harmful: content / Table 3 | Harmless: content / Table 3 | XSTest-safe: content / Table 3 | AUROC harmful vs XSTest-safe (Table 3) |
+|---|---|---|---|---|
+| Qwen3-1.7B | −8.50 / **−11.22** | −0.07 / −0.40 | −3.54 / −4.65 | 0.927 |
+| Qwen3-8B | −2.77 / **−4.11** | −0.09 / −0.09 | −1.46 / −1.14 | 0.919 |
+| Llama-3.1-8B | +0.50 / **+1.31** | +0.02 / +0.01 | +0.29 / +0.28 | 0.958 |
+| Qwen3-1.7B-**Base** | −6.00 / −5.60 | +0.30 / −0.40 | −1.11 / −0.65 | 0.990 |
+| Qwen3-8B-**Base** | **−2.23** / −0.75 | +0.01 / +0.01 | −0.85 / −0.06 | 0.900 |
+
+- **3.1 reproduced:** instruct models fire hardest at the turn boundary on harmful prompts and stay silent on harmless ones. Benign prompts with harmful words get a **partial** response, at roughly 30–40% of the harmful level, not silence. So "a murder of crows" is reduced, not zero, though separation stays high.
+- **3.2 reproduced on Qwen3-8B:** the base checkpoint's neuron already separates harmful from harmless (AUROC 0.945 on content tokens), but it fires on the harmful *content*, not at the turn boundary. Alignment moves *when* it fires, as Apple says. Qwen3-1.7B-Base already fires at both.
+
+Logs: `token_acts-431441/2`. Per-token arrays are in `outputs/token_acts/` for plotting.
+
 ### 2026-10-21: Milestone 2 rerank, the published neuron wins on both 8B models at the paper's m* (`rerank.py`, `judge.py`)
 Setup:
 - the top-5 search candidates (Arditi sample), each pinned at every token over m ∈ {2, 4, 6, 10, 15, 20, 30, 40, 60}, opposite to the neuron's harmful sign
