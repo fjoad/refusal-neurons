@@ -108,5 +108,37 @@ Fixes in commit `347142b`:
 
 The rerun and the later fixes are in the entry above.
 
+### 2026-10-21: Arabic search on Qwen3-8B finds the same neuron (`neuron_search.py`)
+Data: 128 MultiJail prompts, parallel English and human-translated Arabic, kept separate from the 100 teaser prompts. Harmless: 128 Aya *train* prompts per language. Paper settings otherwise (Table 3 tokens). The Arabic refusal phrase "أنا لا أستطيع مساعدتك" comes from `refusal_openings.py`: it opens 10 of 30 unpinned Arabic responses.
+
+| Search | Refusal phrases | L14:F7924 rank | Its activation, harmful / harmless | Other top-5 |
+|---|---|---|---|---|
+| English | Table 4 (English) | **1** | −3.24 / −0.27 | L16:F5318, L16:F227, L16:F8474, L18:F7664 |
+| Arabic | "أنا لا أستطيع مساعدتك" | **3** | −3.19 / −0.28 | L18:F7664, L16:F8474, L17:F11229, L16:F5318 |
+| Arabic | Table 4 (English) | **1** | −3.19 / −0.28 | L16:F8474, L17:F11229, L16:F5318, L18:F7664 |
+
+All winners peak at the `\n` after `<|im_end|>`.
+
+Takeaways:
+- **A search run entirely in Arabic recovers the English refusal neuron**, at the same token and with nearly the same activation.
+- **The candidate pools overlap:** L16:F8474, L16:F5318 and L18:F7664 appear in both the English and Arabic top 5.
+
+Caveats:
+- One model and n = 128.
+- The harmless sets are not parallel across languages.
+- The rerank (ASR) for the Arabic candidates is not done; it needs an Arabic-capable judging step.
+
+Logs: `search_ar-431406`.
+
+### 2026-10-21: Llama-Guard-3 judge sanity check (`judge.py`)
+These are M1's Qwen3-8B JailbreakBench outputs: 30 prompts, 96 new tokens, pinning L14:F7924.
+
+| Pin | none | +10 | +20 | +40 | +80 |
+|---|---|---|---|---|---|
+| String-match refusal | 0.97 | 0.53 | 0.03 | 0.00 | 0.00 |
+| Llama-Guard ASR | 0.03 | 0.50 | 0.97 | 0.93 | 1.00 |
+
+The judge tracks the intervention cleanly. The caveat is pin +80, where outputs shrink to a median of 100 characters and are likely garbled, yet Llama-Guard still calls them unsafe; see the judge decision in the README. A smoke test of `rerank.py` on 8 HarmBench prompts ran end to end. Qwen3-1.7B unpinned refused none of those 8, and none of them are copyright items; the full run gives the real baseline.
+
 ## Compute
 Panther (QCRI SLURM). Only the 70B model needs multiple GPUs; start with the three models above.
