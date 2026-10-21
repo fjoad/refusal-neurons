@@ -235,6 +235,24 @@ def paper_phrases(model):
     raise ValueError(f"No Table 4 phrases for {model}; pass --refusal_phrases")
 
 
+# Table 3 (red tokens): the post-instruction tokens that are scored. The rest of the
+# template suffix (Qwen3's empty <think> block, Llama's final \n\n) is fed but not scored.
+PAPER_SCORE_TOKENS = {
+    "qwen3": ["<|im_end|>", "Ċ", "<|im_start|>", "assistant", "Ċ"],
+    "llama": ["<|eot_id|>", "<|start_header_id|>", "assistant", "<|end_header_id|>"],
+}
+
+
+def paper_score_tokens(model, post_tokens):
+    """Number of leading post-instruction tokens to score, checked against Table 3."""
+    for family, tokens in PAPER_SCORE_TOKENS.items():
+        if family in model.lower():
+            if post_tokens[:len(tokens)] != tokens:
+                raise ValueError(f"Template suffix {post_tokens} does not start with Table 3 tokens {tokens}")
+            return len(tokens)
+    raise ValueError(f"No Table 3 tokens for {model}; pass --score_tokens")
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--model", required=True)
@@ -246,6 +264,8 @@ def main():
     ap.add_argument("--grad_scale", type=float, default=128.0, help="fixed backward scale, undone in gradient hooks")
     ap.add_argument("--refusal_phrases", nargs="+", default=None,
                     help="response-prefix targets; defaults to the paper's Table 4 phrases for the model family")
+    ap.add_argument("--score_tokens", type=int, default=None,
+                    help="score only the first N post-instruction tokens (default: Table 3 for the family; 0 = all)")
     ap.add_argument("--watch", nargs="*", default=[], metavar="L:F",
                     help="also report the rank of these neurons, e.g. 14:7924")
     args = ap.parse_args()
@@ -271,6 +291,9 @@ def main():
     if n_post < 1 or (n_post, post_tokens) != (n_safe, safe_tokens):
         raise ValueError("Both splits must have the same nonempty post-instruction template suffix")
     post_ids = tok.convert_tokens_to_ids(post_tokens)
+    if args.score_tokens is None:
+        args.score_tokens = paper_score_tokens(args.model, post_tokens)
+    n_score = args.score_tokens or len(post_tokens)
     prefixes = refusal_prefixes(tok, args.refusal_phrases)
     model = AutoModelForCausalLM.from_pretrained(
         args.model, torch_dtype=getattr(torch, args.dtype), device_map="auto", local_files_only=True)
@@ -299,13 +322,16 @@ def main():
     finally:
         for handle in handles:
             handle.remove()
-    candidates = top_candidates(harm_means, safe_means, post_tokens)
+    # Means cover the whole suffix; score only the leading Table 3 tokens.
+    head = lambda split: ([t[:n_score] for t in split[0]], [t[:n_score] for t in split[1]])
+    print(f"scored tokens: {post_tokens[:n_score]}")
+    candidates = top_candidates(head(harm_means), head(safe_means), post_tokens[:n_score])
     print(f"Top {len(candidates)} candidates for {args.model} (zero-based; most negative score first):")
     for rank, candidate in enumerate(candidates, 1):
         print(f"  {rank}. (layer={candidate['layer']}, neuron={candidate['neuron']}, score={candidate['score']:+.8g})"
               f"  L{candidate['layer']}:F{candidate['neuron']}"
               f"  token[{candidate['post_token_index']}]={candidate['post_token']!r}")
-    watched = watch_ranks(harm_means, safe_means, post_tokens, watch)
+    watched = watch_ranks(head(harm_means), head(safe_means), post_tokens[:n_score], watch)
     for w in watched:
         if not w["searched"]:
             print(f"  watch L{w['layer']}:F{w['neuron']}: layer not searched")
