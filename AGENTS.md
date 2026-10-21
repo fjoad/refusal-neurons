@@ -31,7 +31,7 @@ This is jailbreak research. Prompts are harmful by design, and pinned models pro
 ## Panther (QCRI SLURM cluster)
 - Access: `ssh panther.qcri.org`. On panther the repo is at `~/refusal-neurons` (`/export/home/fjoad/refusal-neurons`).
 - SLURM needs `source /etc/profile.d/modules.sh; module load slurm` in each non-interactive ssh command.
-- **Loop:** edit locally → commit and push → `ssh panther.qcri.org 'cd ~/refusal-neurons && git pull -q && source /etc/profile.d/modules.sh && module load slurm && sbatch <script> <args>'`. Panther is a plain git clone; don't rsync over it.
+- **Loop:** edit locally → commit and push → `ssh panther.qcri.org 'cd ~/refusal-neurons && git pull -q && source /etc/profile.d/modules.sh && module load slurm && sbatch <script> <args>'`. Panther is a plain git clone; don't rsync over it. `scripts/pssh.sh '<command>'` does the ssh with retries when the VPN is flaky.
 - Logs go to `~/refusal-neurons/logs/<job-name>-<id>.out`; results go to `outputs/neuron_check/` and `outputs/neuron_search/` as JSON. Both are gitignored, so copy the numbers into the results log.
 - **SLURM style:** short scripts like the existing `.sh` files: `gpu-all` partition, one `v100nv_32GB` GPU, conda env `refneu`, `HF_HUB_OFFLINE=1`, at most ~3 jobs at a time. `--exclude=crimv3mgpu018` is carried over from the llm safety project's scripts.
 - **GPU sizing:** Qwen3-1.7B fits a 16 GB card. The 8B models and an 8B judge need one V100-32GB (or 2× 16 GB split). V100s have no bf16, so use fp16.
@@ -43,7 +43,7 @@ This is jailbreak research. Prompts are harmful by design, and pinned models pro
   - Over a flaky VPN, long or complex one-line `ssh … sbatch …` commands get dropped. Short commands work. Write a job script into `logs/` and submit it with a plain `sbatch <file>`. Background processes on the login node die when the SSH session ends, so use SLURM even for small CPU checks.
   - Long blocking `ssh` waits die silently. Poll with short `ssh … sacct` calls in a loop, and treat a failed call as "unknown", not "finished".
   - **Home quota is 1.5 TB and nearly full.** Check `df -h /export/home/fjoad` before downloading anything large. `/alt/scratch` is admin-only. Don't delete anything in `~/llm_safety_project` (activation caches cost GPU time to make) or the cached `gemma-2-9b-it`, `gemma-scope-9b-it-res`, WildGuard, or Llama-3.1-8B-Instruct models. Ask before deleting anything.
-- Cached models: Qwen3-1.7B, Qwen3-8B, Llama-3.1-8B-Instruct (gated, already accessible). Llama-Guard-3-8B (~16 GB) is not downloaded yet; wait until the judge is decided.
+- Cached models: Qwen3-1.7B, Qwen3-8B, Llama-3.1-8B-Instruct and Llama-Guard-3-8B (the judge; gated, accessible). An 8B model in fp16 needs two 16 GB cards.
 
 ## Secrets
 Keys go in `.env` (gitignored; template in `.env.example`). Never hardcode them; the old project leaked keys this way. Check for secrets before every commit.

@@ -24,7 +24,7 @@ The work runs in this order; each step gates the next. Keep the state column cur
 | **M1**: check published neurons | Apple's neuron IDs separate harmful from harmless prompts, and pinning them stops refusal | ✅ Qwen3-1.7B, Qwen3-8B, Llama-3.1-8B |
 | Arabic teaser | The English-found neuron on parallel Arabic prompts | ✅ transfers (AUROC 0.954 vs 0.977 in English) |
 | **M2**: rediscover the neurons | Our gradient × activation search finds the published neurons in its top 5; then a rerank on HarmBench ASR with an *m* sweep picks the best attacker | 🟡 search ✅ for all 3 models (ranks 4, 5, 3; activations match Table 5); rerank not built yet |
-| Judge | One judge used for every language (see Open questions) | ⬜ |
+| Judge | One judge used for every language | ✅ Llama-Guard-3-8B (free, on panther); Arabic handling still open |
 | **M3**: full evaluation | JailbreakBench ASR, anchor variant, MMLU/GSM8K cost, XSTest detection AUROC; English first | ⬜ |
 | Arabic search | Run the search on Arabic splits: same neuron or a different one? | ⬜ |
 | Modalities | Image and speech, using models that share a backbone with our text models | ⬜ |
@@ -41,12 +41,15 @@ These were settled in discussion. Don't reopen them without a new reason.
 - **Arabic only for now.** If we get a full replication plus an Arabic contribution, that is enough for Paper A even if other languages don't work. Modalities come after Arabic. Add languages along a resource spectrum later (for example French or Chinese, then Swahili or Bengali).
 - **Human-translated multilingual data, not our own machine translation**, so reviewers can't blame the translations. That means MultiJail (MIT) for harmful prompts and the Aya dataset (Apache-2.0) for harmless ones.
 - **The search is the main tool of the project**, not just a replication step. "Same neuron in Arabic?" is only answered honestly by running the search in Arabic. Checking whether the English neuron fires in Arabic is the weaker test.
-- **One judge for every language.** Llama-Guard-3, which Apple used, likely doesn't cover Arabic. Comparing English numbers from one judge with Arabic numbers from another would not be valid.
+- **Judge: Llama-Guard-3-8B only, free and on panther** (decided 2026-10-21). No API credits for an LLM judge while this is exploratory. A response is a successful attack when Llama-Guard labels it unsafe, which is Apple's secondary judge; incoherent output counts as safe. Llama-Guard-3 doesn't officially cover Arabic, so Arabic ASR needs care: translating to English first, or checking agreement on a sample, are the options when we get there.
+- **One judge for every language.** Comparing English numbers from one judge with Arabic numbers from another would not be valid.
+- **Rerank is cheaper than the paper's:** a 9-value *m* grid (2–60) and 128 new tokens instead of their ~47 values and 512 tokens, so it fits P100/V100s. Refine around the best *m* later if needed.
+- **Arabic search scores Qwen's own Arabic refusal phrase.** Unpinned, Qwen3-8B refuses Arabic prompts in Arabic, usually opening with "أنا لا أستطيع مساعدتك" ("I can't help you"; 10 of 30 responses). The English phrases would target a reply the model doesn't give in Arabic.
 - **Refusal is scored automatically and responses stay out of logs.** Generated text goes to the output JSON only. Read it with `replication/show_responses.py`.
 - **Several papers from one codebase** (below), not everything in one paper.
 
 ## Open questions
-- **Judge:** an LLM judge (Claude, as Apple used, which reads Arabic) vs translating responses back to English and using Llama-Guard-3 or WildGuard (WildGuard matches our EMNLP paper). Plan: run two on a sample, check agreement, then pick.
+- **Arabic ASR:** Llama-Guard-3 on Arabic directly, or after translating responses to English with a free local model. Decide when the Arabic intervention numbers are needed.
 - **Multimodal models** that share a backbone with our text models (for example a Qwen3-based VL or audio model). Check each model's backbone before using it.
 - **MultiJail's baseline refusal rate is low** (~0.45 by string match). Some prompts are borderline. A proper judge will tell us whether we need a stricter harmful set.
 
@@ -80,6 +83,10 @@ Experiments run on **panther** (QCRI SLURM). The repo is cloned at `~/refusal-ne
 | `replication/neuron_check.py` (+ `.sh`) | M1: given a known (layer, neuron), measures separation (AUROC, per-token activations) and refusal rate when pinning it to several values. `--harmful/--harmless` choose splits, `--tag` labels the output |
 | `replication/neuron_search.py` (+ `.sh`) | M2: Apple's gradient × activation search over the first 2/3 of layers; prints and saves the top-5 candidates. `--watch L:F` reports a neuron's rank; per-layer means are saved to `*_means.pt` |
 | `replication/rescore.py` | Re-ranks neurons from a saved `*_means.pt` with a different token subset, without rerunning the model (CPU only) |
+| `replication/rerank.py` | M2 rerank: pins each top-5 search candidate over a grid of *m* on HarmBench and saves the responses (log shows rough refusal rates only) |
+| `replication/judge.py` | Llama-Guard-3 verdicts and ASR for a rerank or neuron_check output; writes verdicts back into the JSON |
+| `replication/refusal_openings.py` | Counts the stock openings of unpinned responses, to find a model's refusal phrases in a language; never prints full responses |
+| `scripts/pssh.sh` | Runs a command on panther, retrying when the VPN drops the connection |
 | `replication/show_responses.py` | Prints or writes a few generated responses from an output JSON, for a human to read |
 
 Examples:
