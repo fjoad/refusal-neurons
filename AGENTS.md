@@ -42,6 +42,7 @@ This is jailbreak research. Prompts are harmful by design, and pinned models pro
   - `~/.ssh/config` keeps a shared SSH connection (ControlMaster) to panther. After the VPN drops, that connection goes stale and every `ssh` fails with exit 255. Pass `-o ControlPath=none`, or close it with `ssh -O exit panther.qcri.org`.
   - Over a flaky VPN, long or complex one-line `ssh … sbatch …` commands get dropped. Short commands work. Write a job script into `logs/` and submit it with a plain `sbatch <file>`. Background processes on the login node die when the SSH session ends, so use SLURM even for small CPU checks.
   - Long blocking `ssh` waits die silently. Poll with short `ssh … sacct` calls in a loop, and treat a failed call as "unknown", not "finished".
+  - **Per-user cap, enforced by the `gpulimit` QOS: 10 GPUs and 10 jobs at once**, counting your other projects' jobs. Extra jobs wait with reason `QOSMaxGRESPerUser`; they start on their own when GPUs free up. Check with `sacctmgr -n -p show assoc user=$USER format=QOS`.
   - **Home quota is 1.5 TB and nearly full.** Check `df -h /export/home/fjoad` before downloading anything large. `/alt/scratch` is admin-only. Don't delete anything in `~/llm_safety_project` (activation caches cost GPU time to make) or the cached `gemma-2-9b-it`, `gemma-scope-9b-it-res`, WildGuard, or Llama-3.1-8B-Instruct models. Ask before deleting anything.
 - Cached models: Qwen3-1.7B, Qwen3-8B, Llama-3.1-8B-Instruct and Llama-Guard-3-8B (the judge; gated, accessible). An 8B model in fp16 needs two 16 GB cards.
 
