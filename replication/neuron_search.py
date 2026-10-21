@@ -23,7 +23,7 @@ import time
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
-from neuron_check import ROOT, build_prompts, load
+from neuron_check import ROOT, build_prompts, load, paper_score_tokens
 
 
 def refusal_prefixes(tok, phrases):
@@ -234,23 +234,6 @@ def paper_phrases(model):
             return phrases
     raise ValueError(f"No Table 4 phrases for {model}; pass --refusal_phrases")
 
-
-# Table 3 (red tokens): the post-instruction tokens that are scored. The rest of the
-# template suffix (Qwen3's empty <think> block, Llama's final \n\n) is fed but not scored.
-PAPER_SCORE_TOKENS = {
-    "qwen3": ["<|im_end|>", "Ċ", "<|im_start|>", "assistant", "Ċ"],
-    "llama": ["<|eot_id|>", "<|start_header_id|>", "assistant", "<|end_header_id|>"],
-}
-
-
-def paper_score_tokens(model, post_tokens):
-    """Number of leading post-instruction tokens to score, checked against Table 3."""
-    for family, tokens in PAPER_SCORE_TOKENS.items():
-        if family in model.lower():
-            if post_tokens[:len(tokens)] != tokens:
-                raise ValueError(f"Template suffix {post_tokens} does not start with Table 3 tokens {tokens}")
-            return len(tokens)
-    raise ValueError(f"No Table 3 tokens for {model}; pass --score_tokens")
 
 
 def main():

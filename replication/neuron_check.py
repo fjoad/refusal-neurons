@@ -42,6 +42,25 @@ def build_prompts(tok, instructions):
     return prompts, n_post, tok.convert_ids_to_tokens(tok(suffix, add_special_tokens=False).input_ids)
 
 
+
+# Table 3 (red tokens): the post-instruction tokens that are scored. The rest of the
+# template suffix (Qwen3's empty <think> block, Llama's final \n\n) is fed but not scored.
+PAPER_SCORE_TOKENS = {
+    "qwen3": ["<|im_end|>", "Ċ", "<|im_start|>", "assistant", "Ċ"],
+    "llama": ["<|eot_id|>", "<|start_header_id|>", "assistant", "<|end_header_id|>"],
+}
+
+
+def paper_score_tokens(model, post_tokens):
+    """Number of leading post-instruction tokens to score, checked against Table 3."""
+    for family, tokens in PAPER_SCORE_TOKENS.items():
+        if family in model.lower():
+            if post_tokens[:len(tokens)] != tokens:
+                raise ValueError(f"Template suffix {post_tokens} does not start with Table 3 tokens {tokens}")
+            return len(tokens)
+    raise ValueError(f"No Table 3 tokens for {model}; pass --score_tokens")
+
+
 class NeuronHook:
     """Forward pre-hook on mlp.down_proj: records h[..., idx] and optionally pins it to `value`."""
 
@@ -125,6 +144,11 @@ def main():
         print(f"  {r['token']!r:>20}  harmful {r['harmful']:+8.3f}   harmless {r['harmless']:+8.3f}")
     auroc = roc_auc_score(labels, scores)
     print(f"harmful sign: {'+' if sign > 0 else '-'}   AUROC (min/max over post-instruction tokens): {auroc:.3f}")
+    # Paper Section 3.4: aggregate over Table 3's tokens only (the leading part of the suffix).
+    n_paper = paper_score_tokens(args.model, post_tokens)
+    scores_paper = np.concatenate([agg(a_harm[:, :n_paper]), agg(a_safe[:, :n_paper])]) * sign
+    auroc_paper = roc_auc_score(labels, scores_paper)
+    print(f"AUROC (min/max over Table 3 tokens {post_tokens[:n_paper]}): {auroc_paper:.3f}")
 
     # B) bypass by pinning, opposite to the harmful sign
     gen_prompts = p_harm[:args.n_gen]
@@ -143,7 +167,9 @@ def main():
     name = f"{args.model.split('/')[-1]}_L{args.layer}_F{args.neuron}_{args.dtype}{tag}.json"
     (out / name).write_text(json.dumps({
         "args": vars(args), "post_tokens": post_tokens, "per_token_means": per_token, "auroc": auroc,
-        "harmful_sign": sign, "prompts": harmful[:args.n_gen], "runs": runs,
+        "harmful_sign": sign, "auroc_paper_tokens": auroc_paper,
+        "detection_scores": scores_paper.tolist(), "detection_labels": labels.tolist(),
+        "prompts": harmful[:args.n_gen], "runs": runs,
         "minutes": (time.time() - t0) / 60}, indent=1, ensure_ascii=False))
     print(f"saved outputs/neuron_check/{name}  ({(time.time() - t0) / 60:.1f} min)")
     # print(show(out / name))  # uncomment to also print response snippets into the job log
