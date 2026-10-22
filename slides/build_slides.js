@@ -578,23 +578,48 @@ function chartBase(extra) {
 // ------------------------------------------------------------------ 17a. experiment 7: write vectors
 {
   const s = newSlide("Experiment 7, background: each neuron has a “write vector”", "background",
-    "The shrink step of the MLP block turns the 12,288 neuron values back into 4,096 numbers. Mathematically it is a sum: MLP output = h1 times v1 " +
-    "plus h2 times v2 and so on up to h12288 times v12288. h is the neuron's value, which changes with the prompt. v is a fixed list of 4,096 numbers " +
-    "learned in training: one column of the shrink matrix, called down_proj in the code. So when a neuron fires, it adds its own fixed arrow v to the " +
-    "residual stream, scaled by how strongly it fires. That arrow is the neuron's write vector: the direction it pushes the residual stream in. " +
-    "A refusal direction also lives in the residual stream, so we can ask whether a neuron's arrow points the same way as the refusal direction.");
-  s.addText("MLP output  =  h₁·v₁  +  h₂·v₂  +  …  +  h₁₂₂₈₈·v₁₂₂₈₈",
-    { x: ML, y: 1.75, w: CW, h: 0.8, fontFace: FONT, fontSize: 28, bold: true, color: INK, align: "center", margin: 0 });
-  const card = (x, head, body) => {
-    s.addShape(pres.shapes.ROUNDED_RECTANGLE, { x, y: 2.9, w: 5.9, h: 1.9, fill: { color: SOFT }, line: { color: LINE }, rectRadius: 0.08 });
-    s.addText(head, { x: x + 0.25, y: 3.0, w: 5.4, h: 0.45, fontFace: FONT, fontSize: 18, bold: true, color: INK, margin: 0 });
-    s.addText(body, { x: x + 0.25, y: 3.5, w: 5.4, h: 1.2, fontFace: FONT, fontSize: 15, color: INK, margin: 0, valign: "top" });
+    "Left: the MLP block exactly as it is written in Hugging Face transformers for Qwen3. gate_proj and up_proj expand the 4,096 numbers to 12,288; " +
+    "act_fn is the squash; down_proj shrinks back to 4,096. The thing passed into down_proj is the 12,288 neurons, h. Right: what we do with it. " +
+    "We hook the input of down_proj to read the neurons or pin one. Neuron 7924's write vector is column 7924 of down_proj's weight matrix: 4,096 fixed " +
+    "numbers learned in training. down_proj multiplies that matrix by h, which is the same as adding up h[i] times column i over all 12,288 neurons. " +
+    "So neuron 7924 adds h[7924] times its own fixed column to the residual stream: its write vector, scaled by how strongly it fires.");
+  const codePanel = (x, w, head, lines) => {
+    label(s, head, x, 1.55, w);
+    s.addShape(pres.shapes.ROUNDED_RECTANGLE, { x, y: 1.9, w, h: 3.55, fill: { color: "1E2329" }, line: { color: "1E2329" }, rectRadius: 0.06 });
+    s.addText(lines.map(([code, kind]) => ({ text: code, options: { breakLine: true,
+      color: kind === "c" ? "8B98A8" : kind === "k" ? "F2A97F" : "E6EDF3", bold: kind === "k" } })),
+      { x: x + 0.2, y: 2.0, w: w - 0.35, h: 3.35, fontFace: "Courier New", fontSize: 12, valign: "top", margin: 0, paraSpaceAfter: 3 });
   };
-  card(ML, "h = the neuron's value", "Changes with every prompt. For L14:F7924: about −4.4 on a harmful request, about 0 on a normal one.");
-  card(ML + 6.23, "v = its write vector", "A fixed list of 4,096 numbers, learned in training (one column of the “shrink” matrix, down_proj). Never changes.");
-  s.addText([b("So when a neuron fires, it adds its own fixed arrow v to the residual stream, scaled by how strongly it fires. "),
-    t("Since the refusal direction also lives in the residual stream, we can ask: does a neuron's arrow point the same way as the refusal direction?")],
-    { x: ML, y: 5.1, w: CW, h: 1.0, fontFace: FONT, fontSize: 17, color: INK, margin: 0, valign: "top" });
+  codePanel(ML, 6.55, "TRANSFORMERS LIBRARY, QWEN3 (8B SIZES FILLED IN)", [
+    ["class Qwen3MLP(nn.Module):", ""],
+    ["    def __init__(self, config):", ""],
+    ["        self.gate_proj = nn.Linear(4096, 12288)  # expand", ""],
+    ["        self.up_proj   = nn.Linear(4096, 12288)  # expand", ""],
+    ["        self.down_proj = nn.Linear(12288, 4096)  # shrink", "k"],
+    ["        self.act_fn    = SiLU                    # squash", ""],
+    ["", ""],
+    ["    def forward(self, x):          # x = 4,096 numbers", ""],
+    ["        down_proj = self.down_proj(", ""],
+    ["          self.act_fn(self.gate_proj(x)) * self.up_proj(x))", "k"],
+    ["        #   ↑ this product = the 12,288 neurons (call it h)", "c"],
+    ["        return down_proj           # back to 4,096 numbers", ""],
+  ]);
+  codePanel(ML + 6.75, CW - 6.75, "WHAT WE DO WITH IT (OUR CODE)", [
+    ["mlp = model.model.layers[14].mlp", ""],
+    ["", ""],
+    ["# read or pin the neurons: hook the", "c"],
+    ["# input of down_proj (= h)", "c"],
+    ["mlp.down_proj.register_forward_pre_hook(", ""],
+    ["    hook)   # e.g. h[..., 7924] = 20", "k"],
+    ["", ""],
+    ["# neuron 7924's write vector:", "c"],
+    ["# column 7924 of down_proj's weight", "c"],
+    ["v = mlp.down_proj.weight[:, 7924]", "k"],
+    ["#  → 4,096 fixed numbers", "c"],
+  ]);
+  s.addText([b("down_proj(h) adds up h[i] × column i over all 12,288 neurons. "),
+    t("So when neuron 7924 fires, it adds h[7924] × its own fixed column v to the residual stream: its write vector, scaled by how strongly it fires. The refusal direction lives in the same residual stream, so we can ask whether v points the same way.")],
+    { x: ML, y: 5.6, w: CW, h: 1.1, fontFace: FONT, fontSize: 15, color: INK, margin: 0, valign: "top" });
 }
 
 // ------------------------------------------------------------------ 17b. experiment 7: the comparison

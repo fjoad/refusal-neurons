@@ -202,14 +202,33 @@ Apple's Llama-Guard averages: one neuron 91.9%, Arditi 91.6%. **Reproduced:** on
 
 ### Experiment 7: Neuron vs direction (Apple Appendix G), the link to our paper
 
-**Background, write vectors.** The "shrink" step of the MLP block is a sum:
+**Background, write vectors.** This is the MLP block as Hugging Face `transformers` writes it for Qwen3 (`models/qwen3/modeling_qwen3.py`):
 
-MLP output = h₁·v₁ + h₂·v₂ + … + h₁₂₂₈₈·v₁₂₂₈₈
+```python
+class Qwen3MLP(nn.Module):
+    def __init__(self, config):
+        self.gate_proj = nn.Linear(self.hidden_size, self.intermediate_size, bias=False)  # 4096 -> 12288, expand
+        self.up_proj = nn.Linear(self.hidden_size, self.intermediate_size, bias=False)    # 4096 -> 12288, expand
+        self.down_proj = nn.Linear(self.intermediate_size, self.hidden_size, bias=False)  # 12288 -> 4096, shrink
+        self.act_fn = ACT2FN[config.hidden_act]                                           # SiLU, squash
 
-- **h** is the neuron's value, which changes with every prompt.
-- **v** is a fixed list of 4,096 numbers learned in training: one column of the shrink matrix (`down_proj`).
-- So when a neuron fires, it adds its own fixed arrow v to the residual stream, scaled by how strongly it fires. That arrow is the neuron's **write vector**.
-- Because the refusal direction also lives in the residual stream, you can ask: does a neuron's arrow point the same way as the refusal direction?
+    def forward(self, x):
+        down_proj = self.down_proj(self.act_fn(self.gate_proj(x)) * self.up_proj(x))
+        return down_proj
+```
+
+- The product `self.act_fn(self.gate_proj(x)) * self.up_proj(x)` is the 12,288 **neurons**; call it `h`.
+- We read or pin them by hooking the input of `down_proj`:
+
+```python
+mlp = model.model.layers[14].mlp
+mlp.down_proj.register_forward_pre_hook(hook)   # inside the hook: h[..., 7924] = 20  (pinning)
+v = mlp.down_proj.weight[:, 7924]               # neuron 7924's write vector: 4,096 fixed numbers
+```
+
+- `down_proj(h)` adds up `h[i] * down_proj.weight[:, i]` over all 12,288 neurons.
+- So when neuron 7924 fires, it adds `h[7924]` times its own fixed column `v` to the residual stream. That column is its **write vector**: the direction it pushes the residual stream in.
+- The refusal direction lives in the same residual stream, so you can ask whether `v` points the same way.
 
 **What Apple did:**
 1. Compute Arditi's refusal direction at every layer, and let his method pick one layer: the one whose direction, when removed, best stops refusal. For Qwen3-8B that is layer 20.
