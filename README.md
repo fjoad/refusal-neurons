@@ -108,6 +108,8 @@ AGENTS.md               rules for AI agents (CLAUDE.md just imports it)
 RESEARCH_DIRECTIONS.md  the five open directions and how they map to papers
 docs/glossary.md        plain-language explanations of neurons, poles, superposition, etc.
 docs/roadmap.html       roadmap page, published as a Claude artifact
+docs/explained_simply.md plain-language walkthrough of every experiment and result (the basis for the slides)
+slides/                 meeting deck: build_slides.js -> refusal_neurons_update.pptx (+ .pdf)
 reading/                reading list (README.md), sources.tsv, download.sh
   pdfs/, web/           downloaded copies (gitignored; run reading/download.sh)
 env/                    conda env job and requirements
