@@ -329,54 +329,50 @@ function chartBase(extra) {
   ], ML, 1.55, CW, [0.7, 7.6, 1.8, 2.03], { size: 14, rowH: 0.43 });
 }
 
-// ------------------------------------------------------------------ 9. experiment 1: method
+// ------------------------------------------------------------------ 9. experiment 1: scoring every neuron
 {
-  const s = newSlide("Experiment 1: find the refusal neuron", "apple",
-    "Step 1: pass 128 harmful and 128 harmless prompts through the model. Step 2: look at every neuron in the first two-thirds of the layers: " +
-    "for Qwen3-8B that is 24 layers times 12,288, about 295,000 neurons. Read them at the few template tokens between the question and the answer, " +
-    "<|im_end|>\\n<|im_start|>assistant\\n, where the model decides how to answer. Step 3: two measurements per neuron. Gap: average on harmful " +
-    "minus average on harmless. Push: how much a small change in this neuron changes the chance that the model starts with 'I'm sorry, but I can't " +
-    "help with that request.' (a gradient). Step 4: score is gap times push; keep the top 5. Step 5, the rerank: pin each of the 5 to a fixed value m " +
-    "at every token, let the model answer 191 HarmBench prompts, judge, and keep the neuron and value that break refusal best.");
+  const s = newSlide("Experiment 1, part 1: give every neuron a score", "apple",
+    "Step 1: pass 128 harmful and 128 harmless prompts through the model. Step 2: for every neuron in the first two-thirds of the layers, read its value " +
+    "at the 5 template tokens between the question and the answer. Step 3, gap: average value on harmful prompts minus average on harmless. For " +
+    "L14:F7924 that is -4.41 minus -0.16, a gap of -4.24. Step 4, push: the refusal sentence is 'I'm sorry, but I can't help with that request.' " +
+    "(or 'I'm unable to assist'). p is the model's probability of starting its answer with one of them; the refusal log-odds is log(p / (1 - p)). " +
+    "Push is the gradient: how much the log-odds changes if this neuron's value moves by a tiny amount, averaged over all 256 prompts. One backward " +
+    "pass gives it for every neuron at once. Step 5: score = gap times push. A refusal neuron has both: it fires on harmful prompts, and moving it " +
+    "back from that value makes the refusal sentence less likely. Keep the top 5.");
   steps(s, [
     "Pass 128 harmful and 128 harmless prompts through the model.",
-    "Read every neuron in the first 2/3 of the layers (≈ 295,000 in Qwen3-8B) at the tokens between question and answer: ‘end ↵ start assistant ↵’.",
-    "Measure two things per neuron. Gap: average on harmful − average on harmless. Push: how much it raises the chance of “I'm sorry, but I can't help with that request.”",
-    "Score = gap × push. Keep the top 5.",
-    "Rerank: pin each of the 5 to a value m at every token, answer 191 HarmBench prompts, judge, keep the best neuron and m.",
-  ], ML, 1.65, 7.4, { gap: 0.86, size: 15 });
-  // small illustration of "pin"
-  s.addShape(pres.shapes.ROUNDED_RECTANGLE, { x: 8.4, y: 1.7, w: 4.33, h: 3.9, fill: { color: SOFT }, line: { color: LINE }, rectRadius: 0.08 });
-  label(s, "WHAT “PINNING” MEANS", 8.65, 1.85, 3.9);
-  s.addText([b("Normally: "), t("the neuron's value depends on the prompt, e.g. −4.4 on a harmful request, 0 on a normal one.")],
-    { x: 8.65, y: 2.25, w: 3.85, h: 1.1, fontFace: FONT, fontSize: 14, color: INK, margin: 0, valign: "top" });
-  s.addText([b("Pinned: "), t("we overwrite it with a fixed value (e.g. +20) at every token, while the model reads the prompt and while it writes the answer.")],
-    { x: 8.65, y: 3.35, w: 3.85, h: 1.2, fontFace: FONT, fontSize: 14, color: INK, margin: 0, valign: "top" });
-  s.addText("Pin it the opposite way to how it fires on harmful prompts, and the model stops refusing.",
-    { x: 8.65, y: 4.55, w: 3.85, h: 0.9, fontFace: FONT, fontSize: 14, italic: true, color: MUTED, margin: 0, valign: "top" });
+    "Read every neuron in the first 2/3 of the layers (24 × 12,288 ≈ 295,000 in Qwen3-8B) at the 5 tokens between question and answer: ‘end ↵ start assistant ↵’.",
+    "Gap: its average value on harmful prompts minus its average on harmless prompts.",
+    "Push: if we move this neuron away from its “harmful” value, how much less likely does the refusal sentence become? (the gradient, via one backward pass)",
+    "Score = gap × push. Keep the top 5. A refusal neuron has both: it fires on harmful prompts, and that firing makes the model refuse.",
+  ], ML, 1.55, 7.3, { gap: 0.97, size: 15 });
+  s.addShape(pres.shapes.ROUNDED_RECTANGLE, { x: 8.25, y: 1.6, w: 4.48, h: 4.7, fill: { color: SOFT }, line: { color: LINE }, rectRadius: 0.08 });
+  label(s, "WORKED EXAMPLE: QWEN3-8B, L14:F7924", 8.45, 1.75, 4.1);
+  s.addText([b("Gap"), t("\naverage on harmful = −4.41\naverage on harmless = −0.16\ngap = −4.24")],
+    { x: 8.45, y: 2.1, w: 4.1, h: 1.35, fontFace: FONT, fontSize: 14, color: INK, margin: 0, valign: "top" });
+  s.addText([b("Push"), t("\nrefusal sentence: “I'm sorry, but I can't help with that request.”\np = the model's chance of starting its answer with it\npush = how much log(p / (1 − p)) changes when this neuron moves a tiny bit, averaged over all 256 prompts")],
+    { x: 8.45, y: 3.5, w: 4.1, h: 1.9, fontFace: FONT, fontSize: 14, color: INK, margin: 0, valign: "top" });
+  s.addText([b("Score = gap × push"), t(" → 5th of ≈295,000 in our run")],
+    { x: 8.45, y: 5.5, w: 4.1, h: 0.6, fontFace: FONT, fontSize: 14, color: TEAL, margin: 0, valign: "top" });
 }
 
-// ------------------------------------------------------------------ 10. experiment 1: our result
+// ------------------------------------------------------------------ 10. experiment 1: the rerank and the value of m
 {
-  const s = newSlide("Experiment 1: we find the same neuron, and the same pin value", "ours",
-    "Apple released no code, so we wrote our own. On both 8B models we recover the same neuron and the same pin value as Apple. The neuron's " +
-    "average value matches theirs exactly, e.g. -4.41 vs -4.41 on Qwen3-8B. On Qwen3-1.7B the five candidates are almost tied, also in Apple's " +
-    "Figure 3. It took matching three details of their appendix exactly: their two refusal sentences, only the highlighted template tokens, and " +
-    "Arditi's exact training prompts. Our rerank picks the neuron that reaches 90% ASR at the smallest pin, because our judge also calls garbled " +
-    "text unsafe, so the highest ASR alone misleads.");
-  table(s, [
-    ["Model", "Apple's neuron", "Rank in our top 5", "Our rerank winner", "Apple's pin", "Its value on harmful prompts (ours / Apple)"],
-    ["Qwen3-8B", "L14:F7924", "5th", hl("L14:F7924 at +20"), hl("+20"), "−4.41 / −4.41"],
-    ["Llama-3.1-8B", "L11:F4258", "3rd", hl("L11:F4258 at −4"), hl("−4"), "+1.11 / +1.11"],
-    ["Qwen3-1.7B", "L13:F3270", "4th", "L10:F244 at −15 (near-tie)", "+30", "−10.25 / −10.28"],
-  ], ML, 1.65, CW, [1.9, 1.7, 1.8, 2.6, 1.3, 2.83], { size: 14, rowH: 0.5 });
-  label(s, "IT TOOK MATCHING THREE DETAILS OF THEIR APPENDIX EXACTLY", ML, 3.95, 9);
-  bullets(s, [
-    "Their two refusal sentences (we first used 28 short ones, including Arabic).",
-    "Only the 5 highlighted template tokens (the empty ‘think’ block after them pulled in the wrong neurons).",
-    "Arditi's exact 128 + 128 training prompts (our own random sample put the 1.7B neuron at rank 11).",
-  ], ML, 4.3, CW, 1.6, 15);
-  result(s, [b("Same neuron and same pin value on both 8B models. "), t("On 1.7B, all five candidates are nearly tied, in Apple's paper too.")]);
+  const s = newSlide("Experiment 1, part 2: pick the winner by actually attacking", "apple",
+    "The score only ranks candidates; it doesn't say which one jailbreaks best. So each of the top 5 is tested for real. Pin it to a fixed value m at " +
+    "every token, in the opposite direction to how it fires on harmful prompts: L14:F7924 goes to -4.4 on harmful prompts, so it is pinned to positive " +
+    "values. Try many values of m. Apple tried 0 to 20 in steps of 2 and 20 to 200 in steps of 5, 47 values. We tried 9 values, 2 to 60, to save GPU " +
+    "time. For each value the model answers 191 HarmBench prompts and the judge gives the attack success rate. Apple keeps the neuron and value with " +
+    "the highest rate. We keep the smallest value that reaches 90%, because our judge also rewards garbled text at big values. For Qwen3-8B this " +
+    "sweep gives m = +20: there, the model answers 97% of HarmBench. +20 is not chosen by hand; it is where the sweep peaks.");
+  steps(s, [
+    "Take each of the 5 candidates from part 1.",
+    "Pin it to a fixed value m at every token, in the opposite direction to how it fires on harmful prompts. L14:F7924 goes to −4.4 on harmful prompts, so we pin it to positive values.",
+    "Try many values of m. Apple: 0 to 20 in steps of 2, then 20 to 200 in steps of 5 (47 values). Us: 2, 4, 6, 10, 15, 20, 30, 40, 60 (9 values, to save GPU time).",
+    "For each value, the model answers 191 HarmBench prompts and the judge gives the attack success rate.",
+    "Keep the best neuron and value. Apple: the highest rate. Us: the smallest m that reaches 90% (our judge also rewards garbled text at big m).",
+  ], ML, 1.6, CW, { gap: 0.82, size: 16 });
+  result(s, [b("Where +20 comes from: "), t("for Qwen3-8B the sweep peaks there. Pinned at +20, the model answers 97% of HarmBench (next slide). Nobody picks it by hand.")], { y: 6.05 });
 }
 
 // ------------------------------------------------------------------ 11. rerank chart
@@ -406,6 +402,28 @@ function chartBase(extra) {
     { x: 9.3, y: 2.9, w: 3.4, h: 1.5, fontFace: FONT, fontSize: 16, color: INK, margin: 0, valign: "top" });
   s.addText("On Llama the published neuron reaches 94% at just −4 (Apple: −4).",
     { x: 9.3, y: 4.5, w: 3.4, h: 1.0, fontFace: FONT, fontSize: 14, color: MUTED, margin: 0, valign: "top" });
+}
+
+// ------------------------------------------------------------------ 11. experiment 1: final picks
+{
+  const s = newSlide("Experiment 1: final picks, Apple vs us", "ours",
+    "Apple released no code, so we wrote our own. On both 8B models our final pick is exactly Apple's: same neuron, same pin value. On Qwen3-1.7B we " +
+    "pick a different neuron. All five 1.7B candidates jailbreak about equally well, 93 to 97% for us and 74 to 77% in Apple's own Figure 3, so small " +
+    "differences decide the winner: our judge is Llama-Guard only while Apple also used Claude, and our grid of m values is coarser. Apple's neuron " +
+    "L13:F3270 is still in our top 5 and reaches 93% at +40. And Qwen3-1.7B already answers 38% of HarmBench with no pin, so there is less refusal to switch off.");
+  const same = { text: "✓ same", options: { bold: true, color: TEAL } };
+  table(s, [
+    ["Model", "Apple's final pick", "Our final pick", ""],
+    ["Qwen3-8B", "L14:F7924 at +20", hl("L14:F7924 at +20"), same],
+    ["Llama-3.1-8B", "L11:F4258 at −4", hl("L11:F4258 at −4"), same],
+    ["Qwen3-1.7B", "L13:F3270 at +30", "L10:F244 at −15", { text: "different", options: { bold: true, color: AMBER } }],
+  ], ML, 1.65, CW, [2.6, 3.6, 3.6, 2.33], { size: 17, rowH: 0.6 });
+  s.addShape(pres.shapes.ROUNDED_RECTANGLE, { x: ML, y: 4.35, w: CW, h: 1.75, fill: { color: AMBER_SOFT }, line: { color: AMBER_SOFT }, rectRadius: 0.08 });
+  label(s, "WHY QWEN3-1.7B DIFFERS", ML + 0.25, 4.5, 6, AMBER);
+  bullets(s, [
+    "All five 1.7B candidates jailbreak about equally well: 93–97% for us, 74–77% in Apple's own Figure 3. With a near-tie, our judge (Llama-Guard only) and our coarser grid of m values decide the winner.",
+    "Apple's neuron L13:F3270 is still in our top 5, and reaches 93% at +40.",
+  ], ML + 0.25, 4.85, CW - 0.5, 1.2, 15);
 }
 
 // ------------------------------------------------------------------ 12. experiment 2: the jailbreak
@@ -494,61 +512,115 @@ function chartBase(extra) {
 // ------------------------------------------------------------------ 16. experiment 6: detector
 {
   const s = newSlide("Experiment 6: the neuron as a cheap safety filter", "both",
-    "Apple: generate nothing; just read the neuron's value on each prompt and use it to guess harmful or not. Score with AUROC: 1.0 means it " +
-    "perfectly separates harmful from harmless, 0.5 is a coin flip. Compare with Llama-Guard-3, a separate 8-billion-parameter safety model. " +
-    "We did the same on XSTest, whose safe prompts deliberately contain scary words. Llama's neuron gets 0.963 (Apple 0.97); Llama-Guard gets 0.975.");
+    "How the filter works on a new prompt: run the model on the prompt once, with no answer generated. Read the neuron at the 5 template tokens and keep " +
+    "its strongest value: that one number is the prompt's harm score. Compare it with a cut-off; for Qwen3-8B, flag the prompt as harmful if the value " +
+    "is -2.80 or lower. Where does the cut-off come from? From labelled prompts: try every possible cut-off and keep the one with the best accuracy. " +
+    "Apple chose it on XSTest itself, the same 450 prompts they report on, which they call the optimal threshold; we did the same. AUROC grades the " +
+    "score without choosing a cut-off: it is the chance that a random harmful prompt scores higher than a random harmless one. Our numbers match " +
+    "Apple's within about a point. Caveat: the cut-off has to be set on prompts like the ones you will filter. Qwen3-8B's cut-off chosen on MultiJail " +
+    "(-1.31) only gets 68% accuracy on XSTest's tricky prompts.");
   steps(s, [
-    "Don't generate anything. Just read the neuron's value on each prompt.",
-    "Use it as a score: the stronger it fires, the more likely the prompt is harmful.",
-    "Measure with AUROC: 1.0 = perfect separation, 0.5 = coin flip.",
-    "Compare with Llama-Guard-3, a separate 8-billion-parameter safety model.",
-  ], ML, 1.7, 5.4, { gap: 0.85, size: 15 });
-  s.addChart(pres.charts.BAR, [{ name: "AUROC on XSTest", labels: ["1.7B neuron", "8B neuron", "Llama neuron", "Llama-Guard-3"],
-    values: [.852, .901, .963, .975] }], chartBase({ x: 6.3, y: 1.5, w: 6.43, h: 4.4, barDir: "col", chartColors: [TEAL, TEAL, TEAL, SLATE],
-    valAxisMinVal: 0.5, valAxisMaxVal: 1, valAxisLabelFormatCode: "0.00", showValue: true, dataLabelFormatCode: "0.000",
-    dataLabelPosition: "outEnd", showLegend: false, catAxisLabelFontSize: 12, barGapWidthPct: 50 }));
-  result(s, [b("Reproduced: "), t("Llama's neuron scores 0.963 (Apple: 0.97), close to a dedicated 8B safety model (0.975).")]);
+    "New prompt arrives: run the model on it once (no answer generated).",
+    "Read the neuron at the 5 template tokens and keep its strongest value. That number is the prompt's “harm score”.",
+    "Compare it with a cut-off. Qwen3-8B: flag as harmful if the value is −2.80 or lower.",
+    "The cut-off comes from labelled prompts: try every cut-off, keep the most accurate one. Apple chose it on XSTest itself (450 prompts), and so did we.",
+  ], ML, 1.55, 6.3, { gap: 0.88, size: 14 });
+  table(s, [
+    ["", "Cut-off", "Accuracy: ours (Apple)", "AUROC: ours (Apple)"],
+    ["Qwen3-1.7B neuron", "≤ −7.7", "79.3% (79.1%)", "0.852 (0.853)"],
+    ["Qwen3-8B neuron", "≤ −2.80", "82.7% (82.7%)", "0.901 (0.902)"],
+    ["Llama-3.1-8B neuron", "≥ +0.46", "89.1% (90.2%)", "0.963 (0.969)"],
+    ["Llama-Guard-3 (8B)", "its own verdict", "— (90.2%)", "0.975 (0.975)"],
+  ], 7.15, 1.65, 5.58, [1.9, 1.1, 1.35, 1.23], { size: 12, rowH: 0.48 });
+  s.addText([b("AUROC"), t(" grades the score without picking a cut-off: the chance a random harmful prompt scores higher than a random harmless one. 1.0 = always, 0.5 = coin flip.")],
+    { x: 7.15, y: 4.2, w: 5.58, h: 0.9, fontFace: FONT, fontSize: 13, color: MUTED, margin: 0, valign: "top" });
+  s.addShape(pres.shapes.ROUNDED_RECTANGLE, { x: ML, y: 5.35, w: CW, h: 0.7, fill: { color: AMBER_SOFT }, line: { color: AMBER_SOFT }, rectRadius: 0.06 });
+  s.addText([b("The cut-off must fit the prompts you filter. "), t("Qwen3-8B's cut-off chosen on MultiJail (−1.31) gets only 68% on XSTest's tricky prompts.")],
+    { x: ML + 0.25, y: 5.35, w: CW - 0.5, h: 0.7, fontFace: FONT, fontSize: 14, color: INK, margin: 0, valign: "middle" });
+  result(s, [b("Reproduced within about one point: "), t("one neuron is nearly as good a filter as a dedicated 8B safety model.")], { y: 6.2, h: 0.6, size: 16 });
 }
 
-// ------------------------------------------------------------------ 17. experiment 7: neuron vs direction
+// ------------------------------------------------------------------ 17a. experiment 7: write vectors
+{
+  const s = newSlide("Experiment 7, background: each neuron has a “write vector”", "background",
+    "The shrink step of the MLP block turns the 12,288 neuron values back into 4,096 numbers. Mathematically it is a sum: MLP output = h1 times v1 " +
+    "plus h2 times v2 and so on up to h12288 times v12288. h is the neuron's value, which changes with the prompt. v is a fixed list of 4,096 numbers " +
+    "learned in training: one column of the shrink matrix, called down_proj in the code. So when a neuron fires, it adds its own fixed arrow v to the " +
+    "residual stream, scaled by how strongly it fires. That arrow is the neuron's write vector: the direction it pushes the residual stream in. " +
+    "A refusal direction also lives in the residual stream, so we can ask whether a neuron's arrow points the same way as the refusal direction.");
+  s.addText("MLP output  =  h₁·v₁  +  h₂·v₂  +  …  +  h₁₂₂₈₈·v₁₂₂₈₈",
+    { x: ML, y: 1.75, w: CW, h: 0.8, fontFace: FONT, fontSize: 28, bold: true, color: INK, align: "center", margin: 0 });
+  const card = (x, head, body) => {
+    s.addShape(pres.shapes.ROUNDED_RECTANGLE, { x, y: 2.9, w: 5.9, h: 1.9, fill: { color: SOFT }, line: { color: LINE }, rectRadius: 0.08 });
+    s.addText(head, { x: x + 0.25, y: 3.0, w: 5.4, h: 0.45, fontFace: FONT, fontSize: 18, bold: true, color: INK, margin: 0 });
+    s.addText(body, { x: x + 0.25, y: 3.5, w: 5.4, h: 1.2, fontFace: FONT, fontSize: 15, color: INK, margin: 0, valign: "top" });
+  };
+  card(ML, "h = the neuron's value", "Changes with every prompt. For L14:F7924: about −4.4 on a harmful request, about 0 on a normal one.");
+  card(ML + 6.23, "v = its write vector", "A fixed list of 4,096 numbers, learned in training (one column of the “shrink” matrix, down_proj). Never changes.");
+  s.addText([b("So when a neuron fires, it adds its own fixed arrow v to the residual stream, scaled by how strongly it fires. "),
+    t("Since the refusal direction also lives in the residual stream, we can ask: does a neuron's arrow point the same way as the refusal direction?")],
+    { x: ML, y: 5.1, w: CW, h: 1.0, fontFace: FONT, fontSize: 17, color: INK, margin: 0, valign: "top" });
+}
+
+// ------------------------------------------------------------------ 17b. experiment 7: the comparison
 {
   const s = newSlide("Experiment 7: the neuron and our refusal direction are linked", "both",
-    "Apple computed Arditi's refusal direction, the same kind of direction as in our EMNLP paper. Each neuron writes into the residual stream along " +
-    "its own fixed write vector. Which neuron's write vector points most like the refusal direction? They measure that with cosine similarity. " +
-    "We did the same. On both 8B models we get Apple's exact layer and neuron. And in all three models, the published refusal neuron is the neuron in " +
-    "its own layer that points most like the direction, which Apple only reports for 2 of 7 models.");
+    "Step 1: compute Arditi's refusal direction at every layer and let his method pick one layer: the one whose direction, when removed, best stops " +
+    "refusal. For Qwen3-8B it picks layer 20. Step 2: at that one layer, compare the direction with each of its 12,288 neurons' write vectors using " +
+    "cosine similarity: 1 means same direction, 0 means unrelated. Step 3: rank them. On both 8B models we get Apple's layer and Apple's neuron. " +
+    "What 15 / 13 means: on Qwen3-1.7B, Arditi's method picked layer 15 for our direction but layer 13 for Apple's, so the comparison happens in a " +
+    "different layer and finds a different neuron. Only 8 of 32 validation prompts survived filtering on 1.7B, so that pick is noisy. Extra check: " +
+    "compare the direction with every neuron in the refusal neuron's own layer instead. In all three models the refusal neuron is number 1. The " +
+    "residual stream is shared by all layers, so a direction from layer 20 can be compared with a layer-14 neuron's arrow.");
   steps(s, [
-    "Compute the refusal direction the usual way (Arditi): mean harmful − mean harmless, at the best layer.",
-    "Each neuron adds its own fixed “write vector” to the residual stream when it fires.",
-    "Find the neuron whose write vector points most like the refusal direction (cosine similarity).",
-  ], ML, 1.7, CW, { gap: 0.62, size: 15 });
+    "Compute the refusal direction (Arditi) at every layer; his method keeps the one layer whose direction best stops refusal when removed. Qwen3-8B: layer 20.",
+    "At that layer, compare the direction with each neuron's write vector (cosine similarity: 1 = same direction, 0 = unrelated).",
+    "Rank the neurons. Extra check: also rank all neurons in the refusal neuron's own layer.",
+  ], ML, 1.6, CW, { gap: 0.62, size: 15 });
   table(s, [
-    ["Model", "Direction's layer (ours / Apple)", "Most-aligned neuron (ours / Apple)", "Is the refusal neuron the most aligned in its own layer?"],
-    ["Qwen3-8B", hl("20 / 20"), hl("F8719 / F8719"), hl("yes (rank 1 of 12,288)")],
-    ["Llama-3.1-8B", hl("12 / 12"), hl("F5760 / F5760"), hl("yes (rank 1 of 14,336)")],
-    ["Qwen3-1.7B", "15 / 13", "F1109 / F3270", hl("yes (rank 1 of 6,144)")],
-  ], ML, 3.75, CW, [2.0, 3.0, 3.1, 4.03], { size: 14, rowH: 0.45 });
-  result(s, [b("Our direction and Apple's neuron are two views of the same mechanism. "), t("Apple found this link in 2 of 7 models; we see it in all 3.")]);
+    ["Model", "Layer his method picked (ours / Apple)", "Top neuron in that layer (ours / Apple)", "Extra: refusal neuron's rank in its own layer"],
+    ["Qwen3-8B", hl("20 / 20"), hl("F8719 / F8719"), hl("1st of 12,288 (layer 14)")],
+    ["Llama-3.1-8B", hl("12 / 12"), hl("F5760 / F5760"), hl("1st of 14,336 (layer 11)")],
+    ["Qwen3-1.7B", "15 / 13", "F1109 / F3270", hl("1st of 6,144 (layer 13)")],
+  ], ML, 3.55, CW, [1.9, 3.3, 3.3, 3.63], { size: 14, rowH: 0.45 });
+  s.addText([b("15 / 13: "), t("on Qwen3-1.7B, Arditi's method picked layer 15 for our direction but layer 13 for Apple's, so it compares in a different layer and finds a different neuron. Only 8 of 32 validation prompts survived filtering there, so that pick is noisy.")],
+    { x: ML, y: 5.45, w: CW, h: 0.65, fontFace: FONT, fontSize: 13, color: MUTED, margin: 0, valign: "top" });
+  result(s, [b("Our direction and Apple's neuron are two views of one mechanism. "), t("Apple showed the link in 2 of 7 models; we see it in all 3.")], { y: 6.2, h: 0.6, size: 16 });
 }
 
 // ------------------------------------------------------------------ 18. experiment 8: residual numbers
 {
-  const s = newSlide("Experiment 8: why neurons, not residual numbers?", "both",
-    "Apple ran the same search on single numbers of the residual stream instead of neurons; the best gets only 39 to 45%. We did the same. On " +
-    "Qwen3-8B the best residual number reaches only 26%, versus 97% for the neuron. On Llama, pinning a residual number hard scrambles the model, " +
-    "and Llama-Guard calls the scrambled text unsafe, so it even 'works' in both directions. That one needs a judge that also checks the answer makes sense.");
-  steps(s, [
-    "Run the same search, but on the 4,096 single numbers of the residual stream instead of neurons.",
-    "Pin the best ones and measure attack success the same way.",
-  ], ML, 1.7, 5.4, { gap: 0.85, size: 15 });
+  const s = newSlide("Experiment 8: why neurons, not residual-stream numbers?", "both",
+    "The residual stream is the model's running state: a list of 4,096 numbers carried from layer to layer. Each layer reads it and adds its updates. " +
+    "This is where refusal directions live. A residual number is one of those 4,096 numbers at one layer. A neuron is one of the 12,288 numbers inside " +
+    "an MLP block, each squashed on its own. Nothing treats a single residual number specially, so on its own it should mean little; meaning sits in " +
+    "mixes, i.e. directions. Apple's test: run the same search and the same pinning on single residual numbers. On Qwen3-8B the best reaches only 26% " +
+    "versus 97% for the neuron (Apple: 39%). On Llama, pinning a residual number hard scrambles the model, and our judge calls scrambled text unsafe, so " +
+    "it even works in both directions; that needs a judge that checks the answer makes sense.");
+  // highway diagram
+  const y = 1.75;
+  s.addShape(pres.shapes.RECTANGLE, { x: ML, y: y + 0.55, w: 6.0, h: 0.32, fill: { color: LIGHT }, line: { color: LIGHT } });
+  s.addText("residual stream: 4,096 numbers, carried from layer to layer", { x: ML, y: y + 0.55, w: 6.0, h: 0.32, fontFace: FONT, fontSize: 11, color: INK, align: "center", valign: "middle", margin: 0 });
+  ["layer 13", "layer 14", "layer 15"].forEach((l, i) => {
+    const x = ML + 0.4 + i * 2.0;
+    s.addShape(pres.shapes.ROUNDED_RECTANGLE, { x, y: y + 1.05, w: 1.4, h: 0.65, fill: { color: SOFT }, line: { color: LINE }, rectRadius: 0.06 });
+    s.addText(l + "\nattention + MLP", { x, y: y + 1.05, w: 1.4, h: 0.65, fontFace: FONT, fontSize: 10, color: INK, align: "center", valign: "middle", margin: 0 });
+    s.addText("↕", { x: x + 0.5, y: y + 0.82, w: 0.4, h: 0.3, fontFace: FONT, fontSize: 14, color: MUTED, align: "center", margin: 0 });
+  });
+  s.addText("Each layer reads the stream and adds its update.", { x: ML, y: y + 1.8, w: 6.0, h: 0.3, fontFace: FONT, fontSize: 12, color: MUTED, align: "center", margin: 0 });
+  bullets(s, [
+    "Residual number: one of the 4,096 numbers on the stream at one layer. Nothing treats it specially, so alone it should mean little; meaning lives in mixes (directions).",
+    "Neuron: one of the 12,288 numbers inside an MLP block, each squashed on its own.",
+    "Apple's test: same search, same pinning, but on single residual numbers.",
+  ], ML, 4.05, 6.0, 2.1, 14);
   s.addChart(pres.charts.BAR, [{ name: "best attack success, Qwen3-8B (HarmBench)", labels: ["no pin", "best residual number", "the neuron"],
-    values: [.13, .26, .97] }], chartBase({ x: 6.3, y: 1.5, w: 6.43, h: 3.9, barDir: "col", chartColors: [LIGHT, SLATE, TEAL],
+    values: [.13, .26, .97] }], chartBase({ x: 6.95, y: 1.5, w: 5.78, h: 3.3, barDir: "col", chartColors: [LIGHT, SLATE, TEAL],
     valAxisMinVal: 0, valAxisMaxVal: 1, valAxisLabelFormatCode: "0%", showValue: true, dataLabelFormatCode: "0%",
     dataLabelPosition: "outEnd", showLegend: false, barGapWidthPct: 50 }));
-  s.addShape(pres.shapes.ROUNDED_RECTANGLE, { x: ML, y: 3.6, w: 5.4, h: 1.9, fill: { color: AMBER_SOFT }, line: { color: AMBER_SOFT }, rectRadius: 0.08 });
-  s.addText([b("Llama: not settled. "), t("Pinning a residual number hard scrambles the model, and our judge calls scrambled text “unsafe”, so it even “works” in both directions. Needs a judge that checks the answer makes sense.")],
-    { x: ML + 0.2, y: 3.7, w: 5.0, h: 1.7, fontFace: FONT, fontSize: 14, color: INK, margin: 0, valign: "top" });
-  result(s, [b("Reproduced on Qwen3-8B: "), t("a single residual number reaches 26%, the neuron 97% (Apple: 39% vs ~92%).")]);
+  s.addShape(pres.shapes.ROUNDED_RECTANGLE, { x: 6.95, y: 4.95, w: 5.78, h: 1.1, fill: { color: AMBER_SOFT }, line: { color: AMBER_SOFT }, rectRadius: 0.06 });
+  s.addText([b("Llama: not settled. "), t("Pinning a residual number hard scrambles the model, and our judge calls scrambled text “unsafe”. Needs a judge that checks the answer makes sense.")],
+    { x: 7.15, y: 4.98, w: 5.4, h: 1.05, fontFace: FONT, fontSize: 13, color: INK, margin: 0, valign: "middle" });
+  result(s, [b("Reproduced on Qwen3-8B: "), t("one residual number reaches 26%, the neuron 97% (Apple: 39% vs ~92%).")], { y: 6.2, h: 0.6, size: 16 });
 }
 
 // ------------------------------------------------------------------ 19. section: Arabic
@@ -588,45 +660,52 @@ function chartBase(extra) {
 // ------------------------------------------------------------------ 21. Arabic A
 {
   const s = newSlide("Arabic A: does the English neuron fire on Arabic prompts?", "arabic",
-    "No new search here. We take the neuron found with English prompts and read it on the same harmful prompts in Arabic. On Qwen3-8B it fires at " +
-    "the same token (the line break after the question) with nearly the same strength: -3.19 in Arabic vs -3.24 in English, while harmless prompts " +
-    "stay near zero. As a filter it scores AUROC 0.956 in Arabic vs 0.972 in English. Llama: 0.927 vs 0.991. Qwen3-1.7B: 0.908 vs 0.962.");
+    "No new search here. We take the neuron found with English prompts and read it on Arabic prompts, exactly like the filter in Experiment 6. " +
+    "For each prompt the score is the neuron's strongest value at the 5 template tokens. Separation asks: can that score tell 100 harmful MultiJail " +
+    "prompts from 100 normal Aya prompts in the same language? AUROC measures it: the chance that a random harmful prompt scores higher than a random " +
+    "normal one; 1.0 always, 0.5 coin flip. On Qwen3-8B the neuron fires about as strongly in Arabic as in English and separates 0.956 vs 0.972. " +
+    "A cut-off set on English prompts and used unchanged on Arabic prompts still works: accuracy 95.5% in English, 88.5% in Arabic.");
   steps(s, [
-    "Take the neuron found with English prompts.",
-    "Read it on the same harmful prompts in Arabic, and on normal Arabic prompts.",
-    "Check where it fires, how strongly, and whether it still separates harmful from harmless.",
-  ], ML, 1.7, 5.5, { gap: 0.8, size: 15, color: AMBER });
+    "Take the neuron found with English prompts. No new search.",
+    "For each prompt, read its strongest value at the 5 template tokens: that's the prompt's score.",
+    "Separation: does the score tell harmful MultiJail prompts from normal Aya prompts in the same language? (100 vs 100)",
+    "Measure separation with AUROC: the chance that a random harmful prompt scores higher than a random normal one (1.0 = always, 0.5 = coin flip).",
+  ], ML, 1.6, 5.6, { gap: 0.98, size: 14, color: AMBER });
   table(s, [
-    ["Model", "Strength on harmful (English → Arabic)", "Separation AUROC (English → Arabic)"],
-    ["Qwen3-8B", "−3.24 → −3.19", "0.972 → 0.956"],
-    ["Llama-3.1-8B", "+0.50 → +0.56", "0.991 → 0.927"],
-    ["Qwen3-1.7B", "−6.44 → −5.59", "0.962 → 0.908"],
-  ], 6.3, 1.7, 6.43, [1.9, 2.3, 2.23], { size: 14, rowH: 0.5 });
-  s.addText("Same token in both languages: the line break right after the question. Harmless prompts stay near 0 in both.",
-    { x: 6.3, y: 3.9, w: 6.43, h: 0.7, fontFace: FONT, fontSize: 13, color: MUTED, margin: 0, valign: "top" });
-  result(s, [b("Yes: "), t("the English refusal neuron fires on Arabic harmful requests, at the same place and almost as strongly.")], { color: AMBER, bg: AMBER_SOFT });
+    ["Model", "Average value on harmful (English → Arabic)", "Separation AUROC (English → Arabic)", "Cut-off from English, accuracy (English → Arabic)"],
+    ["Qwen3-8B", "−3.24 → −3.19", "0.972 → 0.956", "95.5% → 88.5%"],
+    ["Llama-3.1-8B", "+0.50 → +0.56", "0.991 → 0.927", "97.5% → 81.0%"],
+    ["Qwen3-1.7B", "−6.44 → −5.59", "0.962 → 0.908", "—"],
+  ], 6.45, 1.65, 6.28, [1.45, 1.6, 1.6, 1.63], { size: 12, rowH: 0.55 });
+  s.addText("Same token in both languages: the line break right after the question. Normal prompts stay near 0 in both.",
+    { x: 6.45, y: 4.75, w: 6.28, h: 0.6, fontFace: FONT, fontSize: 13, color: MUTED, margin: 0, valign: "top" });
+  result(s, [b("Yes: "), t("the English refusal neuron fires on Arabic harmful requests, in the same place and almost as strongly. A cut-off set in English still works in Arabic, a bit less accurately.")],
+    { color: AMBER, bg: AMBER_SOFT, size: 15, h: 0.8, y: 6.05 });
 }
 
 // ------------------------------------------------------------------ 22. Arabic B
 {
-  const s = newSlide("Arabic B: run the whole search in Arabic", "arabic",
-    "This is the strong test: rerun Experiment 1 entirely on Arabic prompts and see which neuron comes out on top. The search needs to know how the " +
-    "model refuses, and in Arabic the models refuse in Arabic. We read 100 unpinned Arabic answers and took the stock refusal openings, for example " +
-    "'I can't help you' for Qwen3-8B and 'I can't provide information' for Llama, and searched for those. The same refusal neuron comes out first in " +
-    "all three models. Lesson: when Qwen3-1.7B's Arabic search used the English refusal sentence, its neuron dropped to rank 568.");
+  const s = newSlide("Arabic B: redo the whole search with only Arabic prompts", "arabic",
+    "This one is our own experiment; Apple only searched with English prompts. We rerun Experiment 1 from scratch but with Arabic prompts only: 128 " +
+    "harmful MultiJail prompts in Arabic and 128 normal Aya prompts in Arabic. Push needs a refusal sentence, and in Arabic the models refuse in Arabic, " +
+    "so we use the sentence each model actually uses, read from 100 of its normal Arabic answers; for Llama: 'I can't provide information'. Then we score " +
+    "all neurons exactly as in Experiment 1 and ask where the English refusal neuron lands. It comes out first in Llama and Qwen3-1.7B, and third in " +
+    "Qwen3-8B (first if the search uses the English refusal sentence). So even with only Arabic data you find the same neuron. Lesson: use the refusal " +
+    "sentence the model really says. When Qwen3-1.7B's Arabic search used the English sentence, its neuron fell to rank 568.");
+  label(s, "OUR OWN EXPERIMENT: APPLE ONLY SEARCHED WITH ENGLISH PROMPTS", ML, 1.5, CW, AMBER);
   steps(s, [
-    "Read how each model refuses in Arabic (from 100 normal Arabic answers).",
-    "Run Experiment 1 on the Arabic prompts, with those Arabic refusal sentences.",
-    "See which neuron comes out on top.",
-  ], ML, 1.65, 6.0, { gap: 0.62, size: 15, color: AMBER });
+    "Rerun Experiment 1 from scratch with Arabic prompts only: 128 harmful (MultiJail) vs 128 normal (Aya), all in Arabic.",
+    "Push needs a refusal sentence. In Arabic the models refuse in Arabic, so we use the one each model actually says (read from 100 of its Arabic answers).",
+    "Score every neuron exactly as before, and ask: where does the English refusal neuron land?",
+  ], ML, 1.9, CW, { gap: 0.6, size: 15, color: AMBER });
   table(s, [
-    ["Model", "How it refuses in Arabic", "English search: rank", "Arabic search: rank"],
-    ["Qwen3-8B", "أنا لا أستطيع مساعدتك (I can't help you)", "1", hl("1 (English sentence) / 3 (Arabic sentence)")],
-    ["Llama-3.1-8B", "لا أستطيع تقديم معلومات (I can't provide information)", "4", hl("1")],
-    ["Qwen3-1.7B", "لا أستطيع أن أقدم (I can't provide)", "4", hl("1")],
-  ], ML, 3.65, CW, [2.0, 4.6, 2.0, 3.53], { size: 14, rowH: 0.48 });
-  result(s, [b("A search run only in Arabic finds the English refusal neuron first, in all three models. "),
-    t("Lesson: search for how the model actually refuses in that language. With the English sentence, 1.7B's neuron fell to rank 568.")],
+    ["Model", "Refusal sentence it uses in Arabic", "English refusal neuron's rank in the Arabic-only search", "Neurons searched"],
+    ["Qwen3-8B", "أنا لا أستطيع مساعدتك (I can't help you)", hl("3rd (1st with the English sentence)"), "294,912"],
+    ["Llama-3.1-8B", "لا أستطيع تقديم معلومات (I can't provide information)", hl("1st"), "301,056"],
+    ["Qwen3-1.7B", "لا أستطيع أن أقدم (I can't provide)", hl("1st"), "110,592"],
+  ], ML, 3.85, CW, [1.9, 4.6, 3.9, 1.73], { size: 14, rowH: 0.45 });
+  result(s, [b("With only Arabic data, the search finds the same refusal neuron. "),
+    t("Lesson: use the refusal sentence the model really says. With the English sentence, 1.7B's neuron fell to rank 568.")],
     { color: AMBER, bg: AMBER_SOFT, size: 15, h: 0.8, y: 6.05 });
 }
 

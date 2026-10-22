@@ -70,32 +70,46 @@ Why it matters here: if the refusal neuron also carried unrelated ideas, pinning
 
 ### Experiment 1: Find the refusal neuron (Apple Section 2.3)
 
-**What Apple did:**
+**Part 1, give every neuron a score:**
 1. Pass 128 harmful and 128 harmless prompts through the model.
-2. Look at every neuron in the first two-thirds of the layers. For Qwen3-8B that is 24 layers × 12,288 = 294,912 neurons. Read them at the few template tokens between the question and the answer: `<|im_end|>\n<|im_start|>assistant\n`. This is where the model "decides" how to answer.
-3. For each neuron, measure two things:
-   - **Gap:** how different it is on harmful vs harmless prompts (average harmful minus average harmless).
-   - **Push:** how much a small change in this neuron changes the chance that the model starts with "I'm sorry, but I can't help with that request." This is a gradient.
-4. **Score = gap × push.** Keep the top 5.
-5. **Rerank:** for each of the 5, *pin* the neuron to a fixed value m at every token and let the model answer 191 HarmBench prompts. Judge the answers, and keep the neuron and value that break refusal best.
+2. For every neuron in the first two-thirds of the layers, read its value at the 5 template tokens between the question and the answer: `<|im_end|>\n<|im_start|>assistant\n`. That's 24 × 12,288 ≈ 295,000 neurons for Qwen3-8B.
+3. **Gap** = its average value on harmful prompts minus its average on harmless prompts.
+   - For L14:F7924: −4.41 − (−0.16) = **−4.24**.
+4. **Push** = the gradient of the model's refusal log-odds with respect to the neuron:
+   - Take the refusal sentence "I'm sorry, but I can't help with that request." (or "I'm unable to assist").
+   - Let p be the model's probability of starting its answer with it. The refusal log-odds is log(p / (1 − p)).
+   - Push says how much that log-odds changes if this neuron's value moves by a tiny amount, averaged over all 256 prompts.
+   - One backward pass (backpropagation) gives it for every neuron at once.
+5. **Score = gap × push.** Keep the top 5.
+   - A refusal neuron has both properties: it fires on harmful prompts, and moving it back from that value makes the refusal sentence less likely.
+   - In our run, L14:F7924 came 5th of ≈295,000.
 
-**What we did:** the same, with our own code (Apple released none).
+**Part 2, the rerank: choose the winner by actually attacking.** The score only ranks candidates; it doesn't tell you which one jailbreaks best.
+1. **Pin** each of the 5 candidates to a fixed value **m** at every token, while the model reads the prompt and while it writes the answer.
+   - The pin goes in the opposite direction to how the neuron fires on harmful prompts.
+   - L14:F7924 goes to −4.4 on harmful prompts, so it's pinned to positive values.
+2. Try many values of m:
+   - Apple: 0 to 20 in steps of 2, then 20 to 200 in steps of 5 (47 values).
+   - Us: 2, 4, 6, 10, 15, 20, 30, 40, 60 (9 values, to save GPU time).
+3. For each value, the model answers 191 HarmBench prompts and the judge gives the attack success rate.
+4. Keep the best neuron and value:
+   - Apple keeps the highest rate.
+   - We keep the smallest m that reaches 90%, because our judge also rewards garbled text at big m.
 
-**Result:**
+**Where +20 comes from:** nobody picks it by hand. For Qwen3-8B the sweep peaks there: pinned at +20, the model answers 97% of HarmBench.
 
-| Model | Apple's neuron | Our search: its rank in top 5 | Our rerank winner | Apple's pin m* |
-|---|---|---|---|---|
-| Qwen3-8B | L14:F7924 | 5th | **L14:F7924 at +20** | +20 ✅ |
-| Llama-3.1-8B | L11:F4258 | 3rd | **L11:F4258 at −4** | −4 ✅ |
-| Qwen3-1.7B | L13:F3270 | 4th | L10:F244 (near-tie) | +30 |
+**Final picks, Apple vs us:**
 
-- **On both 8B models we found the same neuron *and* the same pin value.** Its average value matches Apple's exactly, for example −4.41 vs −4.41 on Qwen3-8B.
-- **On 1.7B, all five candidates are almost tied,** in Apple's Figure 3 too.
-- **It took matching three details from the paper's appendix exactly:**
-  - the two refusal sentences
-  - only the 5 highlighted template tokens
-  - Arditi's exact training prompts
-- **Rerank criterion:** we pick the neuron that reaches 90% ASR at the *smallest* pin. The judge also calls garbled text "unsafe", so the highest ASR alone misleads.
+| Model | Apple's final pick | Our final pick | |
+|---|---|---|---|
+| Qwen3-8B | L14:F7924 at +20 | L14:F7924 at +20 | same |
+| Llama-3.1-8B | L11:F4258 at −4 | L11:F4258 at −4 | same |
+| Qwen3-1.7B | L13:F3270 at +30 | L10:F244 at −15 | different |
+
+**Why Qwen3-1.7B differs:**
+- All five 1.7B candidates jailbreak about equally well: 93–97% for us, 74–77% in Apple's own Figure 3.
+- With a near-tie, small differences decide the winner: our judge (Llama-Guard only, while Apple also used Claude) and our coarser grid of m values.
+- Apple's neuron is still in our top 5 and reaches 93% at +40.
 
 ### Experiment 2: The jailbreak (Apple Section 2.4)
 
@@ -148,32 +162,66 @@ Apple's Llama-Guard averages: one neuron 91.9%, Arditi 91.6%. **Reproduced:** on
 
 ### Experiment 6: The neuron as a cheap safety filter (Apple Section 3.4)
 
-**What Apple did:** don't generate anything. Just read the neuron's value on each prompt and use it to guess "harmful or not". Score this with **AUROC**: 1.0 is perfect, 0.5 is a coin flip. Compare with Llama-Guard-3, a dedicated safety classifier.
+**How the filter works on a new prompt:**
+1. Run the model on the prompt once. No answer is generated.
+2. Read the neuron at the 5 template tokens and keep its strongest value (the most negative for Qwen, the most positive for Llama). That one number is the prompt's **harm score**.
+3. Compare it with a **cut-off**. For Qwen3-8B: flag the prompt as harmful if the value is −2.80 or lower.
 
-**What we did:** the same, on XSTest. Neuron AUROC: Llama 0.963 (Apple 0.97), Qwen3-8B 0.901, Qwen3-1.7B 0.852. Llama-Guard-3: 0.975.
+**Where the cut-off comes from:** from prompts whose labels you know. Try every possible cut-off and keep the one with the best accuracy. Apple chose it on XSTest itself, the same 450 prompts they report on, and call it the "optimal threshold". We did the same.
 
-**Reproduced:** one neuron is almost as good a filter as a separate 8-billion-parameter safety model.
+**AUROC** grades the score without choosing any cut-off: it is the chance that a randomly picked harmful prompt scores higher than a randomly picked harmless one. 1.0 means always, 0.5 is a coin flip.
+
+| | Cut-off | Accuracy: ours (Apple) | AUROC: ours (Apple) |
+|---|---|---|---|
+| Qwen3-1.7B neuron | ≤ −7.7 | 79.3% (79.1%) | 0.852 (0.853) |
+| Qwen3-8B neuron | ≤ −2.80 | 82.7% (82.7%) | 0.901 (0.902) |
+| Llama-3.1-8B neuron | ≥ +0.46 | 89.1% (90.2%) | 0.963 (0.969) |
+| Llama-Guard-3 (8B) | its own verdict | — (90.2%) | 0.975 (0.975) |
+
+**Reproduced within about one point.** Caveat: the cut-off has to be set on prompts like the ones you'll filter. Qwen3-8B's cut-off chosen on MultiJail (−1.31) gets only 68% accuracy on XSTest's tricky prompts.
 
 ### Experiment 7: Neuron vs direction (Apple Appendix G), the link to our paper
 
+**Background, write vectors.** The "shrink" step of the MLP block is a sum:
+
+MLP output = h₁·v₁ + h₂·v₂ + … + h₁₂₂₈₈·v₁₂₂₈₈
+
+- **h** is the neuron's value, which changes with every prompt.
+- **v** is a fixed list of 4,096 numbers learned in training: one column of the shrink matrix (`down_proj`).
+- So when a neuron fires, it adds its own fixed arrow v to the residual stream, scaled by how strongly it fires. That arrow is the neuron's **write vector**.
+- Because the refusal direction also lives in the residual stream, you can ask: does a neuron's arrow point the same way as the refusal direction?
+
 **What Apple did:**
-1. Compute Arditi's refusal direction.
-2. Each neuron writes into the residual stream along its own fixed vector, its "write vector".
-3. Find which neuron's write vector points most like the refusal direction (cosine similarity).
+1. Compute Arditi's refusal direction at every layer, and let his method pick one layer: the one whose direction, when removed, best stops refusal. For Qwen3-8B that is layer 20.
+2. At that one layer, compare the direction with each of the layer's neurons' write vectors, using cosine similarity (1 = same direction, 0 = unrelated).
+3. Rank the neurons.
+
+**What we did:** the same, plus one extra check: rank all neurons in the refusal neuron's *own* layer the same way.
+
+| Model | Layer his method picked (ours / Apple) | Top neuron there (ours / Apple) | Extra: refusal neuron's rank in its own layer |
+|---|---|---|---|
+| Qwen3-8B | 20 / 20 | F8719 / F8719 | 1st of 12,288 (layer 14) |
+| Llama-3.1-8B | 12 / 12 | F5760 / F5760 | 1st of 14,336 (layer 11) |
+| Qwen3-1.7B | 15 / 13 | F1109 / F3270 | 1st of 6,144 (layer 13) |
+
+**What "15 / 13" means:** on Qwen3-1.7B, Arditi's method picked layer 15 for our direction but layer 13 for Apple's. So the comparison happens in a different layer and finds a different neuron. Only 8 of 32 validation prompts survived filtering on 1.7B, so that pick is noisy.
+
+The residual stream is shared by all layers, so a direction from layer 20 can be compared with a layer-14 neuron's arrow. **Result:** the "direction" from our paper and the "neuron" from Apple's are two views of the same mechanism. Apple reports this for 2 of 7 models; we see it in all 3.
+
+### Experiment 8: Why neurons and not residual-stream numbers? (Apple Section 3.3)
+
+**The terms:**
+- **Residual stream:** the model's running state, a list of 4,096 numbers carried from layer to layer. Each layer reads it and adds its update (attention plus MLP output). This is where refusal directions live.
+- **Residual number:** one of those 4,096 numbers at one layer.
+- **Neuron:** one of the 12,288 numbers inside an MLP block, each squashed on its own.
+
+Nothing treats a single residual number specially, so on its own it should mean little; meaning sits in mixes, i.e. directions.
+
+**What Apple did:** the same search and the same pinning, on single residual numbers. The best one reaches only 39–45% attack success.
 
 **What we did:** the same.
-- **On both 8B models we get Apple's layer and Apple's neuron:** L20:F8719 and L12:F5760.
-- **Extra check, which Apple only reports for 2 of 7 models:** in all three models, the published refusal neuron is the neuron in its own layer that points most like the refusal direction.
-
-So the "direction" from our paper and the "neuron" from Apple's are two views of the same thing.
-
-### Experiment 8: Why neurons and not residual numbers? (Apple Section 3.3)
-
-**What Apple did:** run the same search on single numbers of the residual stream instead of neurons. The best one reaches only 39–45% ASR.
-
-**What we did:** the same.
-- **Qwen3-8B:** the best residual number reaches only **26%** (vs 97% for the neuron). **Reproduced.**
-- **Llama:** pinning a residual number hard scrambles the model, and Llama-Guard calls the scrambled text "unsafe". This one needs a judge that also checks the answer makes sense.
+- **Qwen3-8B:** the best residual number reaches only **26%**, vs 97% for the neuron. **Reproduced.**
+- **Llama:** pinning a residual number hard scrambles the model, and Llama-Guard calls the scrambled text "unsafe", so it even "works" in both directions. This one needs a judge that also checks the answer makes sense.
 
 ### Not done yet from the paper
 - What text the neuron likes in a big corpus (Section 3.5). You'd need to read examples, much of it explicit.
@@ -187,22 +235,40 @@ So the "direction" from our paper and the "neuron" from Apple's are two views of
 **Data:** MultiJail has the *same* harmful prompts written by humans in English and Arabic, so we can compare the two directly. For normal prompts we used Aya, which has human-written Arabic and English prompts.
 
 ### Arabic A: does the English neuron fire on Arabic prompts?
-We did no new search. We took the neuron found with English prompts and read it on Arabic prompts. It fires at the same token with nearly the same strength. As a filter it scores AUROC 0.956 in Arabic vs 0.972 in English (Qwen3-8B).
 
-### Arabic B: run the whole search in Arabic
-We ran Experiment 1 entirely on Arabic prompts. The search needs to know how the model refuses, and in Arabic the models refuse in Arabic:
+No new search. We took the neuron found with English prompts and used it exactly like the filter in Experiment 6:
+- **Score:** for each prompt, the neuron's strongest value at the 5 template tokens.
+- **Separation:** can that score tell 100 harmful MultiJail prompts from 100 normal Aya prompts in the *same* language?
+- **AUROC:** measures the separation (the chance a random harmful prompt scores higher than a random normal one).
+
+| Model | Average value on harmful (English → Arabic) | AUROC (English → Arabic) | English cut-off, accuracy (English → Arabic) |
+|---|---|---|---|
+| Qwen3-8B | −3.24 → −3.19 | 0.972 → 0.956 | 95.5% → 88.5% |
+| Llama-3.1-8B | +0.50 → +0.56 | 0.991 → 0.927 | 97.5% → 81.0% |
+| Qwen3-1.7B | −6.44 → −5.59 | 0.962 → 0.908 | — |
+
+The neuron fires at the same token in both languages, the line break right after the question, and almost as strongly. A cut-off set on English prompts still works on Arabic ones, a bit less accurately.
+
+### Arabic B: redo the whole search with only Arabic prompts (our own experiment)
+
+Apple only searched with English prompts. We reran Experiment 1 from scratch with Arabic prompts only: 128 harmful MultiJail prompts in Arabic and 128 normal Aya prompts in Arabic.
+
+Push needs a refusal sentence, and in Arabic the models refuse in Arabic. So we used the sentence each model actually says, read from 100 of its normal Arabic answers:
 - Qwen3-8B: "أنا لا أستطيع مساعدتك" ("I can't help you")
 - Llama: "لا أستطيع تقديم معلومات" ("I can't provide information")
+- Qwen3-1.7B: "لا أستطيع أن أقدم" ("I can't provide")
 
-So we searched for those Arabic sentences.
+Then we scored every neuron exactly as before and asked where the English refusal neuron lands:
 
-| Model | English search: rank | Arabic search: rank | Value, English → Arabic |
-|---|---|---|---|
-| Qwen3-1.7B | 4 | **1** | −6.44 → −5.59 |
-| Qwen3-8B | 1 | **1** (English sentence) / 3 (Arabic sentence) | −3.24 → −3.19 |
-| Llama-3.1-8B | 4 | **1** | +0.50 → +0.56 |
+| Model | Its rank in the Arabic-only search | Neurons searched |
+|---|---|---|
+| Qwen3-8B | 3rd (1st with the English refusal sentence) | 294,912 |
+| Llama-3.1-8B | **1st** | 301,056 |
+| Qwen3-1.7B | **1st** | 110,592 |
 
-**The same refusal neuron comes out on top in Arabic in all three models.** One lesson: when Qwen3-1.7B's Arabic search used the *English* refusal sentence, its neuron dropped to rank 568. You have to search for how the model actually refuses in that language.
+**With only Arabic data, the search finds the same refusal neuron.**
+
+Lesson: use the refusal sentence the model really says. When Qwen3-1.7B's Arabic search used the English sentence, its neuron fell to rank 568.
 
 ### Arabic C: the neuron as an Arabic safety filter
 
