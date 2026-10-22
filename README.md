@@ -25,7 +25,7 @@ The work runs in this order; each step gates the next. Keep the state column cur
 | Arabic teaser | The English-found neuron on parallel Arabic prompts | ✅ transfers (AUROC 0.954 vs 0.977 in English) |
 | **M2**: rediscover the neurons | Our search finds the published neurons in its top 5; a rerank on HarmBench ASR with an *m* sweep picks the best attacker | ✅ Search: all 3. Rerank: published neuron and m* recovered for Qwen3-8B (+20) and Llama (−4); Qwen3-1.7B is a near-tie (L10:F244 edges L13:F3270) |
 | Judge | One judge used for every language | ✅ Llama-Guard-3-8B (free, on panther); Arabic handling still open |
-| **M3**: full evaluation | JailbreakBench ASR, anchor variant, MMLU/GSM8K cost, XSTest detection AUROC; English first | ⬜ |
+| **M3**: full evaluation | JailbreakBench ASR, constant and anchor interventions, MMLU/GSM8K cost, XSTest detection AUROC; English first | ✅ Llama-Guard only. Both 8B neurons jailbreak at 0.93–0.95, and the anchor removes the capability cost. Detection matches the paper; Arditi baseline 0.91–0.95. A coherence-aware LLM judge is still missing |
 | Arabic search | Run the search on Arabic splits: same neuron or a different one? | 🟡 **Same neuron in all 3 models**: the English refusal neuron ranks 1st in an Arabic search that targets the model's own Arabic refusal phrases. Arabic rerank (ASR) pending |
 | Modalities | Image and speech, using models that share a backbone with our text models | ⬜ |
 

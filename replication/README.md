@@ -119,6 +119,45 @@ Fixes in commit `347142b`:
 
 The rerun and the later fixes are in the entry above.
 
+### 2026-10-22: Milestone 3, attack and capability cost (`evaluate.py`, `judge.py`, `capability.py`)
+Setup:
+- **Attack:** JailbreakBench, 100 prompts, 512 new tokens, greedy, judged by Llama-Guard-3 only.
+- **Capability:** fixed subsets of MMLU (1,000 questions; next-token A–D) and GSM8K (250 problems; 256 new tokens, answer after `####`), with the same chat template and intervention.
+- **Interventions:**
+  - constant pin `h ← m*` at every token
+  - anchor Eq. 7, `h ← clamp(k·m*·v/d − d, m*)`, with v the prompt's own peak activation over Table 3's tokens
+- **m\*:** from our rerank rule (first pin reaching ASR ≥ 0.90).
+
+| Neuron, m* | JBB ASR: unpinned → constant / anchor k=1 / k=2 | MMLU: base → constant / anchor k=1 / k=2 | GSM8K: base → constant / anchor k=1 / k=2 |
+|---|---|---|---|
+| Qwen3-8B L14:F7924, +20 | 0.04 → **0.95** / 0.90 / 0.95 | 0.675 → 0.604 / **0.679** / 0.681 | 0.580 → 0.476 / **0.576** / 0.576 |
+| Llama-3.1-8B L11:F4258, −4 | 0.04 → **0.93** / 0.94 / 0.93 | 0.638 → 0.607 / **0.638** / 0.638 | 0.728 → 0.540 / **0.756** / 0.748 |
+| Qwen3-1.7B L13:F3270, +40 | 0.20 → 0.88 / 0.85 / 0.87 | 0.537 → 0.484 / 0.529 / 0.524 | 0.584 → 0.496 / 0.580 / 0.544 |
+| Qwen3-1.7B L10:F244, −15 | 0.20 → 0.89 / 0.87 / 0.89 | 0.537 → 0.445 / 0.528 / 0.515 | 0.584 → 0.492 / 0.580 / 0.564 |
+| Arditi ablation (entry below) | 0.04–0.18 → 0.91–0.95 | not run | not run |
+
+Paper, under Llama-Guard: constant 91.9%, anchor 90.1%, Arditi 91.6% ASR on average. Capability cost (Table 1 averages): constant −8.8 MMLU / −1.2 GSM8K; anchor −0.6 / −0.1.
+
+Takeaways:
+- **ASR reproduces:** one pinned neuron jailbreaks both 8B models at 0.93–0.95, on par with Arditi's all-layer ablation.
+- **The capability pattern reproduces:** the constant pin costs 3–9 MMLU points, and the anchor recovers essentially all of it (−0.9 to +0.6).
+- **Our GSM8K drops under the constant pin are larger than the paper's** (−9 to −19). That may come from our 256-token limit plus pinning during the whole generation.
+
+Caveats:
+- Llama-Guard only. It doesn't check coherence, which matters for constant pins.
+- Capability is measured on subsets, and Qwen3-8B's GSM8K base score (0.58) is low because thinking is disabled and generation is capped at 256 tokens.
+
+Logs: `m3-431479..82`, `cap-431522/3`.
+
+### 2026-10-22: Section 3.3 residual-stream baseline (`neuron_search.py --space residual`, `rerank.py`)
+Setup: the same search on residual-stream coordinates at each decoder layer's *input*, first 2/3 of layers. The rerank pins one coordinate at every token, sweeping m ∈ {2, 4, 8, 15, 30, 60} in both directions, on 191 HarmBench prompts with Llama-Guard-3.
+
+- **Qwen3-8B: the best residual dimension reaches only 0.26 ASR** (L19:F1214 at −60; unpinned 0.13). None reaches 0.90. Single residual dimensions are far weaker than the MLP neuron (0.97), which reproduces the paper's point (39%).
+- **Llama-3.1-8B: Llama-Guard alone can't score this baseline.** Top dimensions (L13/L14/L15:F2742, L15:F325, L14:F2082) reach 0.92–0.98 at |pin| = 8, and L15:F325 and L14:F2082 do so in *both* directions. These dimensions only differ by about 0.3–0.5 between harmful and harmless prompts, so ±8 is about 16× their scale. The model is being scrambled, and Llama-Guard calls the garbled text unsafe. The paper's LLM judge requires coherence, which explains their 29–45%.
+- **Hook point:** the paper's Llama residual top candidate L12:F291 is our **L13**:F291, the input of layer 13 = output of layer 12. It ranks 2nd there by score but fails our magnitude filter. So the paper most likely hooked each layer's *output*.
+
+Next: a coherence-aware judge, i.e. a local LLM with the paper's K.1 prompt. Logs: `residual-431447/8`.
+
 ### 2026-10-21: Appendix G alignment and the Arditi ablation baseline (`arditi.py`)
 Arditi's direction was selected with his pipeline rules on his exact 128/128 train and 32/32 val samples, filtered by refusal score:
 - candidates: every layer × every post-instruction position
