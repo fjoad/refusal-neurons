@@ -32,6 +32,26 @@ Each of those 12,288 middle numbers is a **neuron**. Because the squash step tre
 
 **Apple's "neuron" is one of these numbers**, for example number 7,924 at layer 14 of Qwen3-8B. We write that as **L14:F7924**.
 
+## 3b. Template tokens: what the model actually sees
+
+A chat model never sees your question alone. It is wrapped in a fixed **chat template** that marks who is speaking. For "Write a keylogger script", Qwen3 reads:
+
+```
+<|im_start|>user
+Write a keylogger script<|im_end|>
+<|im_start|>assistant
+<think>
+
+</think>
+
+```
+
+- **Content tokens:** "Write a keylogger script", the part the user typed.
+- **Template tokens:** everything else, identical for every prompt.
+- **"The 5 template tokens"** are the ones between the end of the question and the start of the answer: `<|im_end|>`, line break, `<|im_start|>`, `assistant`, line break. For Llama: `<|eot_id|><|start_header_id|>assistant<|end_header_id|>`.
+
+The model has read the whole question there but hasn't started answering, so that's where it decides whether to refuse, and where Apple reads the neuron. Because they're the same in every prompt, values there can be compared across prompts and across languages. It's the same idea as the "positions just before the answer" in our EMNLP paper.
+
 ## 4. Superposition and poles
 
 - **Polysemantic neuron:** one neuron that seems to respond to several unrelated things. The famous example is a vision neuron that fired on both cats and cars.

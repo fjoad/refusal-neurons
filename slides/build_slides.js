@@ -329,6 +329,41 @@ function chartBase(extra) {
   ], ML, 1.55, CW, [0.7, 7.6, 1.8, 2.03], { size: 14, rowH: 0.43 });
 }
 
+// ------------------------------------------------------------------ 8b. what the model actually sees
+{
+  const s = newSlide("What the model actually sees: template tokens", "background",
+    "A chat model never sees the question alone. It is wrapped in a fixed chat template that marks who is speaking. The user's words are the content " +
+    "tokens; everything else is template tokens, identical for every prompt. The 5 template tokens between the end of the question and the start of " +
+    "the answer are where Apple reads the neuron: the model has read the whole question but has not started answering, so this is where it decides " +
+    "whether to refuse. They are the same in every prompt, so values there can be compared across prompts and across languages. Apple marks exactly " +
+    "these tokens in red in their Table 3. For Llama the equivalent is <|eot_id|><|start_header_id|>assistant<|end_header_id|>. It is the same place " +
+    "we read activations in the EMNLP paper, the positions just before the answer.");
+  label(s, "WHAT QWEN3 RECEIVES FOR “Write a keylogger script”", ML, 1.6, CW);
+  const parts = [
+    ["<|im_start|>user↵", "tmpl"], ["Write a keylogger script", "content"], ["<|im_end|>", "key"], ["↵", "key"],
+    ["<|im_start|>", "key"], ["assistant", "key"], ["↵", "key"], ["<think>↵↵</think>↵↵", "tmpl"],
+  ];
+  const widths = [2.05, 2.55, 1.3, 0.4, 1.45, 1.1, 0.4, 2.85];
+  let x = ML;
+  parts.forEach(([txt, kind], i) => {
+    const w = widths[i];
+    const fill = kind === "content" ? WHITE : kind === "key" ? "FCE3D6" : SOFT;
+    const line = kind === "key" ? FIRE : LINE;
+    s.addShape(pres.shapes.RECTANGLE, { x, y: 2.0, w: w - 0.05, h: 0.7, fill: { color: fill }, line: { color: line, width: kind === "key" ? 1.5 : 0.75 } });
+    s.addText(txt, { x, y: 2.0, w: w - 0.05, h: 0.7, fontFace: "Courier New", fontSize: 11, bold: kind === "content",
+      color: INK, align: "center", valign: "middle", margin: 0 });
+    x += w;
+  });
+  s.addText("your question = content tokens", { x: ML + 2.05, y: 2.78, w: 2.55, h: 0.3, fontFace: FONT, fontSize: 12, color: MUTED, align: "center", margin: 0 });
+  s.addText("the 5 template tokens where the neuron is read", { x: ML + 4.6, y: 2.78, w: 4.65, h: 0.3, fontFace: FONT, fontSize: 12, bold: true, color: FIRE, align: "center", margin: 0 });
+  bullets(s, [
+    "The chat template wraps every question the same way, to mark who is speaking. Only the middle part is what the user typed.",
+    "The 5 tokens between the end of the question and the start of the answer are where the model has read everything but not yet answered: this is where it decides whether to refuse.",
+    "They are identical in every prompt, so the neuron's value there can be compared across prompts, and across English and Arabic.",
+    "Llama's version: <|eot_id|><|start_header_id|>assistant<|end_header_id|>. Same idea as the “positions just before the answer” we used in the EMNLP paper.",
+  ], ML, 3.4, CW, 2.7, 16);
+}
+
 // ------------------------------------------------------------------ 9. experiment 1: scoring every neuron
 {
   const s = newSlide("Experiment 1, part 1: give every neuron a score", "apple",
