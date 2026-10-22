@@ -142,7 +142,7 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line)
       <div class="now-row">
         <div><strong>Replication:</strong> our search and rerank recover Apple's neuron <em>and</em> pin value on both 8B models; Qwen3-1.7B is a near-tie, as in the paper</div>
         <div><strong>Arabic:</strong> a search run in Arabic finds the same refusal neuron in all three models; one neuron detects Arabic harmful prompts better than Llama-Guard-3 (<span class="num">0.956</span> vs <span class="num">0.910</span>)</div>
-        <div><strong>Running now:</strong> M3 attacks and capability cost, §3.3 residual baseline, Arabic own-phrase searches</div>
+        <div><strong>Next:</strong> a free, coherence-aware LLM judge (the paper's K.1 prompt, run locally), then the Arabic attack evaluation</div>
       </div>
     </div>
   </header>
@@ -191,12 +191,13 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line)
           <p>Llama-Guard-3-8B, free on panther; no API credits for an LLM judge while we explore. Its attack success rate on M1 outputs climbs from 0.03 to 0.97 as the pin grows. Two caveats: it also calls garbled text unsafe, and it doesn't officially cover Arabic.</p>
         </div>
       </li>
-      <li class="step" data-state="doing">
+      <li class="step" data-state="done">
         <div class="dot">4</div>
         <div class="step-body">
-          <div class="step-title"><h3>M3 · Full evaluation, English first</h3><span class="pill doing">Running</span></div>
+          <div class="step-title"><h3>M3 · Full evaluation, English first</h3><span class="pill done">Done (Llama-Guard)</span></div>
           <p>JailbreakBench ASR with the judge, constant and anchor interventions, MMLU and GSM8K cost, XSTest detection AUROC.</p>
-          <p class="result">Detection done. XSTest AUROC: Llama neuron 0.963 (paper 0.97), Qwen3-8B 0.901, 1.7B 0.852; Llama-Guard-3 0.975 with recall 0.82 (paper 0.83). Attacks and capability are running.</p>
+          <p class="result">Detection done. XSTest AUROC: Llama neuron 0.963 (paper 0.97), Qwen3-8B 0.901, 1.7B 0.852; Llama-Guard-3 0.975 with recall 0.82 (paper 0.83). </p>
+          <p class="result">One pinned neuron jailbreaks JailbreakBench at 0.95 (Qwen3-8B) and 0.93 (Llama), up from 0.04, on par with Arditi's all-layer ablation (0.91–0.95). The constant pin costs 3–7 MMLU points; the anchor brings the cost to about zero (Qwen3-8B MMLU 0.675 → 0.679).</p>
         </div>
       </li>
       <li class="step" data-state="doing">
@@ -228,12 +229,12 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line)
         <tbody>
           <tr><td class="sec">§2.3</td><td>Neuron search (gradient × activation)<span class="sub">Top-5 candidates per model</span></td><td><span class="pill done">Reproduced</span></td><td>Everything; it is our main tool</td></tr>
           <tr><td class="sec">§2.3</td><td>Rerank top 5 by HarmBench ASR, sweeping <em>m</em></td><td><span class="pill done">Reproduced (8B)</span></td><td>Replication</td></tr>
-          <tr><td class="sec">§2.4</td><td>JailbreakBench ASR, constant pin<span class="sub">Llama-Guard-3 only (no API judge)</span></td><td><span class="pill doing">Running</span></td><td>Replication, Paper A</td></tr>
-          <tr><td class="sec">§2.4</td><td>Anchor intervention (scaled pin)</td><td><span class="pill doing">Running</span></td><td>Replication</td></tr>
-          <tr><td class="sec">§2.4</td><td>Capability cost on MMLU and GSM8K</td><td><span class="pill doing">Running</span></td><td>Replication</td></tr>
+          <tr><td class="sec">§2.4</td><td>JailbreakBench ASR, constant pin<span class="sub">Llama-Guard-3 only: 0.95 / 0.93 on the 8B models</span></td><td><span class="pill done">Reproduced</span></td><td>Replication, Paper A</td></tr>
+          <tr><td class="sec">§2.4</td><td>Anchor intervention (scaled pin)<span class="sub">same ASR, near-zero capability cost</span></td><td><span class="pill done">Reproduced</span></td><td>Replication</td></tr>
+          <tr><td class="sec">§2.4</td><td>Capability cost on MMLU and GSM8K<span class="sub">our GSM8K drops under the constant pin are larger than the paper's</span></td><td><span class="pill done">Reproduced</span></td><td>Replication</td></tr>
           <tr><td class="sec">§3.1</td><td>Per-token activations (fires at the turn boundary)<span class="sub">XSTest controls: benign prompts with harmful words get a partial response (~35%), not silence</span></td><td><span class="pill done">Reproduced</span></td><td>Paper A: same token in Arabic?</td></tr>
           <tr><td class="sec">§3.2</td><td>Neuron already present in base models<span class="sub">Qwen3-8B-Base fires on harmful content, not the turn boundary</span></td><td><span class="pill done">Reproduced</span></td><td>Paper C</td></tr>
-          <tr><td class="sec">§3.3</td><td>Single residual-stream dims do worse (39–45% ASR)</td><td><span class="pill doing">Running</span></td><td>Paper C</td></tr>
+          <tr><td class="sec">§3.3</td><td>Single residual-stream dims do worse (39–45% ASR)<span class="sub">Qwen3-8B best 0.26. On Llama, Llama-Guard rewards scrambled output, so this needs a coherence judge</span></td><td><span class="pill doing">Partly</span></td><td>Paper C</td></tr>
           <tr><td class="sec">§3.4</td><td>Neuron as a detector on XSTest vs Llama-Guard-3<span class="sub">also MultiJail en/ar: neuron 0.956 vs Llama-Guard 0.910 in Arabic</span></td><td><span class="pill done">Reproduced</span></td><td>Paper A: a per-language guard</td></tr>
           <tr><td class="sec">§3.5</td><td>What the neuron responds to (max-activating Pile text)</td><td><span class="pill skip">Optional</span></td><td>Paper C</td></tr>
           <tr><td class="sec">§4</td><td>Suicide concept neurons</td><td><span class="pill skip">Skip</span></td><td>Not part of our question</td></tr>
@@ -282,16 +283,16 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line)
     <div class="section-head"><h2>Recommendation</h2></div>
     <div class="rec">
       <ol>
-        <li><strong>Settle the judge.</strong> The rerank needs it, and so does everything after it.</li>
-        <li><strong>Build the rerank</strong>: an <em>m</em> sweep per top-5 candidate on HarmBench. It should pick the published neurons.</li>
-        <li><strong>Do the core of M3:</strong> JailbreakBench ASR, anchor, MMLU/GSM8K and XSTest. Leave §3.2, §3.3, §3.5 and §4 for Paper C or skip them.</li>
-        <li><strong>Then the Arabic search</strong>, which is the first real result for Paper A.</li>
+        <li><strong>Add a coherence-aware judge</strong>: a local LLM with the paper's K.1 prompt, free on panther. It fixes the residual baseline and gives the paper's second judge.</li>
+        <li><strong>Arabic attacks</strong>: pin the neuron on Arabic prompts and judge the responses. That needs a plan for judging Arabic.</li>
+        <li><strong>Rerun §3.3 with the residual read at each layer's output</strong>, as the paper likely did, judged by the coherence-aware judge.</li>
+        <li><strong>Remaining paper items:</strong> §3.5 max-activating text (you review the examples) and §4 concept neurons (optional).</li>
       </ol>
     </div>
   </section>
 
   <footer>
-    <span>Updated 21 Oct 2026</span>
+    <span>Updated 22 Oct 2026</span>
     <span>Source of truth: <a href="https://github.com/fjoad/refusal-neurons">github.com/fjoad/refusal-neurons</a> README and results log</span>
   </footer>
 </main>
