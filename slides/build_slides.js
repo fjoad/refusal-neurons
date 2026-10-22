@@ -743,30 +743,66 @@ function chartBase(extra) {
     { color: AMBER, bg: AMBER_SOFT, size: 15, h: 0.8, y: 6.05 });
 }
 
-// ------------------------------------------------------------------ 22. Arabic B
+// ------------------------------------------------------------------ 22a. Arabic B: setup
 {
-  const s = newSlide("Arabic B: redo the whole search with only Arabic prompts", "arabic",
-    "This one is our own experiment; Apple only searched with English prompts. We rerun Experiment 1 from scratch but with Arabic prompts only: 128 " +
-    "harmful MultiJail prompts in Arabic and 128 normal Aya prompts in Arabic. Push needs a refusal sentence, and in Arabic the models refuse in Arabic, " +
-    "so we use the sentence each model actually uses, read from 100 of its normal Arabic answers; for Llama: 'I can't provide information'. Then we score " +
-    "all neurons exactly as in Experiment 1 and ask where the English refusal neuron lands. It comes out first in Llama and Qwen3-1.7B, and third in " +
-    "Qwen3-8B (first if the search uses the English refusal sentence). So even with only Arabic data you find the same neuron. Lesson: use the refusal " +
-    "sentence the model really says. When Qwen3-1.7B's Arabic search used the English sentence, its neuron fell to rank 568.");
-  label(s, "OUR OWN EXPERIMENT: APPLE ONLY SEARCHED WITH ENGLISH PROMPTS", ML, 1.5, CW, AMBER);
-  steps(s, [
-    "Rerun Experiment 1 from scratch with Arabic prompts only: 128 harmful (MultiJail) vs 128 normal (Aya), all in Arabic.",
-    "Push needs a refusal sentence. In Arabic the models refuse in Arabic, so we use the one each model actually says (read from 100 of its Arabic answers).",
-    "Score every neuron exactly as before, and ask: where does the English refusal neuron land?",
-  ], ML, 1.9, CW, { gap: 0.6, size: 15, color: AMBER });
+  const s = newSlide("Arabic B: run Experiment 1's search again, in Arabic", "arabic",
+    "This is our own experiment; Apple only searched in English. We run part 1 of Experiment 1, the scoring, twice on the same prompts: once in English " +
+    "and once in Arabic. Each run gives a top-5 list of neurons, and we compare the two lists. Why a refusal sentence: the gap only needs the harmful " +
+    "and harmless labels, which come from the datasets. The push asks how much a neuron makes the model start its answer with a refusal, so it needs the " +
+    "refusal written out as text. It is a gradient: how the probability of that sentence changes when the neuron moves a tiny bit. A judge can't be used " +
+    "here, because it only reads finished answers and gives a yes or no, and you can't take a gradient through that. Apple used English sentences, their " +
+    "Table 4. In Arabic the model refuses in Arabic, so the probability of 'I'm sorry' is tiny and not what it really does; we use the sentence each model " +
+    "actually says in Arabic, read from 100 of its normal Arabic answers. Part 2, the rerank, needs a judge that reads Arabic, so it is not done yet.");
+  label(s, "OUR OWN EXPERIMENT: APPLE ONLY SEARCHED IN ENGLISH", ML, 1.5, CW, AMBER);
   table(s, [
-    ["Model", "Refusal sentence it uses in Arabic", "English refusal neuron's rank in the Arabic-only search", "Neurons searched"],
-    ["Qwen3-8B", "أنا لا أستطيع مساعدتك (I can't help you)", hl("3rd (1st with the English sentence)"), "294,912"],
-    ["Llama-3.1-8B", "لا أستطيع تقديم معلومات (I can't provide information)", hl("1st"), "301,056"],
-    ["Qwen3-1.7B", "لا أستطيع أن أقدم (I can't provide)", hl("1st"), "110,592"],
-  ], ML, 3.85, CW, [1.9, 4.6, 3.9, 1.73], { size: 14, rowH: 0.45 });
-  result(s, [b("With only Arabic data, the search finds the same refusal neuron. "),
-    t("Lesson: use the refusal sentence the model really says. With the English sentence, 1.7B's neuron fell to rank 568.")],
-    { color: AMBER, bg: AMBER_SOFT, size: 15, h: 0.8, y: 6.05 });
+    ["", "Search in English", "Search in Arabic"],
+    ["Harmful prompts", "128 MultiJail prompts, English", "the same 128 MultiJail prompts, Arabic"],
+    ["Harmless prompts", "128 Aya prompts, English", "128 Aya prompts, Arabic"],
+    ["Refusal sentence for the “push”", "“I'm sorry, but I can't help with that request.” (Apple's)", "the one the model actually says in Arabic. Llama:\nلا أستطيع تقديم معلومات\n(\u201CI can't provide information\u201D)"],
+    ["Output", "top 5 neurons", "top 5 neurons"],
+  ], ML, 1.85, CW, [2.9, 4.3, 4.93], { size: 14, rowH: 0.52 });
+  s.addShape(pres.shapes.ROUNDED_RECTANGLE, { x: ML, y: 4.75, w: CW, h: 1.3, fill: { color: SOFT }, line: { color: LINE }, rectRadius: 0.06 });
+  s.addText([b("Why a refusal sentence and not a judge? "),
+    t("The push measures how much a neuron makes the model start answering with a refusal: how the probability of that sentence changes when the neuron moves a tiny bit (a gradient). A judge only gives a yes/no on a finished answer, and you can't take a gradient through that. Apple used English sentences here (their Table 4). In Arabic the model refuses in Arabic, so we use its Arabic sentence.")],
+    { x: ML + 0.25, y: 4.82, w: CW - 0.5, h: 1.18, fontFace: FONT, fontSize: 14, color: INK, margin: 0, valign: "middle" });
+  s.addText("Part 2 (the rerank) needs a judge that reads Arabic, so it isn't done in Arabic yet.",
+    { x: ML, y: 6.2, w: CW, h: 0.4, fontFace: FONT, fontSize: 13, color: MUTED, margin: 0 });
+}
+
+// ------------------------------------------------------------------ 22b. Arabic B: results
+{
+  const s = newSlide("Arabic B: the top 5 neurons, English search vs Arabic search", "arabic",
+    "Each pair of columns is one model: on the left the top 5 neurons when the search runs on English prompts, on the right the top 5 when it runs on the " +
+    "same prompts in Arabic. Teal cells are neurons that appear in both lists. Apple's refusal neuron is in bold. Both Qwen models share 4 of their 5 " +
+    "neurons across languages, Llama 2 of 5. Apple's refusal neuron is in both lists for all three models, and it is number 1 in the Arabic list for " +
+    "Llama and Qwen3-1.7B. So the search finds largely the same refusal neurons whichever language you run it in.");
+  const lists = [
+    ["Qwen3-8B", ["L14:F7924", "L16:F5318", "L16:F227", "L16:F8474", "L18:F7664"], ["L18:F7664", "L16:F8474", "L14:F7924", "L17:F11229", "L16:F5318"], "L14:F7924", "4 of 5 shared"],
+    ["Llama-3.1-8B", ["L20:F9928", "L20:F9424", "L15:F9635", "L11:F4258", "L17:F13532"], ["L11:F4258", "L15:F9635", "L10:F1084", "L10:F9064", "L13:F1358"], "L11:F4258", "2 of 5 shared"],
+    ["Qwen3-1.7B", ["L12:F4580", "L15:F1109", "L10:F244", "L13:F3270", "L9:F3183"], ["L13:F3270", "L10:F244", "L15:F1109", "L12:F4580", "L12:F5880"], "L13:F3270", "4 of 5 shared"],
+  ];
+  const colW = 3.85, gapX = 0.29;
+  lists.forEach(([model, en, ar, apple, shared], k) => {
+    const x = ML + k * (colW + gapX);
+    const both = new Set(en.filter((n) => ar.includes(n)));
+    const cell = (n) => ({ text: n, options: { bold: n === apple, color: n === apple ? WHITE : INK,
+      fill: { color: n === apple ? TEAL : both.has(n) ? TEAL_SOFT : WHITE }, align: "center" } });
+    s.addText(model, { x, y: 1.55, w: colW, h: 0.4, fontFace: FONT, fontSize: 17, bold: true, color: INK, align: "center", margin: 0 });
+    const rows = [[{ text: "rank", options: { align: "center" } }, { text: "English search", options: { align: "center" } }, { text: "Arabic search", options: { align: "center" } }]];
+    for (let r = 0; r < 5; r++) rows.push([{ text: String(r + 1), options: { align: "center", color: MUTED } }, cell(en[r]), cell(ar[r])]);
+    table(s, rows, x, 2.0, colW, [0.55, 1.65, 1.65], { size: 13, rowH: 0.42 });
+    s.addText(shared, { x, y: 4.6, w: colW, h: 0.35, fontFace: FONT, fontSize: 14, bold: true, color: TEAL, align: "center", margin: 0 });
+  });
+  // legend
+  s.addShape(pres.shapes.RECTANGLE, { x: ML, y: 5.12, w: 0.3, h: 0.22, fill: { color: TEAL }, line: { color: TEAL } });
+  s.addText("Apple's refusal neuron", { x: ML + 0.4, y: 5.08, w: 2.6, h: 0.3, fontFace: FONT, fontSize: 12, color: INK, margin: 0 });
+  s.addShape(pres.shapes.RECTANGLE, { x: ML + 3.0, y: 5.12, w: 0.3, h: 0.22, fill: { color: TEAL_SOFT }, line: { color: LINE } });
+  s.addText("in both lists", { x: ML + 3.4, y: 5.08, w: 2.0, h: 0.3, fontFace: FONT, fontSize: 12, color: INK, margin: 0 });
+  s.addText("Searched over 294,912 (Qwen3-8B), 301,056 (Llama) and 110,592 (Qwen3-1.7B) neurons.",
+    { x: ML + 5.2, y: 5.08, w: 6.9, h: 0.3, fontFace: FONT, fontSize: 12, color: MUTED, margin: 0 });
+  result(s, [b("Largely the same refusal neurons come out in both languages. "),
+    t("Apple's neuron is in both top-5 lists for all three models, and is #1 in Arabic for Llama and Qwen3-1.7B.")],
+    { color: AMBER, bg: AMBER_SOFT, size: 15, h: 0.75, y: 5.65 });
 }
 
 // ------------------------------------------------------------------ 23. Arabic C
@@ -813,7 +849,7 @@ function chartBase(extra) {
   const items = [
     ["We reproduced Apple's main results on 3 models, with free tools.", "On both 8B models: the exact same neuron and the exact same pin value. One neuron jailbreaks at 93–95%; the anchor version costs no capability."],
     ["The refusal neuron and our refusal direction are one mechanism.", "In all 3 models, the refusal neuron is the neuron most aligned with the refusal direction in its layer."],
-    ["The same neuron works in Arabic.", "A search run only in Arabic finds it first in all 3 models, and it filters Arabic harmful prompts better than Llama-Guard-3."],
+    ["The same neuron works in Arabic.", "Searching with the same prompts in Arabic gives largely the same top-5 neurons, Apple's neuron among them in all 3 models; and it filters Arabic harmful prompts better than Llama-Guard-3."],
   ];
   items.forEach(([h, sub], i) => {
     const y = 1.8 + i * 1.55;

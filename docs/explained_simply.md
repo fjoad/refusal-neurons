@@ -288,26 +288,38 @@ No new search. We took the neuron found with English prompts and used it exactly
 
 The neuron fires at the same token in both languages, the line break right after the question, and almost as strongly. A cut-off set on English prompts still works on Arabic ones, a bit less accurately.
 
-### Arabic B: redo the whole search with only Arabic prompts (our own experiment)
+### Arabic B: run Experiment 1's search again, in Arabic (our own experiment)
 
-Apple only searched with English prompts. We reran Experiment 1 from scratch with Arabic prompts only: 128 harmful MultiJail prompts in Arabic and 128 normal Aya prompts in Arabic.
+Apple only searched in English. We ran **part 1 of Experiment 1** (the scoring) twice on the same prompts, then compared the two top-5 lists:
 
-Push needs a refusal sentence, and in Arabic the models refuse in Arabic. So we used the sentence each model actually says, read from 100 of its normal Arabic answers:
-- Qwen3-8B: "أنا لا أستطيع مساعدتك" ("I can't help you")
-- Llama: "لا أستطيع تقديم معلومات" ("I can't provide information")
-- Qwen3-1.7B: "لا أستطيع أن أقدم" ("I can't provide")
-
-Then we scored every neuron exactly as before and asked where the English refusal neuron lands:
-
-| Model | Its rank in the Arabic-only search | Neurons searched |
+| | Search in English | Search in Arabic |
 |---|---|---|
-| Qwen3-8B | 3rd (1st with the English refusal sentence) | 294,912 |
-| Llama-3.1-8B | **1st** | 301,056 |
-| Qwen3-1.7B | **1st** | 110,592 |
+| Harmful prompts | 128 MultiJail prompts, English | the same 128 MultiJail prompts, Arabic |
+| Harmless prompts | 128 Aya prompts, English | 128 Aya prompts, Arabic |
+| Refusal sentence for the "push" | "I'm sorry, but I can't help with that request." (Apple's) | the one the model actually says in Arabic |
+| Output | top 5 neurons | top 5 neurons |
 
-**With only Arabic data, the search finds the same refusal neuron.**
+**Why a refusal sentence, and not a judge?**
+- **Gap** only needs the harmful/harmless labels, which come from the datasets.
+- **Push** asks how much a neuron makes the model *start answering with a refusal*. It's a gradient: how the probability of that sentence changes when the neuron moves a tiny bit. So it needs the refusal written out as text.
+- **A judge can't do this:** it only gives a yes/no on a finished answer, and you can't take a gradient through that. The judge is used later, in part 2 (the rerank) and Experiment 2.
+- **Apple used English refusal sentences here** (their Table 4).
+- **In Arabic the model refuses in Arabic,** so we use the sentence each model actually says, read from 100 of its normal Arabic answers. For Llama that's "لا أستطيع تقديم معلومات" ("I can't provide information").
 
-Lesson: use the refusal sentence the model really says. When Qwen3-1.7B's Arabic search used the English sentence, its neuron fell to rank 568.
+Part 2 (the rerank) needs a judge that reads Arabic, so it isn't done in Arabic yet.
+
+**Result, the top 5 neurons in each language** (Apple's refusal neuron in **bold**):
+
+| Rank | Qwen3-8B, English | Qwen3-8B, Arabic | Llama, English | Llama, Arabic | Qwen3-1.7B, English | Qwen3-1.7B, Arabic |
+|---|---|---|---|---|---|---|
+| 1 | **L14:F7924** | L18:F7664 | L20:F9928 | **L11:F4258** | L12:F4580 | **L13:F3270** |
+| 2 | L16:F5318 | L16:F8474 | L20:F9424 | L15:F9635 | L15:F1109 | L10:F244 |
+| 3 | L16:F227 | **L14:F7924** | L15:F9635 | L10:F1084 | L10:F244 | L15:F1109 |
+| 4 | L16:F8474 | L17:F11229 | **L11:F4258** | L10:F9064 | **L13:F3270** | L12:F4580 |
+| 5 | L18:F7664 | L16:F5318 | L17:F13532 | L13:F1358 | L9:F3183 | L12:F5880 |
+| Shared | 4 of 5 | | 2 of 5 | | 4 of 5 | |
+
+**Largely the same refusal neurons come out in both languages.** Apple's neuron is in both top-5 lists for all three models, and is #1 in Arabic for Llama and Qwen3-1.7B.
 
 ### Arabic C: the neuron as an Arabic safety filter
 
@@ -329,7 +341,7 @@ Lesson: use the refusal sentence the model really says. When Qwen3-1.7B's Arabic
 ## 10. Take-home
 1. We reproduced Apple's main results on 3 models, with free tools. On both 8B models we got the exact same neuron and the exact same pin value.
 2. The refusal neuron and our refusal direction are two views of one mechanism: the neuron is the one most aligned with the direction.
-3. The same neuron does the job in Arabic. A search run only in Arabic finds it first in all three models, and it filters Arabic harmful prompts better than Llama-Guard.
+3. The same neuron does the job in Arabic. Searching with the same prompts in Arabic gives largely the same top-5 neurons, with Apple's neuron among them in all three models. It also filters Arabic harmful prompts better than Llama-Guard.
 
 ## 11. Next
 1. Run the jailbreak in Arabic: pin the neuron on Arabic prompts and judge Arabic answers.
