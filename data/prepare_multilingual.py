@@ -7,9 +7,12 @@ PolyRefuse (Wang et al., NeurIPS 2025; github.com/mainlp/Multilingual-Refusal, A
   poly_<lang>_harmless_train  128: one fixed sample of their 200 harmless train prompts, same in every language
   poly_<lang>_harmful_test    572: their harmful test set
   poly_<lang>_harmless_test   500: their harmless test set (zh has none: its 72 unused harmless train prompts)
+  poly_<lang>_harmful_rerank  191: from their harmful test set, for the rerank (like Apple's HarmBench-191)
+  poly_<lang>_harmful_eval    100: disjoint from the rerank set, for the final attack (like JailbreakBench)
 MultiJail (Deng et al. 2024, MIT): 315 harmful prompts human-translated into 9 languages.
   mj_<lang>_harmful_train     128: the same prompts as multijail_train_en/ar, in every language
   mj_<lang>_harmful_test      100: the same prompts as multijail_en/ar (the Arabic teaser set)
+  mj_<lang>_harmful_rerank     87: the remaining MultiJail prompts, for the rerank
   mj_<lang>_harmless_train    128: Aya (Singh et al. 2024, Apache-2.0) prompts in that language, under 600 chars
   mj_<lang>_harmless_test     100: Aya test split where it has enough prompts, else unused Aya train prompts
                                    (Javanese has only 91 left). Aya prompts are not parallel across languages.
@@ -57,6 +60,7 @@ def polyrefuse():
     # Same index draws as data/prepare_data.py (Arditi's pipeline: harmful sample first, from 260 prompts).
     harm_idx = random.Random(42).sample(range(260), 128)
     harmless_idx = random.Random(42).sample(range(200), 128)
+    held_idx = random.Random(42).sample(range(572), 291)  # rerank (first 191) and final-test (last 100) prompts
     en_harm = [d["instruction"] for d in poly("dataset/splits/harmful_train.json")]
     assert [en_harm[i] for i in harm_idx] == json.loads((OUT / "arditi_harmful_train.json").read_text()), \
         "PolyRefuse English harmful train does not line up with arditi_harmful_train"
@@ -70,7 +74,11 @@ def polyrefuse():
         assert len(harm) == 260 and len(harmless) == 200, lang
         write(f"poly_{lang}_harmful_train", [harm[i] for i in harm_idx])
         write(f"poly_{lang}_harmless_train", [harmless[i] for i in harmless_idx])
-        write(f"poly_{lang}_harmful_test", [text(d) for d in poly(f"PolyRefuse/harmful_test_translated_{lang}.json")])
+        harm_test = [text(d) for d in poly(f"PolyRefuse/harmful_test_translated_{lang}.json")]
+        assert len(harm_test) == 572, lang
+        write(f"poly_{lang}_harmful_test", harm_test)
+        write(f"poly_{lang}_harmful_rerank", [harm_test[i] for i in held_idx[:191]])
+        write(f"poly_{lang}_harmful_eval", [harm_test[i] for i in held_idx[191:]])
         try:
             harmless_test = [text(d) for d in poly(f"PolyRefuse/harmless_test_translated_{lang}.json")]
         except urllib.error.HTTPError:
@@ -87,11 +95,14 @@ def multijail():
     # Reuse the exact prompts already chosen for English/Arabic (data/prepare_arabic.py).
     test_rows = [by_en[e] for e in json.loads((OUT / "multijail_en.json").read_text())]
     train_rows = [by_en[e] for e in json.loads((OUT / "multijail_train_en.json").read_text())]
+    used = {r["en"] for r in test_rows + train_rows}
+    rerank_rows = [r for r in rows if r["en"] not in used]
     aya_train = pd.read_parquet(io.BytesIO(fetch(AYA.format("train"))))
     aya_test = pd.read_parquet(io.BytesIO(fetch(AYA.format("test"))))
     for lang, aya_name in MJ_LANGS.items():
         write(f"mj_{lang}_harmful_train", [r[lang] for r in train_rows])
         write(f"mj_{lang}_harmful_test", [r[lang] for r in test_rows])
+        write(f"mj_{lang}_harmful_rerank", [r[lang] for r in rerank_rows])
         if lang in ("en", "ar"):  # identical to the earlier splits
             train = json.loads((OUT / f"aya_train_{lang}.json").read_text())
             test = json.loads((OUT / f"aya_harmless_{lang}.json").read_text())
