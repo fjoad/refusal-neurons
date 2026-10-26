@@ -171,6 +171,7 @@ Everything heavy runs on **panther** (QCRI SLURM). The repo is a plain git clone
 | `detect_threshold.py` | Exp. 6, Arabic A | Turns detection scores into a filter: best cut-off, accuracy, precision, recall; `--calibrate` applies a cut-off from other data |
 | `arditi.py` | Exp. 7, Fig. 5 | Arditi's refusal direction (selection, ablation attack) and the Appendix G cosine alignment |
 | `refusal_openings.py` | Arabic B | Counts the stock openings of unpinned answers, to find a model's refusal sentence in a language; never prints full answers |
+| `refusal_phrases.py` | multilingual | Each model's most common refusal openings per language, from short unpinned answers; feeds `neuron_search.py --phrases_json/--phrases_key` |
 | `summarize.py` | any | Per-run metrics of an output JSON (refusal, ASR, response lengths), never the text |
 | `show_responses.py` | any | Writes a few generated answers to a file, for a human to read |
 

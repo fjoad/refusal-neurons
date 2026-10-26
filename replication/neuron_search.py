@@ -252,6 +252,9 @@ def main():
     ap.add_argument("--grad_scale", type=float, default=128.0, help="fixed backward scale, undone in gradient hooks")
     ap.add_argument("--refusal_phrases", nargs="+", default=None,
                     help="response-prefix targets; defaults to the paper's Table 4 phrases for the model family")
+    ap.add_argument("--phrases_json", default=None,
+                    help="refusal_phrases.py output; with --phrases_key, use that split's phrases (for other languages)")
+    ap.add_argument("--phrases_key", default=None, help="split name inside --phrases_json")
     ap.add_argument("--score_tokens", type=int, default=None,
                     help="score only the first N post-instruction tokens (default: Table 3 for the family; 0 = all)")
     ap.add_argument("--watch", nargs="*", default=[], metavar="L:F",
@@ -259,6 +262,13 @@ def main():
     args = ap.parse_args()
     if args.bs < 1 or not math.isfinite(args.grad_scale) or args.grad_scale <= 0:
         ap.error("--bs must be positive and --grad_scale must be finite and positive")
+    if args.phrases_json:
+        if args.refusal_phrases or not args.phrases_key:
+            ap.error("--phrases_json needs --phrases_key and excludes --refusal_phrases")
+        found = json.loads((ROOT / args.phrases_json).read_text())["splits"][args.phrases_key]["phrases"]
+        if not found:
+            ap.error(f"no refusal phrases for {args.phrases_key} in {args.phrases_json}")
+        args.refusal_phrases = found
     if args.refusal_phrases is None:
         args.refusal_phrases = paper_phrases(args.model)
     try:
