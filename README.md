@@ -65,7 +65,7 @@ Read in this order:
 
 Agreed at the 22 October meeting, in this order. The dates are a proposed timeline to the 4 January deadline.
 
-1. **Read every Apple appendix closely** and list exactly what they did, and how deeply, before building on it (by Thu 29 Oct). First pass: none of their appendices (A–K) builds a direction inside the MLP; Appendix G compares the *residual* direction with each neuron's write vector, which is our Experiment 7.
+1. ✅ **Read every Apple appendix closely** (done 2026-10-27): [docs/apple_appendix_review.md](docs/apple_appendix_review.md). The MLP-space direction and the "does Arditi's direction work through the neuron" test are not in the paper. Cheap extras it suggests: measure *inducing* refusal with the neuron (only qualitative in their Appendix J), and Arditi's capability cost (their Table 9).
 2. **The refusal direction inside the MLP** (early November):
    - compute the mean-difference direction over the 12,288 neuron values (harmful − harmless) instead of the residual stream
    - steer and ablate with it, and compare against one pinned neuron and the residual direction
@@ -228,6 +228,7 @@ README.md                 this file: project guide, status, decisions, how to ru
 AGENTS.md                 operational rules for AI agents (CLAUDE.md just imports it)
 RESEARCH_DIRECTIONS.md    the five research directions and how they map to papers
 docs/explained_simply.md  plain-language walkthrough of every experiment and result
+docs/apple_appendix_review.md  what the Apple paper did, section by section and appendix by appendix
 docs/glossary.md          plain-language definitions
 docs/roadmap.html         older visual roadmap page (standalone HTML)
 docs/how_it_works.html    older visual explainer of the method (standalone HTML)
