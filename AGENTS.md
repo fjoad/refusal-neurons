@@ -18,6 +18,11 @@ Update the docs as part of the work, not as a separate handoff:
 - **Plain-language doc and slides:** when a result changes, update [docs/explained_simply.md](docs/explained_simply.md). The meeting deck is generated: edit [slides/build_slides.js](slides/build_slides.js), rebuild with `NODE_PATH=/opt/homebrew/lib/node_modules node slides/build_slides.js`, and render a PDF with `soffice --headless --convert-to pdf`. Check the slides as images before sharing.
 - **HTML pages:** [docs/roadmap.html](docs/roadmap.html) and [docs/how_it_works.html](docs/how_it_works.html) are older visual pages. Their published Claude artifacts were deleted (found gone 2026-10-27); don't republish them unless the user asks. The README status tables, [docs/explained_simply.md](docs/explained_simply.md) and the slides are the current overviews. If you edit a result these pages mention, keep them consistent or say they're stale.
 
+## Meetings
+- **Weekly meeting with Nadir every Thursday.** After each one, write one page of minutes (date, attendees, what was discussed, decisions, action items) as `drive/src/<date>_minutes.html`. Convert it with `soffice --headless --convert-to "docx:MS Word 2007 XML"` into `drive/Refusal Neurons/Meeting minutes/<date> ....docx`, and put that meeting's slides in `drive/Refusal Neurons/Slides/`.
+- **`drive/` is gitignored.** Minutes contain internal discussion and stay out of this public repo. The shared folder lives on the user's **fjoad1 Google account** (Google Drive); the user uploads it unless a Drive connector is available.
+- Move new ideas and decisions from the meeting into the README (Next steps, Decisions) and RESEARCH_DIRECTIONS.md, so the repo stays the source of truth for the plan.
+
 ## Working with the user
 - Faaiz (the user) was first author on the EMNLP refusal-directions paper, but is newer to neuron-level interpretability. Explain neuron terms plainly. Extend docs/glossary.md rather than re-explaining in chat.
 - Stick to the agreed plan and order in README.md. Propose changes; don't silently re-plan.

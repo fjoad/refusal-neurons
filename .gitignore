@@ -28,3 +28,6 @@ logs/
 
 # PowerPoint lock files
 ~$*
+
+# Drive-ready folder (meeting minutes are not for the public repo)
+drive/

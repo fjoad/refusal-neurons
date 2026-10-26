@@ -50,6 +50,12 @@ Kazemi et al. test only *safety* refusals.
 - **Watch the neuron form:** use OLMo-2's open pretraining, SFT and DPO checkpoints to see when the refusal neuron appears, and whether it grows out of a related concept (for example "restricted or explicit content") as Goodfire's "recursive generalization" predicts.
 - **Check the SwiGLU double-negative regime** in Kazemi et al.'s pole profiles, so that echo activations are not read as meaning.
 
+## Ideas added at the 22 October meeting
+
+- **The refusal direction inside the MLP.** Compute Arditi's mean-difference direction over the MLP's neuron values instead of the residual stream, and steer or ablate with it there. Decompose it: is the refusal neuron its most-weighted entry, and how much of the direction does it carry? When Arditi's direction works, is this neuron the only one that matters? First check: Apple's appendices don't build an MLP-space direction (Appendix G works from the residual direction). Bridges directions 1 and 4.
+- **The full method in Arabic.** Find the neuron in Arabic with the same algorithm (search, rerank, attack) and compare its effectiveness with the English neuron.
+- **A language-agnostic refusal neuron as one guard across languages** (directions 1 and 3). Search in every language of PolyRefuse and MultiJail, intersect the top-5 neurons, and test the most-shared neuron as a detector everywhere. If no single neuron works, look for one per language family or script, then one per language.
+
 ## Shared resource worth building early
 One **parallel benchmark** with the same harmful and benign prompts in N languages × {text, image-of-text, speech (TTS)}. Papers A and B both use it, and it could be released on its own.
 
