@@ -27,7 +27,6 @@ Update the docs as part of the work, not as a separate handoff:
 ## Working with the user
 - Faaiz (the user) was first author on the EMNLP refusal-directions paper, but is newer to neuron-level interpretability. Explain neuron terms plainly. Extend docs/glossary.md rather than re-explaining in chat.
 - Stick to the agreed plan and order in README.md. Propose changes; don't silently re-plan.
-- **Do the work yourself.** Don't hand coding or experiments to other coding agents or plugins unless the user explicitly asks for that in the current conversation.
 - Commits end with the co-author line the harness gives. Push to `main` on github.com/fjoad/refusal-neurons, which is **public**.
 
 ## Harmful content
