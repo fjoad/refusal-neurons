@@ -25,3 +25,6 @@ __pycache__/
 
 # job logs
 logs/
+
+# PowerPoint lock files
+~$*

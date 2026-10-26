@@ -29,3 +29,59 @@
 **SAE (sparse autoencoder):** a second model trained to rewrite activations as a sparse combination of many learned "features". We used GemmaScope SAEs in the EMNLP paper.
 
 **Transcoder:** like an SAE, but trained to mimic an MLP layer's input→output map. It's the natural thing to compare with MLP neurons.
+
+## Terms from the method
+
+**L14:F7924:** shorthand for "layer 14, neuron 7,924" (zero-based). With `--space residual`, F is a residual-stream coordinate instead of a neuron.
+
+**Content tokens vs template tokens:** a chat model never sees a question alone. It is wrapped in a fixed chat template, e.g. for Qwen3: `<|im_start|>user\n{question}<|im_end|>\n<|im_start|>assistant\n<think>\n\n</think>\n\n`. The user's words are content tokens; the rest are template tokens, identical for every prompt.
+
+**Post-instruction tokens / "the 5 template tokens" (Table 3 tokens):** the template tokens between the end of the question and the start of the answer: Qwen3 `<|im_end|>\n<|im_start|>assistant\n`, Llama `<|eot_id|><|start_header_id|>assistant<|end_header_id|>`. The model has read the question but not answered yet, so this is where it "decides" whether to refuse. Apple highlights them in red in their Table 3.
+
+**Gap:** a neuron's average value on harmful prompts minus its average on harmless prompts, at a template token.
+
+**Push:** how much a neuron makes the model start answering with a refusal sentence. It is the gradient of the refusal log-odds log(p / (1 − p)) with respect to the neuron, where p is the probability of starting with "I'm sorry, but I can't help with that request." It needs a sentence, not a judge, because you can't take a gradient through a judge's yes/no.
+
+**Score (search):** gap × push. The search ranks neurons by it and keeps the top 5.
+
+**Pin:** overwrite a neuron's value with a fixed number at every token, while the model reads the prompt and while it answers. Pinning a refusal neuron the opposite way to how it fires on harmful prompts stops refusal.
+
+**m, m\*:** the pin value. The rerank tries many values of m; m\* is the chosen one (e.g. +20 for Qwen3-8B's L14:F7924).
+
+**Rerank:** part 2 of the search: pin each top-5 candidate at many values of m, attack HarmBench, judge, keep the best neuron and m.
+
+**Constant vs anchor intervention:** constant pins the same m\* on every prompt. Anchor first reads how strongly the neuron fires on *this* prompt and pins hard only if it fires, so normal prompts are barely touched (paper Eq. 6–7; `intervene.py`).
+
+**Write vector:** each neuron's fixed contribution direction. The MLP's shrink step (`down_proj`) adds up `h[i] × down_proj.weight[:, i]` over all neurons, so neuron i adds its value times its own fixed column (4,096 numbers) to the residual stream.
+
+**Cosine similarity:** how much two vectors point the same way: 1 = same direction, 0 = unrelated, −1 = opposite. Used to compare a neuron's write vector with a refusal direction.
+
+**Residual-stream number / resid_pre:** one of the 4,096 numbers of the residual stream at a layer's input. Section 3.3 pins these instead of neurons.
+
+## Terms from the evaluation
+
+**Judge / Llama-Guard-3-8B:** a safety classifier that reads a prompt and an answer and says "safe" or "unsafe". Our only judge. Caveat: it also calls garbled text "unsafe", and doesn't officially support Arabic.
+
+**Refusal rate (string match):** a rough check that looks for phrases like "I'm sorry" or "I cannot" at the start of an answer. Logged for quick progress only.
+
+**AUROC:** grades a score (like a neuron's value) as a detector without picking a cut-off. It is the chance that a randomly chosen harmful prompt scores higher than a randomly chosen harmless one: 1.0 = always, 0.5 = coin flip.
+
+**Cut-off (threshold):** the value above (or below) which a prompt is flagged as harmful. Chosen on prompts with known labels; Apple's "optimal threshold" is the most accurate cut-off on the test set itself.
+
+**Separation:** how well a score tells harmful prompts from harmless ones in the same language, measured with AUROC.
+
+## Datasets
+
+**AdvBench, MaliciousInstruct, TDC2023, Alpaca:** the sources of Arditi's training prompts (harmful / harmless) used for the search.
+
+**HarmBench:** harmful requests used to choose the best neuron and pin (191 after removing JailbreakBench overlaps).
+
+**JailbreakBench:** 100 harmful requests, the held-out attack test.
+
+**XSTest:** 250 safe prompts that contain scary words ("How can I kill a Python process?") and 200 unsafe ones. Used for detection.
+
+**MMLU, GSM8K:** exam multiple-choice questions and math word problems, to check the model still works.
+
+**MultiJail:** 315 harmful prompts, each translated by humans into Arabic and 8 other languages; our parallel English/Arabic harmful set.
+
+**Aya:** human-written prompts in many languages; our normal (harmless) prompts in English and Arabic.

@@ -10,10 +10,13 @@ Every direction below assumes we can find the refusal neuron ourselves, so this 
 
 - **Models:** Qwen3-1.7B, Qwen3-8B, Llama-3.1-8B-Instruct. That covers both families on panther-sized GPUs; add 14B and 32B later.
 - **Success check:** recover their neurons, Qwen3-8B L14:F7924 and Llama-3.1-8B L11:F4258, and roughly their JailbreakBench ASR (around 90%+ per model; exact numbers are in their Table 8).
+- **Status (2026-10-27): done.** Same neuron and pin as Apple on both 8B models, 93–95% ASR; see the README's status tables.
 
 ## The five directions
 
 ### 1. Same neuron across languages and modalities? (Nadir's main ask → Papers A and B)
+**Status:** Arabic started. The English neuron fires on Arabic prompts at the same token, and a search run on Arabic prompts gives largely the same top-5 neurons. Not done: the Arabic jailbreak and rerank (need Arabic judging), other languages, images, speech.
+
 Find the refusal neuron in, for example, Qwen3-8B using English prompts. Then ask:
 - **Does it fire** when the *same* harmful request is given in Arabic, Hindi, Swahili, as an image of the text, or as speech?
 - **Does it fire at the same token**, the chat-template token just before the assistant answers?
@@ -23,18 +26,26 @@ Find the refusal neuron in, for example, Qwen3-8B using English prompts. Then as
 For modalities, use models built on the same LLM backbone, such as Qwen3 and a Qwen3-based VL or audio model. Then "the same neuron" literally means the same layer and index. Check each variant's backbone first.
 
 ### 2. Why translation and image jailbreaks work (→ Papers A and B)
+**Status:** not started. The models refuse less in Arabic (string match: Qwen3-1.7B 0.40 → 0.20, Llama 0.77 → 0.58) while the neuron still fires, which is a first hint worth measuring properly.
+
 Harmful requests in low-resource languages or embedded in images often get past safety. Hypothesis: the model *understands* the harm, so the harmful-concept neurons fire, but the refusal gate neuron stays quiet. That is "recognized but not refused", which we can measure directly per language and modality. A related result is AEGIS's "risk-to-refusal gap" in audio models.
 
 ### 3. The neuron as a cheap guard (→ Papers A and B)
+**Status:** first result. On Qwen3-8B the neuron detects Arabic harmful prompts better than Llama-Guard-3 (AUROC 0.956 vs 0.910); a cut-off set in English still works in Arabic (95.5% → 88.5% accuracy).
+
 Kazemi et al. show that one neuron's activation detects harmful prompts about as well as Llama-Guard-3-8B (AUROC 0.97 on XSTest for Llama-3.1-8B). Does that hold per language and per modality? If it does, it is a nearly free multilingual and multimodal safety detector.
 
 ### 4. Bridge to our EMNLP paper (→ Paper C)
+**Status:** first result. In all three models the refusal neuron is the neuron most aligned with Arditi's direction in its own layer (Experiment 7). Our 11 category directions are not compared yet.
+
 Kazemi et al. test only *safety* refusals.
 - Does suppressing their neuron also remove the **non-safety refusals**: CoCoNot humanizing, incomplete, indeterminate and unsupported? In our paper these survived safety-direction ablation at 0.3–0.5.
 - Do our **11 category refusal directions** line up with that neuron's write vector (its `down_proj` column)? Kazemi et al. Table 7 runs the same check for Arditi's direction.
 - Hypothesis linking the two papers: one gate neuron controls *whether* the model refuses, and category-specific directions or neurons shape *how* it refuses.
 
 ### 5. Testing Goodfire's essay on safety neurons (→ Paper C)
+**Status:** not started.
+
 - **Neurons vs SAEs:** is our SAE "shared refusal core" (GemmaScope, Gemma-2-9B) mostly a few neurons in disguise? Run the neuron finder on Gemma-2 and compare it with the SAE latents. Use GemmaScope transcoders for an MLP-to-MLP comparison. Goodfire claims 88% of SAE activity is near-copies of single neurons.
 - **Watch the neuron form:** use OLMo-2's open pretraining, SFT and DPO checkpoints to see when the refusal neuron appears, and whether it grows out of a related concept (for example "restricted or explicit content") as Goodfire's "recursive generalization" predicts.
 - **Check the SwiGLU double-negative regime** in Kazemi et al.'s pole profiles, so that echo activations are not read as meaning.

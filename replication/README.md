@@ -12,10 +12,10 @@ Goal: recover their refusal neurons and approximate ASR with our own code. No of
 3. **Rerank:** for the top 5 neurons, sweep the pinned value `m` (0–20 in steps of 2, then 20–200 in steps of 5) in the direction opposite to the neuron's harmful activation. Measure ASR on HarmBench (the 191 prompts after removing JailbreakBench overlap), and keep the best (layer, neuron, m*).
 4. **Intervene:**
    - **Constant:** `h_i ← m*` at every token, during both prefill and generation.
-   - **Anchor:** scale the clamp by the prompt's own activation `v` (max or min over the post-instruction tokens) relative to the harmful–harmless gap `d`, capped at `m*`, with k ∈ {1, 2}. Re-derive the exact form from their Eq. 6–7 before coding it; the formula is garbled in text extraction.
+   - **Anchor (Eq. 6–7, read from the rendered PDF):** `h_i ← clamp(k · m* · v/d − d, m*)`. Here `v` is the prompt's own max (if d > 0) or min (if d < 0) over the Table 3 tokens, from a hook-free pass, and `d = a_harmful − a_harmless` at the winning token. The clamp is min if m* > 0, max if m* < 0. `k ∈ {1, 2}`. Implemented in `intervene.py`.
 5. **Evaluate:**
    - JailbreakBench (100 prompts), greedy decoding, 512 tokens.
-   - Judges: Llama-Guard-3-8B plus an LLM judge (prompt in their Appendix K.1).
+   - Judges: Llama-Guard-3-8B plus an LLM judge (prompt in their Appendix K.1). **We use Llama-Guard-3 only** (see Deviations).
    - Capability cost: MMLU and GSM8K.
    - Detection: XSTest AUROC.
 
@@ -27,8 +27,26 @@ the search JSON (or accepts a matching `--space residual`) and sweeps both +m an
 for each top-5 candidate at every token. Search JSON, saved means and rerank output
 names add `_residual`; `judge.py` works unchanged. Section 3.3 reports only about
 45% ASR for the best Llama-3.1-8B residual feature (L12:F291) and 39% for Qwen3-8B,
-well below the MLP neurons. These are paper reference numbers, not our results;
-the baseline is implemented but has not been run on the pretrained models here.
+well below the MLP neurons. Our results are in the log below ("Section 3.3"). Our hook
+is each layer's *input*; the paper's L12:F291 matches our L13:F291, so the paper most
+likely read each layer's *output*.
+
+## Deviations from the paper
+
+Everything else follows Section 2 and Appendices A, C and G as written.
+
+| What | Paper | Us | Why / effect |
+|---|---|---|---|
+| Models | 7 (Qwen3 1.7B–32B, Llama-3.1 8B and 70B) | Qwen3-1.7B, Qwen3-8B, Llama-3.1-8B | GPU budget; covers both families |
+| Precision, hardware | bf16 on one B200 | fp16 on V100/P100/T4, 8B models split over 2 cards | No fast bf16; fp16/bf16/fp32 give the same search ranking |
+| Judge | Claude LLM judge (non-refusing *and* coherent) + Llama-Guard-3 | Llama-Guard-3 only | No API credits. Llama-Guard calls garbled text unsafe, so high-pin ASR is inflated and the Llama residual baseline can't be scored |
+| Rerank grid | m = 0–20 step 2, 20–200 step 5 (47 values), 512 tokens | 9 values (2, 4, 6, 10, 15, 20, 30, 40, 60), 128 tokens | GPU time. Final attack (M3) uses 512 tokens like the paper |
+| Rerank winner | highest HarmBench ASR | candidate reaching ASR ≥ 0.90 at the smallest pin | Because of the judge. Recovers Apple's neuron and m* on both 8B models |
+| Qwen3-1.7B winner | L13:F3270 at +30 | L10:F244 at −15 (L13:F3270 at +40 also run in M3) | Near-tie among all 5 candidates, in the paper too |
+| Capability sets | MMLU, GSM8K (size not stated) | 1,000 MMLU, 250 GSM8K, 256 new tokens for GSM8K | Time. Our GSM8K drops under the constant pin are larger than the paper's |
+| Detection threshold | "optimal threshold" on XSTest | same (best accuracy on XSTest), plus a cut-off calibrated on other data | The optimal one is optimistic; calibrated numbers in the log |
+| Residual baseline (3.3) | residual dims (hook point not stated) | each decoder layer's input | Paper's L12:F291 = our L13:F291, so they likely used layer outputs |
+| Arditi refusal score | Arditi's pipeline | Arditi's rules re-implemented in `arditi.py` (refusal tokens "I", "As" for Qwen; "I" for Llama), Qwen3 template with thinking off | Arditi's code doesn't support Qwen3 |
 
 ## Data
 - **Train:** 128 harmful (AdvBench, MaliciousInstruct, TDC2023) and 128 harmless (Alpaca) prompts: Arditi et al.'s exact sample (`arditi_*_train` splits). Our own seed-42 sample (`harmful_train`/`harmless_train`) gave different rankings.
@@ -45,6 +63,21 @@ the baseline is implemented but has not been run on the pretrained models here.
 Qwen3 is run with thinking disabled.
 
 ## Results log
+
+Newest work first in each topic; every entry has its date, setup, numbers and caveats. Index:
+- **M1** (published neurons behave as described): 2026-10-19
+- **Arabic teaser** (English neuron on parallel Arabic prompts): 2026-10-20
+- **M2 search** (first run misses → three fixes → all three found): 2026-10-21
+- **M2 rerank** (same neuron and pin as Apple on both 8B models): 2026-10-21
+- **Judge sanity check** (Llama-Guard tracks the intervention, but also rewards garbled text): 2026-10-21
+- **Detection** (XSTest matches Apple; neuron beats Llama-Guard in Arabic): 2026-10-21
+- **Arabic search** (same top-5 neurons in English and Arabic): 2026-10-21, two entries
+- **Per-token firing (3.1) and base models (3.2)**: 2026-10-21
+- **Appendix G alignment and the Arditi baseline**: 2026-10-21
+- **M3** (attack and capability cost): 2026-10-22
+- **Section 3.3 residual baseline**: 2026-10-22
+
+Job scripts that produced these are in `scripts/jobs/` (each says which entry it belongs to).
 
 ### 2026-10-19: Milestone 1, published neurons behave as described (`neuron_check.py`)
 Setup: JailbreakBench (100 prompts) vs held-out Alpaca (100) for separation. Bypass measured on the first 30 JailbreakBench prompts, greedy decoding, 96 new tokens, string-match refusal check (rough; not the paper's judge). V100-32GB.
@@ -230,9 +263,21 @@ Neuron score: min (or max) activation over Table 3's tokens, as in the paper. Ll
 |---|---|---|---|---|
 | XSTest (200 unsafe / 250 safe) | 0.852 | 0.901 | 0.963 (paper 0.97) | 0.975; 0.96 / 0.82 (paper recall 0.83) |
 | MultiJail-en vs Aya-en (100 / 100) | 0.962* | 0.972 | 0.991 | 0.967; 1.00 / 0.58 |
-| MultiJail-**ar** vs Aya-ar (100 / 100) | 0.898 | **0.956** | 0.927 | **0.910**; 0.97 / 0.57 |
+| MultiJail-**ar** vs Aya-ar (100 / 100) | 0.898 (0.908 whole suffix) | **0.956** | 0.927 | **0.910**; 0.97 / 0.57 |
 
 \* This is the whole-suffix AUROC; the job ran before the Table 3 AUROC was added.
+
+**Turning the score into a filter** (`detect_threshold.py`, added 2026-10-22). A prompt is flagged when the neuron's strongest value over the Table 3 tokens passes a cut-off.
+
+| | Optimal cut-off on XSTest (as the paper) | XSTest accuracy, ours (paper) | Cut-off calibrated on MultiJail-en | its accuracy: MultiJail-en / MultiJail-ar / XSTest |
+|---|---|---|---|---|
+| Qwen3-1.7B | ≤ −7.7 | 79.3% (79.1%) | — | — |
+| Qwen3-8B | ≤ −2.80 | 82.7% (82.7%) | ≤ −1.31 | 95.5% / 88.5% / 68.0% |
+| Llama-3.1-8B | ≥ +0.46 | 89.1% (90.2%) | ≥ +0.106 | 97.5% / 81.0% / 64.7% |
+
+- **The paper's per-model XSTest numbers reproduce within about a point:** AUROC 0.853 / 0.902 / 0.969 in the paper vs ours 0.852 / 0.901 / 0.963.
+- **A cut-off transfers from English to Arabic** with some loss.
+- **It does *not* transfer to XSTest's tricky prompts:** recall goes to about 1, precision collapses. The cut-off must be calibrated on prompts like the ones being filtered.
 
 Takeaways:
 - **In Arabic, one neuron of Qwen3-8B (0.956) beats Llama-Guard-3 (0.910) as a harmful-prompt detector.** Llama-Guard-3 doesn't officially support Arabic.
@@ -241,11 +286,24 @@ Takeaways:
 
 Caveats: n = 100 per side for MultiJail, and Aya harmless prompts are not parallel across languages. Logs: `detect-431437`, `arabic-431433/4`.
 
-### 2026-10-21: Arabic search on all three models finds the English refusal neuron at rank 1 (`neuron_search.py`)
+### 2026-10-21: Arabic search on all three models: largely the same top-5 neurons in English and Arabic (`neuron_search.py`)
 Same splits as the Qwen3-8B entry below: 128 parallel MultiJail en/ar prompts vs Aya train. Each Arabic search targets that model's own Arabic refusal phrases, taken from 100 unpinned Arabic responses with `refusal_openings.py`:
 - Qwen3-1.7B: "لا أستطيع أن أقدم", "أنا لا أستطيع"
 - Llama: "لا أستطيع تقديم معلومات" (31), "لا أستطيع مساعدتك في" (10)
 - Qwen3-8B: "أنا لا أستطيع مساعدتك"
+
+Top 5 of each search (Apple's neuron in **bold**). The English search uses Apple's phrases on MultiJail-en vs Aya-en; the Arabic search uses the model's own Arabic phrases on the same prompts in Arabic.
+
+| Rank | Qwen3-8B, en | Qwen3-8B, ar | Llama, en | Llama, ar | Qwen3-1.7B, en | Qwen3-1.7B, ar |
+|---|---|---|---|---|---|---|
+| 1 | **L14:F7924** | L18:F7664 | L20:F9928 | **L11:F4258** | L12:F4580 | **L13:F3270** |
+| 2 | L16:F5318 | L16:F8474 | L20:F9424 | L15:F9635 | L15:F1109 | L10:F244 |
+| 3 | L16:F227 | **L14:F7924** | L15:F9635 | L10:F1084 | L10:F244 | L15:F1109 |
+| 4 | L16:F8474 | L17:F11229 | **L11:F4258** | L10:F9064 | **L13:F3270** | L12:F4580 |
+| 5 | L18:F7664 | L16:F5318 | L17:F13532 | L13:F1358 | L9:F3183 | L12:F5880 |
+| Shared | 4 of 5 | | 2 of 5 | | 4 of 5 | |
+
+Apple's neuron's rank and value per search:
 
 | Model, published neuron | English search rank | Arabic search rank, own Arabic phrases | Arabic search rank, English phrases | Harmful / harmless activation at the `\n` after `<|im_end|>` (Qwen) or `<|eot_id|>` (Llama), en → ar |
 |---|---|---|---|---|
@@ -253,7 +311,8 @@ Same splits as the Qwen3-8B entry below: 128 parallel MultiJail en/ar prompts vs
 | Qwen3-8B L14:F7924 | 1 | 3 | **1** | −3.24 / −0.27 → −3.19 / −0.28 |
 | Llama-3.1-8B L11:F4258 | 4 | **1** | **1** | +0.50 / +0.01 → +0.56 / +0.01 |
 
-- **In all three models, a search run entirely in Arabic recovers the English refusal neuron at rank 1,** at the same token and with nearly the same activation as in English.
+- **Largely the same refusal neurons come out in both languages:** 4 of 5 shared on both Qwen models, 2 of 5 on Llama. Apple's neuron is in both top-5 lists for all three models: #1 in Arabic for Llama and Qwen3-1.7B, #3 for Qwen3-8B (#1 with the English phrases). It fires at the same token with nearly the same activation as in English.
+- **Only the search (part 1) is done in Arabic.** The rerank needs a judge that reads Arabic.
 - **The refusal phrases matter.** Qwen3-1.7B's neuron drops to rank 568 when the search targets English refusal phrases, which the model doesn't produce in Arabic. Under that scoring its best token moves to `<|im_end|>`, where it fires only −1.07.
 - **Correction:** an earlier version of this entry read the rank-568 run as "the neuron barely fires in Arabic". It compared activations at different tokens and was wrong.
 - **Unpinned refusal is lower in Arabic** (string match, rough): 1.7B 0.40 en / 0.20 ar; Llama 0.77 en / 0.58 ar.

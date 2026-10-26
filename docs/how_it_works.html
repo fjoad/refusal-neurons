@@ -539,7 +539,7 @@ footer ul { margin: 0; padding-left: 1.2em; display: grid; gap: 4px; }
     <figcaption><b>Refusal rate as the pin grows.</b> Refusal collapses by +20, the same <code>m*</code> the paper found. Past that, refusal stays at zero but the text degrades: at +80 the output is gibberish. That is why ASR needs a judge that checks coherence, and why the sweep can't simply take the largest value.<br><span class="src">Our M1 run · first 30 JailbreakBench prompts · 96 new tokens · string-match refusal check (rough)</span></figcaption>
   </figure>
 
-  <p class="note col">Our status (M2): the search puts all three published neurons in its own top 5 (L13:F3270 4th, L14:F7924 5th, L11:F4258 3rd), once it uses the paper's exact refusal phrases, scored tokens and training sample. The rerank, which should pick them out of the five, is still to build.</p>
+  <p class="note col">Our status (M2): the search puts all three published neurons in its own top 5 (L13:F3270 4th, L14:F7924 5th, L11:F4258 3rd), once it uses the paper's exact refusal phrases, scored tokens and training sample. The rerank then picks Apple's neuron and Apple's pin on both 8B models (L14:F7924 at +20, L11:F4258 at −4); on Qwen3-1.7B the five candidates are a near-tie, as in the paper.</p>
 </section>
 
 <!-- 5 -->
@@ -683,7 +683,7 @@ footer ul { margin: 0; padding-left: 1.2em; display: grid; gap: 4px; }
 
   <div class="qs">
     <div class="q"><span class="chip done">done</span><div><h3>Weak test: does the English neuron fire in Arabic?</h3><p style="font-size: 15.5px">Yes, at the same token, and pinning it lowers refusal in both languages under a rough string-match check. It can't tell us whether Arabic has its own, stronger gate.</p></div></div>
-    <div class="q"><span class="chip todo">next</span><div><h3>Strong test: run the search in Arabic</h3><p style="font-size: 15.5px">Score all 294,912 neurons on Arabic splits and rerank. If <code>(14, 7924)</code> comes out on top again, the gate is shared. If a different neuron wins, refusal is gated per language. This needs M2 to pass first, and one judge that reads both languages.</p></div></div>
+    <div class="q"><span class="chip done">done</span><div><h3>Strong test: run the search in Arabic</h3><p style="font-size: 15.5px">We scored every neuron on Arabic prompts, with each model's own Arabic refusal sentence. The top 5 largely matches the English search (4 of 5 shared on both Qwen models, 2 of 5 on Llama), and Apple's neuron is in both lists for all three models. The Arabic rerank still needs a judge that reads Arabic.</p></div></div>
     <div class="q"><span class="chip todo">later</span><div><h3>Images and speech</h3><p style="font-size: 15.5px">Use vision and audio models built on the same Qwen3 or Llama backbone, so the same <code>(layer, neuron)</code> exists. Then ask the same two questions when the request is an image of text or spoken audio.</p></div></div>
     <div class="q"><span class="chip todo">later</span><div><h3>Neurons, directions, SAEs</h3><p style="font-size: 15.5px">Our EMNLP paper found several category-specific refusal directions sharing a core. Working hypothesis: one gate neuron decides <em>whether</em> to refuse, and the category directions shape <em>how</em>.</p></div></div>
   </div>

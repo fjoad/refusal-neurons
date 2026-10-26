@@ -141,7 +141,7 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line)
       <span class="eyebrow">Where we are</span>
       <div class="now-row">
         <div><strong>Replication:</strong> our search and rerank recover Apple's neuron <em>and</em> pin value on both 8B models; Qwen3-1.7B is a near-tie, as in the paper</div>
-        <div><strong>Arabic:</strong> a search run in Arabic finds the same refusal neuron in all three models; one neuron detects Arabic harmful prompts better than Llama-Guard-3 (<span class="num">0.956</span> vs <span class="num">0.910</span>)</div>
+        <div><strong>Arabic:</strong> searching with Arabic prompts gives largely the same top-5 neurons as English, Apple's neuron among them in all three models; one neuron detects Arabic harmful prompts better than Llama-Guard-3 (<span class="num">0.956</span> vs <span class="num">0.910</span>)</div>
         <div><strong>Next:</strong> a free, coherence-aware LLM judge (the paper's K.1 prompt, run locally), then the Arabic attack evaluation</div>
       </div>
     </div>
@@ -205,7 +205,7 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line)
         <div class="step-body">
           <div class="step-title"><h3>Search in Arabic</h3><span class="pill doing">First results</span></div>
           <p>Run the search on Arabic prompts. Same neuron, or a different one? This is the core question for Paper A.</p>
-          <p class="result">On parallel MultiJail prompts, an Arabic search that targets each model's own Arabic refusal phrases ranks the English refusal neuron <strong>1st in all three models</strong>. It fires at the same token with nearly the same strength: <span class="mono">L13:F3270</span> −5.59 in Arabic vs −6.44 in English, <span class="mono">L14:F7924</span> −3.19 vs −3.24, <span class="mono">L11:F4258</span> +0.56 vs +0.50.</p>
+          <p class="result">On parallel MultiJail prompts, an Arabic search that targets each model's own Arabic refusal sentence gives largely the same top 5 as the English search: 4 of 5 shared on both Qwen models, 2 of 5 on Llama. Apple's neuron is in both lists for all three models (#1 in Arabic for Llama and Qwen3-1.7B, #3 for Qwen3-8B). It fires at the same token with nearly the same strength: <span class="mono">L13:F3270</span> −5.59 in Arabic vs −6.44 in English, <span class="mono">L14:F7924</span> −3.19 vs −3.24, <span class="mono">L11:F4258</span> +0.56 vs +0.50.</p>
         </div>
       </li>
       <li class="step" data-state="todo">
@@ -292,7 +292,7 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line)
   </section>
 
   <footer>
-    <span>Updated 22 Oct 2026</span>
+    <span>Updated 27 Oct 2026</span>
     <span>Source of truth: <a href="https://github.com/fjoad/refusal-neurons">github.com/fjoad/refusal-neurons</a> README and results log</span>
   </footer>
 </main>
