@@ -57,6 +57,9 @@ This is jailbreak research. Prompts are harmful by design, and pinned models pro
 - Cached models: Qwen3-1.7B, Qwen3-8B, Qwen3-1.7B-Base, Qwen3-8B-Base, Llama-3.1-8B-Instruct and Llama-Guard-3-8B (the judge; gated, accessible). An 8B model in fp16 needs two 16 GB cards.
 - **Large-vocabulary memory trap:** Qwen3 (151k) and Llama-3 (128k) vocabularies make full-sequence logits huge. When only the last position is needed, call the model with `logits_to_keep=1` (as `capability.py` and `intervene.py` do), or batch sizes that fit for generation will run out of memory.
 
+## Local Python
+The Mac's default `python3` is Homebrew 3.15 (no pandas). For local data prep use `/opt/homebrew/bin/python3.14` (has pandas and pyarrow), or run data scripts on panther in the `refneu` env.
+
 ## Secrets
 Keys go in `.env` (gitignored; template in `.env.example`). Never hardcode them; the old project leaked keys this way. Check for secrets before every commit.
 

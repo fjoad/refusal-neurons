@@ -152,6 +152,7 @@ Everything heavy runs on **panther** (QCRI SLURM). The repo is a plain git clone
 | `data/prepare_arabic.py` | MultiJail en/ar and Aya en/ar splits (test sets and search sets) |
 | `data/prepare_xstest.py` | XSTest safe/unsafe splits |
 | `data/prepare_capability.py` | Fixed MMLU (1,000) and GSM8K (250) subsets |
+| `data/prepare_multilingual.py` | PolyRefuse (14 languages) and MultiJail + Aya (10 languages) splits, the same prompts in every language |
 
 **Experiments** (`replication/`)
 
@@ -207,6 +208,12 @@ python replication/show_responses.py outputs/neuron_check/<file>.json --out /tmp
 | `aya_harmless_en`, `aya_harmless_ar` | 100 + 100 | Aya test split | Arabic A and C (test) |
 | `multijail_train_en`, `multijail_train_ar` | 128 + 128 | MultiJail, disjoint from the 100 above | Arabic B (search) |
 | `aya_train_en`, `aya_train_ar` | 128 + 128 | Aya train split | Arabic B (search) |
+| `poly_<lang>_harmful_train`, `poly_<lang>_harmless_train` | 128 + 128 per language | PolyRefuse (Wang et al. 2025; Arditi's splits, Google-translated). The harmful 128 are the same prompts as `arditi_harmful_train` in all 14 languages | multilingual search |
+| `poly_<lang>_harmful_test`, `poly_<lang>_harmless_test` | 572 + 500 per language (zh harmless: 72) | PolyRefuse test sets | multilingual detection and attack |
+| `mj_<lang>_harmful_train`, `mj_<lang>_harmful_test` | 128 + 100 per language | MultiJail, the same prompts in all 10 languages (= `multijail_train_*` / `multijail_*` for en, ar) | multilingual search / test |
+| `mj_<lang>_harmless_train`, `mj_<lang>_harmless_test` | 128 + 100 per language (jv test: 91) | Aya in that language (not parallel across languages) | multilingual search / test |
+
+PolyRefuse languages: en ar de es fr it ja ko nl pl ru th yo zh. MultiJail languages: en ar zh it vi ko th bn sw jv. Built by `data/prepare_multilingual.py`.
 
 ### Outputs (on panther, `~/refusal-neurons/outputs/`, not in git)
 
