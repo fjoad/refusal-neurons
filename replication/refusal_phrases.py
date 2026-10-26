@@ -3,8 +3,9 @@
 The search's push is the gradient of the probability that the answer starts with a refusal phrase
 (Apple's Table 4 for English). In another language the model refuses in that language, so the
 phrases must come from the model itself. For each harmful split, this generates a short unpinned
-answer to every prompt and counts the most common openings (the first --prefix_tokens tokens,
-which also works for Chinese, Japanese and Thai). Refusals are templated, so the most common
+answer to every prompt and counts the most common openings: the first --words whole words for
+languages written with spaces, or the first --prefix_tokens tokens otherwise (Chinese, Japanese,
+Thai), so a phrase never ends mid-word. Refusals are templated, so the most common
 openings are refusal openings. The two most common, if each covers at least --min_share of the
 answers, become that split's phrases. Only openings shared by at least --min_count answers are
 printed or saved; full answers never are.
@@ -23,15 +24,24 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 from neuron_check import ROOT, build_prompts, load
 
 
+def opening(text, n_words, prefix_text):
+    """First n_words whole words; the last word of the decoded text may be cut, so it is dropped."""
+    words = text.split()
+    if len(words) > 1:
+        return " ".join(words[:min(n_words, len(words) - 1)])
+    return prefix_text  # no spaces (Chinese, Japanese, Thai): use the token prefix
+
+
 @torch.no_grad()
-def openings(model, tok, prompts, bs, max_new, prefix_tokens):
+def openings(model, tok, prompts, bs, max_new, prefix_tokens, n_words):
     out = []
     for i in range(0, len(prompts), bs):
         batch = tok(prompts[i:i + bs], return_tensors="pt", padding=True, add_special_tokens=False).to(model.device)
         ids = model.generate(**batch, max_new_tokens=max_new, do_sample=False, pad_token_id=tok.pad_token_id)
         for row in ids[:, batch.input_ids.shape[1]:]:
             row = [t for t in row.tolist() if t not in tok.all_special_ids]
-            out.append(tok.decode(row[:prefix_tokens], skip_special_tokens=True).strip())
+            text = tok.decode(row, skip_special_tokens=True).strip()
+            out.append(opening(text, n_words, tok.decode(row[:prefix_tokens], skip_special_tokens=True).strip()))
     return out
 
 
@@ -40,8 +50,9 @@ def main():
     ap.add_argument("--model", required=True)
     ap.add_argument("--splits", nargs="+", required=True, help="harmful split names in data/splits/")
     ap.add_argument("--n", type=int, default=128)
-    ap.add_argument("--max_new", type=int, default=16)
-    ap.add_argument("--prefix_tokens", type=int, default=6)
+    ap.add_argument("--max_new", type=int, default=24)
+    ap.add_argument("--prefix_tokens", type=int, default=6, help="opening length for languages without spaces")
+    ap.add_argument("--words", type=int, default=4, help="opening length in whole words")
     ap.add_argument("--min_count", type=int, default=3, help="only openings shared by this many answers are kept")
     ap.add_argument("--min_share", type=float, default=0.05, help="share of answers a phrase must cover")
     ap.add_argument("--bs", type=int, default=16)
@@ -60,7 +71,7 @@ def main():
     for split in args.splits:
         raw = load(split)[:args.n]
         prompts, _, _ = build_prompts(tok, raw)
-        counts = collections.Counter(openings(model, tok, prompts, args.bs, args.max_new, args.prefix_tokens))
+        counts = collections.Counter(openings(model, tok, prompts, args.bs, args.max_new, args.prefix_tokens, args.words))
         top = [(o, c) for o, c in counts.most_common() if c >= args.min_count and o]
         phrases = [o for o, c in top[:2] if c / len(raw) >= args.min_share]
         result["splits"][split] = {"n": len(raw), "top": top[:10], "phrases": phrases}
