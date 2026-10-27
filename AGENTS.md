@@ -53,7 +53,7 @@ This is jailbreak research. Prompts are harmful by design, and pinned models pro
   - Long blocking `ssh` waits die silently. Poll with short `ssh … sacct` calls in a loop, and treat a failed call as "unknown", not "finished".
   - **Per-user cap, enforced by the `gpulimit` QOS: 10 GPUs and 10 jobs at once**, counting your other projects' jobs. Extra jobs wait with reason `QOSMaxGRESPerUser`; they start on their own when GPUs free up. Check with `sacctmgr -n -p show assoc user=$USER format=QOS`.
   - **Home quota is 1.5 TB and nearly full.** Check `df -h /export/home/fjoad` before downloading anything large. `/alt/scratch` is admin-only. Don't delete anything in `~/llm_safety_project` (activation caches cost GPU time to make) or the cached `gemma-2-9b-it`, `gemma-scope-9b-it-res`, WildGuard, or Llama-3.1-8B-Instruct models. Ask before deleting anything.
-- Cached models: Qwen3-1.7B, Qwen3-8B, Qwen3-1.7B-Base, Qwen3-8B-Base, Llama-3.1-8B-Instruct and Llama-Guard-3-8B (the judge; gated, accessible). An 8B model in fp16 needs two 16 GB cards.
+- Cached models: Qwen3-1.7B, Qwen3-8B, Qwen3-1.7B-Base, Qwen3-8B-Base, Llama-3.1-8B-Instruct, Llama-Guard-3-8B (judge; gated, accessible), Qwen3Guard-Gen-8B (Arabic/multilingual judge) and facebook/nllb-200-distilled-600M (translator for judging). An 8B model in fp16 needs two 16 GB cards.
 - **Large-vocabulary memory trap:** Qwen3 (151k) and Llama-3 (128k) vocabularies make full-sequence logits huge. When only the last position is needed, call the model with `logits_to_keep=1` (as `capability.py` and `intervene.py` do), or batch sizes that fit for generation will run out of memory.
 
 ## Local Python

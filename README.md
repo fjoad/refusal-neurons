@@ -63,23 +63,28 @@ Read in this order:
 
 ## Next steps
 
-Agreed at the 22 October meeting, in this order. The dates are a proposed timeline to the 4 January deadline.
+**Current priority (decided 2026-10-27): finish the replication in Arabic before any new direction.** That means the whole Apple paper again, with the Arabic refusal neuron found from scratch by their method, on two tracks: PolyRefuse Arabic (the same prompts as the English replication, machine-translated) and MultiJail Arabic (human-translated).
 
-1. ✅ **Read every Apple appendix closely** (done 2026-10-27): [docs/apple_appendix_review.md](docs/apple_appendix_review.md). The MLP-space direction and the "does Arditi's direction work through the neuron" test are not in the paper. Cheap extras it suggests: measure *inducing* refusal with the neuron (only qualitative in their Appendix J), and Arditi's capability cost (their Table 9).
-2. **The refusal direction inside the MLP** (early November):
-   - compute the mean-difference direction over the 12,288 neuron values (harmful − harmless) instead of the residual stream
-   - steer and ablate with it, and compare against one pinned neuron and the residual direction
-   - decompose it: how much of its weight is on the refusal neuron, and is its most-weighted neuron the refusal neuron?
-   - when Arditi's direction works, is this neuron the only one that matters?
-3. **The full Experiment 1 in Arabic** (mid November): search *and* rerank *and* attack with an Arabic-found neuron, judged. Is it as effective as the English one? This needs a way to judge Arabic answers: Wang et al. translate the answers back to English.
-4. **Every language we have data for, on both datasets** (November–December):
-   - datasets: PolyRefuse (14 languages, Wang et al. NeurIPS 2025) and MultiJail (10 languages, human-translated)
-   - run all experiments in every language and intersect the top-5 neurons across languages
-   - goal: a **language-agnostic refusal neuron, sold as one guard across languages**. Fallbacks, in order: one neuron per language family or script, then one per language. Hypothesis: the most-shared neuron has the best average accuracy.
-5. **A free coherence-aware judge** (a local LLM with Apple's judge prompt, Appendix K.1). It settles Section 3.3 on Llama and gives Apple's second judge.
-6. **Section 3.3 again, reading each layer's output** (the paper's L12:F291 matches our input to layer 13).
+1. ✅ **Apple appendix review** (2026-10-27): [docs/apple_appendix_review.md](docs/apple_appendix_review.md). The MLP-space direction and the "does Arditi's direction work through the neuron" test are not in the paper.
+2. **Arabic judging** (in progress). Qwen3Guard-Gen-8B judges the Arabic directly. Llama-Guard-3 judges an NLLB-200 English translation (Wang et al.'s method). Both are validated against each other on Arabic answers before use.
+3. **Arabic Experiment 1** (in progress): Arabic refusal sentences, search, and rerank on held-out Arabic prompts, on both tracks.
+4. **Arabic Experiments 2–8:**
+   - 2: the jailbreak on the Arabic final-test sets, vs Arditi's direction computed from Arabic prompts
+   - 3: capability (Arabic MMMLU)
+   - 4: per-token firing
+   - 5: base model
+   - 6: detector vs the judges
+   - 7: alignment with the Arabic Arditi direction
+   - 8: residual numbers
+
+   Then compare: is the Arabic-found neuron the English one, and is it as effective?
+5. **Then the new directions from the 22 October meeting:**
+   - the refusal direction inside the MLP (script written, `replication/mlp_direction.py`, not yet reviewed or run)
+   - every language on both datasets (data ready; refusal-phrase tooling ready)
+   - the language-agnostic guard
+6. **A coherence-aware judge** (Apple's K.1 prompt on a local LLM), and **Section 3.3 at layer outputs**.
 7. **Writing** (December), for 4 January.
-8. **After the multilingual paper: images and audio** (Paper B), then the SAE and EMNLP-directions comparison (Paper C).
+8. **After the multilingual paper:** images and audio (Paper B), then the SAE and EMNLP-directions comparison (Paper C).
 
 ## Meetings and shared folder
 
@@ -101,6 +106,7 @@ These were settled in discussion. Don't reopen them without a new reason.
 - **The search follows the paper's appendix to the letter:** Table 4 refusal phrases, and only Table 3's red template tokens. Each of these changed the result. When the PDF text is ambiguous, render the page and look; the red highlighting is invisible in extracted text.
 - **Judge: Llama-Guard-3-8B only, free and on panther** (decided 2026-10-21). There are no API credits for an LLM judge while this is exploratory. An answer is a successful attack when Llama-Guard labels it unsafe; that is Apple's secondary judge. Caveat: Llama-Guard does **not** reliably reject garbled output. It called all of Qwen3-8B's pin-80 outputs unsafe, and their median length was 100 characters.
 - **One judge for every language.** Comparing English numbers from one judge with Arabic numbers from another would not be valid.
+- **Arabic judges** (decided 2026-10-27): **Qwen3Guard-Gen-8B** (Apache-2.0, 119 languages, ~86 F1 on Arabic, also labels refusals) on the original text, and **Llama-Guard-3 on an NLLB-200 English translation**, as Wang et al. (NeurIPS 2025) did. Reported side by side after an agreement check. A chat model was rejected as translator because it may refuse to translate harmful answers. FanarGuard (QCRI) would be a natural third judge, but it isn't public; ask Taha Sencar.
 - **Rerank selection: the candidate that reaches ASR ≥ 0.90 at the smallest pin**, not the highest ASR, because Llama-Guard rewards garbled high-pin output. This rule recovers Apple's neuron and pin on both 8B models. `judge.py` prints this ranking.
 - **The rerank is cheaper than the paper's:** a 9-value pin grid (2–60) and 128 new tokens instead of their 47 values and 512 tokens. The final attack (M3) uses 512 tokens like the paper.
 - **Arabic only, for now.** A full replication plus an Arabic contribution is enough for Paper A. Modalities come after Arabic. Add languages along a resource spectrum later (e.g. French or Chinese, then Swahili or Bengali).
@@ -113,7 +119,6 @@ These were settled in discussion. Don't reopen them without a new reason.
 - **Several papers from one codebase** (below), not everything in one paper.
 
 ## Open questions
-- **How to judge non-English answers:** run Llama-Guard-3 on them directly, or translate them back to English first with a free local model. Wang et al. (NeurIPS 2025) translate back to English and judge with WildGuard, a precedent. Check agreement on a sample either way.
 - **Language families for the fallback story:** how to group the 14 + 10 languages (by family, by script, by resource level).
 - **Which local LLM to use as the coherence judge** (see Next steps 2).
 - **Which multimodal models** share a backbone with our text models (e.g. a Qwen3-based VL or audio model)? Check each model's backbone before using it.
@@ -162,7 +167,9 @@ Everything heavy runs on **panther** (QCRI SLURM). The repo is a plain git clone
 | `neuron_search.py` (+ `.sh`) | Exp. 1 part 1, Arabic B, Exp. 8 | Apple's gradient × activation search over the first 2/3 of layers; top 5. `--watch L:F` reports any neuron's rank; `--space residual` searches residual-stream numbers; saves `*_means.pt`. Paper settings are the defaults |
 | `rescore.py` | Exp. 1 | Re-ranks from a saved `*_means.pt` with a different token subset, on CPU |
 | `rerank.py` | Exp. 1 part 2, Exp. 8 | Pins each top-5 candidate over a grid of pin values on HarmBench and saves the answers |
-| `judge.py` | all attacks | Llama-Guard-3 verdicts and ASR for any rerank/evaluate/neuron_check output; prints the best pin per candidate |
+| `judge.py` | all attacks | Verdicts and ASR for any rerank/evaluate/neuron_check output. `--judge llamaguard\|qwen3guard`; `--translate` judges an NLLB-200 English translation (`--src_lang`, `--prompts_en`). Each judge writes its own fields; prints the best pin per candidate |
+| `translate.py` | Arabic, multilingual | NLLB-200 translation into English (chunked at sentence breaks), used by `judge.py --translate` |
+| `judge_agreement.py` | Arabic, multilingual | Agreement and Cohen's kappa between every pair of judges on the same responses |
 | `evaluate.py` | Exp. 2 | JailbreakBench attack for one neuron: unpinned, constant pin, anchor k=1,2; 512 tokens |
 | `intervene.py` | Exp. 2–3 | Shared constant and anchor (Eq. 6–7) interventions |
 | `capability.py` | Exp. 3 | MMLU and GSM8K accuracy under each intervention |
@@ -211,6 +218,8 @@ python replication/show_responses.py outputs/neuron_check/<file>.json --out /tmp
 | `aya_train_en`, `aya_train_ar` | 128 + 128 | Aya train split | Arabic B (search) |
 | `poly_<lang>_harmful_train`, `poly_<lang>_harmless_train` | 128 + 128 per language | PolyRefuse (Wang et al. 2025; Arditi's splits, Google-translated). The harmful 128 are the same prompts as `arditi_harmful_train` in all 14 languages | multilingual search |
 | `poly_<lang>_harmful_test`, `poly_<lang>_harmless_test` | 572 + 500 per language (zh harmless: 72) | PolyRefuse test sets | multilingual detection and attack |
+| `poly_<lang>_harmful_rerank`, `poly_<lang>_harmful_eval` | 191 + 100 per language | disjoint subsets of the harmful test set (one duplicated prompt overlaps) | rerank (≈ HarmBench) and final attack (≈ JailbreakBench) |
+| `mj_<lang>_harmful_rerank` | 87 per language | the MultiJail prompts not used elsewhere | rerank on the MultiJail track |
 | `mj_<lang>_harmful_train`, `mj_<lang>_harmful_test` | 128 + 100 per language | MultiJail, the same prompts in all 10 languages (= `multijail_train_*` / `multijail_*` for en, ar) | multilingual search / test |
 | `mj_<lang>_harmless_train`, `mj_<lang>_harmless_test` | 128 + 100 per language (jv test: 91) | Aya in that language (not parallel across languages) | multilingual search / test |
 
