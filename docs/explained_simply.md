@@ -349,7 +349,10 @@ The steps above checked pieces in Arabic. Now we redo *all* of Apple's experimen
   - On PolyRefuse Arabic it's a near-tie again, as in English: all five reach 81–92% harmful answers, and the two judges rank them differently. Apple's neuron is 2nd under both, at the same pin (+40) where it peaked in English. This small model already answers 41–46% of these Arabic prompts with no pin at all.
   - On MultiJail Arabic, pinning helps (from 13–16% to at most 58–66%) but no neuron gets near 90%. We don't know why yet.
   - On these answers the two judges agree less (kappa about 0.5, against 0.88 in the check). Many answers are in-between or partly garbled, which is harder to judge.
-- **Next:** the 8B reranks (still running), then the attack, capability, per-token, base-model, detector, alignment and residual experiments in Arabic.
+- **Rerank, the two 8B models, PolyRefuse Arabic:**
+  - **Qwen3-8B picks Apple's neuron at Apple's pin** (L14:F7924 at +20) under both judges: 9–12% harmful answers unpinned, 93–95% pinned. No other candidate reaches 90%.
+  - **Llama picks Apple's neuron at Apple's pin** (L11:F4258 at −4) under Qwen3Guard. Under the other judge a neighbour (L10:F4789) edges it by one or two prompts: a near-tie, as in English.
+- **Next:** the 8B MultiJail reranks (being judged), then the attack, capability, per-token, base-model, detector, alignment and residual experiments in Arabic.
 
 ## 9. Caveats
 - English answers have one judge (Llama-Guard-3), which doesn't check that answers make sense. Arabic answers have two that agree (Qwen3Guard, and Llama-Guard on a translation).
