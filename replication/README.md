@@ -113,7 +113,7 @@ The push targets each model's own Arabic refusal sentences, found with `refusal_
 
 On both tracks, Apple's neuron is in the Arabic top 5 for every model, and the 8B models' lists overlap heavily across tracks (Qwen3-8B: 4 of 5 shared; Llama: 4 of 5).
 
-**Rerank:** answers for every candidate × 9 pin values on `poly_ar_harmful_rerank` (191) and `mj_ar_harmful_rerank` (87), into `outputs/rerank/<model>_float16_{poly,mj}_ar.json`, judged with both chosen Arabic judges (validated in the next entry) by `scripts/jobs/judge_ar_rerank.sh`. Logs: `arabic_exp1-436891/2/3`, `judge_ar-436940` (Qwen3-1.7B), `judge_ar-437035` (Qwen3-8B, running). Llama is still generating.
+**Rerank:** answers for every candidate × 9 pin values on `poly_ar_harmful_rerank` (191) and `mj_ar_harmful_rerank` (87), into `outputs/rerank/<model>_float16_{poly,mj}_ar.json`, judged with both chosen Arabic judges (validated in the next entry) by `scripts/jobs/judge_ar_rerank.sh`. Logs: `arabic_exp1-436891/2/3`, `judge_ar-436940` (Qwen3-1.7B), `judge_ar-437035` (Qwen3-8B) and `judge_ar-437042` (Llama), both running.
 
 **Rerank, Qwen3-1.7B** (attack success rate; Q3G = Qwen3Guard on the Arabic, LG-tr = Llama-Guard on the NLLB translation; best pin per candidate = smallest pin within 0.02 of its max):
 
