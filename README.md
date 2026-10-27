@@ -44,7 +44,7 @@ What is running or parked, where its output lands, and what comes next. Job logs
 
 | Work | Script | Output (on panther) | Next step |
 |---|---|---|---|
-| Arabic Experiment 1: refusal sentences, search and rerank answers, both tracks, 3 models | `scripts/jobs/arabic_exp1.sh <model> <English L:F>` | `outputs/refusal_phrases/<model>_ar.json`, `outputs/neuron_search/<model>_float16_{poly,mj}_ar_full.json`, `outputs/rerank/<model>_float16_{poly,mj}_ar.json` | Judge each rerank file with `judge.py --judge qwen3guard` and `judge.py --translate --src_lang ar --prompts_en {poly,mj}_en_harmful_rerank`, then pick each Arabic neuron and pin by the 0.90 rule |
+| Arabic Experiment 1: refusal sentences, search and rerank answers, both tracks, 3 models | `scripts/jobs/arabic_exp1.sh <model> <English L:F>` | `outputs/refusal_phrases/<model>_ar.json`, `outputs/neuron_search/<model>_float16_{poly,mj}_ar_full.json`, `outputs/rerank/<model>_float16_{poly,mj}_ar.json` | Judge each model's rerank files with `sbatch scripts/jobs/judge_ar_rerank.sh <model>` (both Arabic judges, both tracks; Qwen3-1.7B submitted 2026-10-27), then pick each Arabic neuron and pin by the 0.90 rule |
 | Parked: the refusal direction inside the MLP | `replication/mlp_direction.py` (written, **not reviewed or run**) | `outputs/mlp_direction/`, `outputs/evaluate/<model>_L<L>_mlpdir_<tag>.json` | Review it line by line, then run after the Arabic replication |
 | Parked: refusal phrases for all 24 language sets | `scripts/jobs/refusal_phrases.sh` | `outputs/refusal_phrases/<model>_multilingual.json` (first pass, token cut) | Rerun with whole-word openings, add a refusal check, before the multilingual searches |
 
