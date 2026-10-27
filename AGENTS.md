@@ -42,6 +42,7 @@ This is jailbreak research. Prompts are harmful by design, and pinned models pro
 - Logs go to `~/refusal-neurons/logs/<job-name>-<id>.out`; results go to `outputs/<kind>/` as JSON (the README's outputs table lists each folder). Both are gitignored, so copy the numbers into the results log.
 - **SLURM style:** short scripts like the existing `.sh` files: `gpu-all` partition, conda env `refneu`, `HF_HUB_OFFLINE=1`. `--exclude=crimv3mgpu018` is carried over from the llm safety project's scripts.
 - **GPU types:** the V100-32GB cards are often all taken. P100-16GB and T4-16GB nodes are usually free. Override the script's GPU at submit time, e.g. `sbatch --gres=gpu:P100_16GB:2 <script>`, or ask for `--gres=gpu:2` to take any type. Check what's free with `sinfo -p gpu-all -h -N -o "%N %G %t"`. Everything here was run on V100s, P100s and T4s in fp16.
+- **Judging is GPU-bound:** both Arabic judges on an 8B model's rerank took ~6.5 h per track on 2× P100, and ~1 h on 2× V100-16GB. Ask for V100s (`--gres=gpu:v100_16GB:2`) for judge jobs.
 - **GPU sizing:** Qwen3-1.7B fits a 16 GB card. The 8B models and an 8B judge need one V100-32GB (or 2× 16 GB split). V100s have no bf16, so use fp16.
 - **Gotchas, each learned the hard way:**
   - The login node kills large downloads. Download models with `sbatch scripts/download_models.sh <repo> ...`.
