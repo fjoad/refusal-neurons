@@ -103,9 +103,17 @@ The push targets each model's own Arabic refusal sentences, found with `refusal_
 | Qwen3-8B | L17:F11229, L18:F7664, L16:F8474, **L14:F7924**, L15:F11168 | 5 → **4** (−3.42 / −0.17); 4 of 5 neurons shared with the English top 5 |
 | Llama-3.1-8B | **L11:F4258**, L15:F9635, L10:F1084, L10:F9064, L10:F4789 | 3 → **1** (+0.72 / +0.01) |
 
-**Search, MultiJail Arabic track:** Qwen3-1.7B's top 5 is **L13:F3270** (rank 1), L15:F1109, L10:F244, L12:F4580, L12:F2897. The two 8B models are still running.
+**Search, MultiJail Arabic track** (top 5; Apple's neuron in **bold**):
 
-**Rerank:** answers for every candidate × 9 pin values on `poly_ar_harmful_rerank` (191) and `mj_ar_harmful_rerank` (87), into `outputs/rerank/<model>_float16_{poly,mj}_ar.json`, judged with both chosen Arabic judges (validated in the next entry) by `scripts/jobs/judge_ar_rerank.sh`. Logs: `arabic_exp1-436891/2/3`, `judge_ar-436940`. The two 8B models are still generating.
+| Model | Arabic top 5 | Apple's neuron's rank (harmful / harmless activation) |
+|---|---|---|
+| Qwen3-1.7B | **L13:F3270**, L15:F1109, L10:F244, L12:F4580, L12:F2897 | **1** |
+| Qwen3-8B | L18:F7664, L16:F8474, **L14:F7924**, L17:F11229, L16:F5318 | **3** (−3.19 / −0.28) |
+| Llama-3.1-8B | **L11:F4258**, L15:F9635, L10:F1084, L10:F9064, L13:F1358 | **1** (+0.56 / +0.01) |
+
+On both tracks, Apple's neuron is in the Arabic top 5 for every model, and the 8B models' lists overlap heavily across tracks (Qwen3-8B: 4 of 5 shared; Llama: 4 of 5).
+
+**Rerank:** answers for every candidate × 9 pin values on `poly_ar_harmful_rerank` (191) and `mj_ar_harmful_rerank` (87), into `outputs/rerank/<model>_float16_{poly,mj}_ar.json`, judged with both chosen Arabic judges (validated in the next entry) by `scripts/jobs/judge_ar_rerank.sh`. Logs: `arabic_exp1-436891/2/3`, `judge_ar-436940` (Qwen3-1.7B), `judge_ar-437035` (Qwen3-8B, running). Llama is still generating.
 
 **Rerank, Qwen3-1.7B** (attack success rate; Q3G = Qwen3Guard on the Arabic, LG-tr = Llama-Guard on the NLLB translation; best pin per candidate = smallest pin within 0.02 of its max):
 
