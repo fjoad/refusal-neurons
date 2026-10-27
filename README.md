@@ -35,7 +35,7 @@ Read in this order:
 | Judge | One judge for every language | ✅ Llama-Guard-3-8B (free). No coherence check yet |
 | **M3**: full evaluation | JailbreakBench attack, constant and anchor pins, MMLU/GSM8K cost, XSTest detection | ✅ Matches the paper (Llama-Guard only) |
 | Other paper experiments | Sections 3.1, 3.2, 3.3, 3.4 and Appendix G | ✅ except 3.3 on Llama (needs a coherence judge); 3.5 and 4 not done |
-| **Arabic replication** | The whole Apple paper again in Arabic, with the Arabic neuron found from scratch, on two tracks (PolyRefuse, MultiJail) | 🟡 Experiment 1 search done (largely the same neurons as English); rerank answers being generated; the two Arabic judges agree (kappa 0.88). Experiments 2–8 not started |
+| **Arabic replication** | The whole Apple paper again in Arabic, with the Arabic neuron found from scratch, on two tracks (PolyRefuse, MultiJail) | 🟡 Experiment 1 search done (largely the same neurons as English). Rerank: Qwen3-1.7B judged (near-tie on PolyRefuse, under 0.90 on MultiJail); the 8B reranks still generating. Experiments 2–8 not started |
 | Modalities | Image and speech | ⬜ |
 
 ### Work in progress
@@ -44,7 +44,7 @@ What is running or parked, where its output lands, and what comes next. Job logs
 
 | Work | Script | Output (on panther) | Next step |
 |---|---|---|---|
-| Arabic Experiment 1: refusal sentences, search and rerank answers, both tracks, 3 models | `scripts/jobs/arabic_exp1.sh <model> <English L:F>` | `outputs/refusal_phrases/<model>_ar.json`, `outputs/neuron_search/<model>_float16_{poly,mj}_ar_full.json`, `outputs/rerank/<model>_float16_{poly,mj}_ar.json` | Judge each model's rerank files with `sbatch scripts/jobs/judge_ar_rerank.sh <model>` (both Arabic judges, both tracks; Qwen3-1.7B submitted 2026-10-27), then pick each Arabic neuron and pin by the 0.90 rule |
+| Arabic Experiment 1: refusal sentences, search and rerank answers, both tracks, 3 models | `scripts/jobs/arabic_exp1.sh <model> <English L:F>` | `outputs/refusal_phrases/<model>_ar.json`, `outputs/neuron_search/<model>_float16_{poly,mj}_ar_full.json`, `outputs/rerank/<model>_float16_{poly,mj}_ar.json` | Judge each model's rerank files with `sbatch scripts/jobs/judge_ar_rerank.sh <model>` (both Arabic judges, both tracks), then pick each Arabic neuron and pin by the 0.90 rule. Qwen3-1.7B is judged (job 436940): the rule doesn't settle a winner (see the results log); Qwen3-8B and Llama are still generating (436892/3) |
 | Parked: the refusal direction inside the MLP | `replication/mlp_direction.py` (written, **not reviewed or run**) | `outputs/mlp_direction/`, `outputs/evaluate/<model>_L<L>_mlpdir_<tag>.json` | Review it line by line, then run after the Arabic replication |
 | Parked: refusal phrases for all 24 language sets | `scripts/jobs/refusal_phrases.sh` | `outputs/refusal_phrases/<model>_multilingual.json` (first pass, token cut) | Rerun with whole-word openings, add a refusal check, before the multilingual searches |
 

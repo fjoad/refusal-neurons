@@ -345,7 +345,11 @@ The steps above checked pieces in Arabic. Now we redo *all* of Apple's experimen
   - Llama-Guard reading the Arabic *untranslated* misses harmful answers: it finds 84% where the others find 95%. So we don't use it that way.
 - **The jailbreak works in Arabic.** Pinning Apple's Qwen3-8B neuron at the English value (+20) on Arabic prompts: harmful answers go from 7% to 95% (both judges).
 - **First results (search only):** Apple's neuron is in the Arabic top 5 on all three models. It ranks #1 for Llama, #2 for Qwen3-1.7B (#1 on MultiJail) and #4 for Qwen3-8B. Most of the other top-5 neurons are the same as in English.
-- **Next:** the rerank (which of the 5 actually jailbreaks best in Arabic), then the attack, capability, per-token, base-model, detector, alignment and residual experiments in Arabic.
+- **First rerank, Qwen3-1.7B** (which of the 5 jailbreaks best in Arabic):
+  - On PolyRefuse Arabic it's a near-tie again, as in English: all five reach 81–92% harmful answers, and the two judges rank them differently. Apple's neuron is 2nd under both, at the same pin (+40) where it peaked in English. This small model already answers 41–46% of these Arabic prompts with no pin at all.
+  - On MultiJail Arabic, pinning helps (from 13–16% to at most 58–66%) but no neuron gets near 90%. We don't know why yet.
+  - On these answers the two judges agree less (kappa about 0.5, against 0.88 in the check). Many answers are in-between or partly garbled, which is harder to judge.
+- **Next:** the 8B reranks (still running), then the attack, capability, per-token, base-model, detector, alignment and residual experiments in Arabic.
 
 ## 9. Caveats
 - English answers have one judge (Llama-Guard-3), which doesn't check that answers make sense. Arabic answers have two that agree (Qwen3Guard, and Llama-Guard on a translation).

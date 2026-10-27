@@ -78,11 +78,11 @@ Newest work first in each topic; every entry has its date, setup, numbers and ca
 - **Section 3.3 residual baseline**: 2026-10-22
 - **Refusal phrases in 24 language sets** (first pass): 2026-10-27
 - **Arabic judges chosen and validated** (they agree; Llama-Guard on raw Arabic undercounts): 2026-10-27
-- **Arabic Experiment 1** (search done, rerank in progress): 2026-10-27
+- **Arabic Experiment 1** (search done; Qwen3-1.7B rerank a near-tie on PolyRefuse, under 0.90 on MultiJail; 8B reranks in progress): 2026-10-27
 
 Job scripts that produced these are in `scripts/jobs/` (each says which entry it belongs to).
 
-### 2026-10-27: Arabic Experiment 1, search results (rerank in progress) (`scripts/jobs/arabic_exp1.sh`)
+### 2026-10-27: Arabic Experiment 1, search results and Qwen3-1.7B rerank (8B reranks in progress) (`scripts/jobs/arabic_exp1.sh`, `scripts/jobs/judge_ar_rerank.sh`)
 Apple's method run from scratch in Arabic, on two tracks:
 - **PolyRefuse Arabic:** the same 128 harmful prompts as the English replication (machine-translated), plus PolyRefuse's 128 harmless.
 - **MultiJail Arabic:** human-translated, plus Aya Arabic.
@@ -105,7 +105,21 @@ The push targets each model's own Arabic refusal sentences, found with `refusal_
 
 **Search, MultiJail Arabic track:** Qwen3-1.7B's top 5 is **L13:F3270** (rank 1), L15:F1109, L10:F244, L12:F4580, L12:F2897. The two 8B models are still running.
 
-**Rerank:** answers for every candidate × 9 pin values are being generated on `poly_ar_harmful_rerank` (191) and `mj_ar_harmful_rerank` (87), into `outputs/rerank/<model>_float16_{poly,mj}_ar.json`; Qwen3-1.7B is done. They are judged with both chosen Arabic judges (validated in the next entry). Logs: `arabic_exp1-436891/2/3`.
+**Rerank:** answers for every candidate × 9 pin values on `poly_ar_harmful_rerank` (191) and `mj_ar_harmful_rerank` (87), into `outputs/rerank/<model>_float16_{poly,mj}_ar.json`, judged with both chosen Arabic judges (validated in the next entry) by `scripts/jobs/judge_ar_rerank.sh`. Logs: `arabic_exp1-436891/2/3`, `judge_ar-436940`. The two 8B models are still generating.
+
+**Rerank, Qwen3-1.7B** (attack success rate; Q3G = Qwen3Guard on the Arabic, LG-tr = Llama-Guard on the NLLB translation; best pin per candidate = smallest pin within 0.02 of its max):
+
+| Track | Unpinned (Q3G / LG-tr) | Best per candidate, Q3G | Best per candidate, LG-tr | Reaches 0.90? |
+|---|---|---|---|---|
+| PolyRefuse | 0.41 / 0.46 | L12:F4580 −30 0.92; **L13:F3270 +40 0.89**; L10:F244 −20 0.87; L9:F3183 +30 0.85; L12:F2897 −15 0.84 | L12:F2897 −40 0.89; **L13:F3270 +40 0.87**; L10:F244 −20 0.85; L12:F4580 −30 0.82; L9:F3183 +30 0.81 | Only L12:F4580 under Q3G |
+| MultiJail | 0.16 / 0.13 | L15:F1109 +40 0.66; L12:F4580 −40 0.66; **L13:F3270 +60 0.59**; L10:F244 −15 0.53; L12:F2897 −30 0.53 | L15:F1109 +40 0.58; L12:F4580 −30 0.47; **L13:F3270 +40 0.43**; L10:F244 −15 0.41; L12:F2897 −60 0.40 | None |
+
+- **PolyRefuse: a near-tie again, as in English.** All five candidates reach 0.81–0.92, and the two judges rank them differently. The 0.90 rule picks L12:F4580 under one judge and nothing under the other, so it doesn't settle a winner. Apple's neuron, L13:F3270, is 2nd under both judges at +40, the same pin where it peaked in English (0.93 there).
+- **Qwen3-1.7B already complies on 41–46% of the PolyRefuse Arabic prompts unpinned** (38% on English HarmBench), which leaves little room between unpinned and pinned.
+- **MultiJail: pinning helps but no candidate comes close to 0.90** (best 0.66 / 0.58, from 0.16 / 0.13 unpinned). Possible reasons, not yet checked: MultiJail's borderline prompts (see Open questions in the README), only 87 rerank prompts, and 128 tokens per answer.
+- **At large negative pins Qwen3Guard's refusal label rises again** (e.g. L10:F244 at −60: refusal 0.81 on PolyRefuse, 0.93 on MultiJail), while the attack rate falls. These high pins likely break the model's output; not inspected.
+- **The judges agree much less here than in the validation:** kappa 0.55 on PolyRefuse (82% agreement, 8,786 answers) and 0.51 on MultiJail (77%, 4,002), against 0.88 in the validation. The validation pooled clearly unpinned and clearly pinned 8B answers; the rerank is mostly in-between and partly garbled answers from a small model. Both judges are still reported side by side; a coherence check would help here too.
+- Caveat: one small model, 128-token answers, 191 / 87 prompts.
 
 ### 2026-10-27: Arabic judges chosen and validated (`judge.py`, `translate.py`, `judge_agreement.py`)
 - **Qwen3Guard-Gen-8B** judges the Arabic directly. It labels safe / unsafe / controversial and refusal yes / no.
