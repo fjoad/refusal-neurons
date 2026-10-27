@@ -113,19 +113,7 @@ The push targets each model's own Arabic refusal sentences, found with `refusal_
 
 On both tracks, Apple's neuron is in the Arabic top 5 for every model, and the 8B models' lists overlap heavily across tracks (Qwen3-8B: 4 of 5 shared; Llama: 4 of 5).
 
-**Rerank:** answers for every candidate × 9 pin values on `poly_ar_harmful_rerank` (191) and `mj_ar_harmful_rerank` (87), into `outputs/rerank/<model>_float16_{poly,mj}_ar.json`, judged with both chosen Arabic judges (validated in the next entry) by `scripts/jobs/judge_ar_rerank.sh`. Logs: `arabic_exp1-436891/2/3`, `judge_ar-436940` (Qwen3-1.7B), `judge_ar-437021` (Qwen3-8B) and `judge_ar-437022` (Llama), both running.
-
-**Rerank, the two 8B models, PolyRefuse track** (judge jobs `judge_ar-437021/2`; both hit the 8-hour limit on P100s during MultiJail, so the MultiJail track is being re-judged):
-
-| Model (unpinned Q3G / LG-tr) | 0.90 rule, Q3G | 0.90 rule, LG-tr | English pick |
-|---|---|---|---|
-| Qwen3-8B (0.09 / 0.12) | **L14:F7924 +20 (0.95)**; no other candidate reaches 0.90 | **L14:F7924 +20 (0.93)**; no other reaches 0.90 | L14:F7924 +20 |
-| Llama-3.1-8B (0.12 / 0.19) | **L11:F4258 −4 (0.92)**; L10:F4789 +4 (0.91); L10:F9064 −40; L10:F1084 +40; L15:F9635 +40 | L10:F4789 +4 (0.91); **L11:F4258 −6 (0.90; −4 gives 0.89)**; L10:F9064 −20; L10:F1084 +30 | L11:F4258 −4 |
-
-- **Qwen3-8B: the Arabic search and rerank recover exactly the English neuron and pin,** L14:F7924 at +20, under both judges, and no other candidate reaches 0.90. Its curve rises smoothly (Q3G: 0.18 at +2, 0.71 at +10, 0.95 at +20).
-- **Llama: Apple's neuron at the English pin under Qwen3Guard; a tie with L10:F4789 under the translation judge.** L10:F4789 (#5 in the Arabic PolyRefuse search, not in the English top 5) reaches 0.91 at +4; L11:F4258 reaches 0.89 at −4 and 0.90 at −6. Both jump from ~0.45–0.73 at pin 2 to ~0.9 at pin 4.
-- **Llama at larger pins looks degenerate:** from |pin| ≥ 15 Qwen3Guard labels 98–100% of answers as refusals while still calling most of them unsafe, and Llama-Guard's curve becomes erratic (L11:F4258: 0.72 at −10, 0.63 at −15, 0.96 at −20). Same pattern as in English, where high-pin Llama output was repetitive. Not inspected.
-- **Judge agreement over all rerank answers:** kappa 0.61 (Qwen3-8B) and 0.56 (Llama), lower than the 0.88 validation, as for Qwen3-1.7B.
+**Rerank:** answers for every candidate × 9 pin values on `poly_ar_harmful_rerank` (191) and `mj_ar_harmful_rerank` (87), into `outputs/rerank/<model>_float16_{poly,mj}_ar.json`, judged with both chosen Arabic judges (validated in the next entry) by `scripts/jobs/judge_ar_rerank.sh`. Logs: `arabic_exp1-436891/2/3`, `judge_ar-436940` (Qwen3-1.7B), `judge_ar-437021` (Qwen3-8B) and `judge_ar-437022` (Llama). Both 8B jobs hit their 8-hour limit on P100s during the MultiJail half, so MultiJail is being re-judged on V100s (`judge_ar-437432/3`).
 
 **Rerank, Qwen3-1.7B** (attack success rate; Q3G = Qwen3Guard on the Arabic, LG-tr = Llama-Guard on the NLLB translation; best pin per candidate = smallest pin within 0.02 of its max):
 
@@ -152,7 +140,8 @@ On both tracks, Apple's neuron is in the Arabic top 5 for every model, and the 8
 - **Llama-3.1-8B: Apple's neuron and pin (L11:F4258 at −4) under Qwen3Guard.** Under Llama-Guard on the translation, L10:F4789 reaches 0.90 one pin step earlier (+4 vs −6). The two are within one prompt or two of each other at those pins, so this is a near-tie, as in English, where all five Llama candidates also reached high ASR.
 - **High pins look best to Llama-Guard on the translation** (L10:F1084 at +60: 1.00). As in English, that likely rewards garbled output; the 0.90 rule avoids picking on it.
 - **Judge agreement over all rerank answers:** kappa 0.61 (Qwen3-8B), 0.56 (Llama), as low as on 1.7B for the same reason.
-- MultiJail reranks for both 8B models are being judged (jobs 437021/437022).
+- **Llama's answers at larger pins look degenerate:** from |pin| ≥ 15, Qwen3Guard labels 98–100% of them as refusals while still calling most unsafe, and Llama-Guard's curve turns erratic (L11:F4258: 0.72 at −10, 0.63 at −15, 0.96 at −20). Not inspected.
+- MultiJail reranks for both 8B models: the first judging jobs (437021/437022) timed out during MultiJail; re-judging as `judge_ar-437432/3`.
 
 ### 2026-10-27: Arabic judges chosen and validated (`judge.py`, `translate.py`, `judge_agreement.py`)
 - **Qwen3Guard-Gen-8B** judges the Arabic directly. It labels safe / unsafe / controversial and refusal yes / no.
