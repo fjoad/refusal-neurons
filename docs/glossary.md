@@ -85,3 +85,21 @@
 **MultiJail:** 315 harmful prompts, each translated by humans into Arabic and 8 other languages; our parallel English/Arabic harmful set.
 
 **Aya:** human-written prompts in many languages; our normal (harmless) prompts in English and Arabic.
+
+## Multilingual and Arabic terms
+
+**PolyRefuse:** Wang et al.'s (NeurIPS 2025) translation of Arditi's English prompt sets into 13 languages with Google Translate. Its harmful training prompts are the same as ours, in the same order, so the English and Arabic searches use the very same 128 prompts.
+
+**MultiJail:** 315 harmful prompts translated by humans into 9 languages, including Arabic. Our human-translated track.
+
+**Two tracks:** every Arabic (and later multilingual) experiment runs on both PolyRefuse (machine-translated, the same prompts as the English replication) and MultiJail (human-translated).
+
+**Refusal phrases (in a language):** the sentences a model starts its refusals with in that language. The search's push needs them. `refusal_phrases.py` finds them as the most common openings of the model's own answers, e.g. Llama in Arabic: "لا أستطيع مساعدتك في" ("I can't help you with").
+
+**Rerank / eval splits:** held-out harmful prompts per language. The rerank set chooses the neuron and pin (like Apple's HarmBench-191); the eval set is the final attack test (like JailbreakBench).
+
+**Qwen3Guard-Gen-8B:** Qwen's safety classifier (119 languages). Labels a prompt and answer safe / unsafe / controversial and says whether the answer is a refusal. Our Arabic judge.
+
+**NLLB-200:** Meta's translation model (200 languages). Translates non-English answers into English so Llama-Guard can judge them (Wang et al.'s method). A plain translator, so it doesn't refuse to translate harmful text.
+
+**Agreement / Cohen's kappa:** how often two judges give the same verdict. Kappa corrects for chance agreement: 1 = perfect, 0 = no better than chance.

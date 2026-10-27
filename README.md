@@ -23,7 +23,7 @@ Read in this order:
 
 ## Where things stand (updated 2026-10-27)
 
-**The replication of the Apple paper is done for three models**, scored with one judge (Llama-Guard-3). **Our Arabic extension has its first results.** No experiments are running.
+**The replication of the Apple paper is done for three models**, scored with one judge (Llama-Guard-3). **The same replication in Arabic is in progress** (see "Work in progress" below).
 
 **Target: ARR, 4 January 2027 (ACL 2027).** The topic is low-hanging fruit, so submit as soon as possible. Authors: Faaiz Joad and Nadir Durrani. Weekly meeting every Thursday (see "Meetings" below).
 
@@ -35,8 +35,19 @@ Read in this order:
 | Judge | One judge for every language | ✅ Llama-Guard-3-8B (free). No coherence check yet |
 | **M3**: full evaluation | JailbreakBench attack, constant and anchor pins, MMLU/GSM8K cost, XSTest detection | ✅ Matches the paper (Llama-Guard only) |
 | Other paper experiments | Sections 3.1, 3.2, 3.3, 3.4 and Appendix G | ✅ except 3.3 on Llama (needs a coherence judge); 3.5 and 4 not done |
-| **Arabic** | The same neuron in Arabic? | 🟡 Detection and search done (same neurons); the Arabic *jailbreak* is not run yet |
+| **Arabic replication** | The whole Apple paper again in Arabic, with the Arabic neuron found from scratch, on two tracks (PolyRefuse, MultiJail) | 🟡 Experiment 1 search done (largely the same neurons as English); rerank answers being generated; judges being validated. Experiments 2–8 not started |
 | Modalities | Image and speech | ⬜ |
+
+### Work in progress
+
+What is running or parked, where its output lands, and what comes next. Job logs are in `logs/` on panther; job scripts are in `scripts/jobs/`.
+
+| Work | Script | Output (on panther) | Next step |
+|---|---|---|---|
+| Arabic Experiment 1: refusal sentences, search and rerank answers, both tracks, 3 models | `scripts/jobs/arabic_exp1.sh <model> <English L:F>` | `outputs/refusal_phrases/<model>_ar.json`, `outputs/neuron_search/<model>_float16_{poly,mj}_ar_full.json`, `outputs/rerank/<model>_float16_{poly,mj}_ar.json` | Judge each rerank file with `judge.py --judge qwen3guard` and `judge.py --translate --src_lang ar --prompts_en {poly,mj}_en_harmful_rerank`, then pick each Arabic neuron and pin by the 0.90 rule |
+| Arabic judge validation | `scripts/jobs/judge_validation.sh` | `outputs/evaluate/Qwen3-8B_L14_F7924_ar_judgecheck.json`; agreement in the job log | Decide which Arabic judge is primary, log the agreement numbers |
+| Parked: the refusal direction inside the MLP | `replication/mlp_direction.py` (written, **not reviewed or run**) | `outputs/mlp_direction/`, `outputs/evaluate/<model>_L<L>_mlpdir_<tag>.json` | Review it line by line, then run after the Arabic replication |
+| Parked: refusal phrases for all 24 language sets | `scripts/jobs/refusal_phrases.sh` | `outputs/refusal_phrases/<model>_multilingual.json` (first pass, token cut) | Rerun with whole-word openings, add a refusal check, before the multilingual searches |
 
 ### Apple paper experiments: our status
 

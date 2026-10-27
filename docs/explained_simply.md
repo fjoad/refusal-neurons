@@ -332,6 +332,19 @@ Part 2 (the rerank) needs a judge that reads Arabic, so it isn't done in Arabic 
 
 ---
 
+## 8b. Now: the whole paper again, in Arabic
+
+The steps above checked pieces in Arabic. Now we redo *all* of Apple's experiments in Arabic, finding the Arabic refusal neuron from scratch with their exact method.
+- **Two datasets:**
+  - **PolyRefuse:** the same prompts as our English replication, machine-translated.
+  - **MultiJail:** human-translated.
+- **Judging Arabic answers, two ways:**
+  - **Qwen3Guard** reads the Arabic directly.
+  - **Llama-Guard** reads an English translation from NLLB (a plain translator).
+  - First we check how often the two agree.
+- **First results (search only):** Apple's neuron is in the Arabic top 5 on all three models. It ranks #1 for Llama, #2 for Qwen3-1.7B (#1 on MultiJail) and #4 for Qwen3-8B. Most of the other top-5 neurons are the same as in English.
+- **Next:** the rerank (which of the 5 actually jailbreaks best in Arabic), then the attack, capability, per-token, base-model, detector, alignment and residual experiments in Arabic.
+
 ## 9. Caveats
 - One judge (Llama-Guard-3), which doesn't check that answers make sense and doesn't officially cover Arabic.
 - Capability is measured on subsets of MMLU and GSM8K.

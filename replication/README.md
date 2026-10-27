@@ -76,8 +76,67 @@ Newest work first in each topic; every entry has its date, setup, numbers and ca
 - **Appendix G alignment and the Arditi baseline**: 2026-10-21
 - **M3** (attack and capability cost): 2026-10-22
 - **Section 3.3 residual baseline**: 2026-10-22
+- **Refusal phrases in 24 language sets** (first pass): 2026-10-27
+- **Arabic judges chosen** (validation running): 2026-10-27
+- **Arabic Experiment 1** (search done, rerank in progress): 2026-10-27
 
 Job scripts that produced these are in `scripts/jobs/` (each says which entry it belongs to).
+
+### 2026-10-27: Arabic Experiment 1, search results (rerank in progress) (`scripts/jobs/arabic_exp1.sh`)
+Apple's method run from scratch in Arabic, on two tracks:
+- **PolyRefuse Arabic:** the same 128 harmful prompts as the English replication (machine-translated), plus PolyRefuse's 128 harmless.
+- **MultiJail Arabic:** human-translated, plus Aya Arabic.
+
+The push targets each model's own Arabic refusal sentences, found with `refusal_phrases.py` (whole-word openings):
+
+| Model | Arabic refusal sentences (PolyRefuse / MultiJail) |
+|---|---|
+| Qwen3-1.7B | "أنا أرفض مساعدتكم في" ("I refuse to help you with") / "لا أستطيع أن أقدم" ("I can't provide") |
+| Qwen3-8B | "أنا لا أستطيع مساعدتك", "أنا لا أستطيع تقديم" ("I can't help you", "I can't provide") / "أنا لا أستطيع مساعدتك" |
+| Llama-3.1-8B | "لا أستطيع مساعدتك في", "لا أستطيع تقديم معلومات" ("I can't help you with", "I can't provide information"), both tracks |
+
+**Search, PolyRefuse Arabic track** (top 5; Apple's neuron in **bold**):
+
+| Model | Arabic top 5 | English neuron's rank: English search → Arabic search |
+|---|---|---|
+| Qwen3-1.7B | L10:F244, **L13:F3270**, L12:F2897, L12:F4580, L9:F3183 | 4 → **2** (its harmful/harmless activation in Arabic: −8.32 / −0.11). #1, L10:F244, won our English 1.7B rerank |
+| Qwen3-8B | L17:F11229, L18:F7664, L16:F8474, **L14:F7924**, L15:F11168 | 5 → **4** (−3.42 / −0.17); 4 of 5 neurons shared with the English top 5 |
+| Llama-3.1-8B | **L11:F4258**, L15:F9635, L10:F1084, L10:F9064, L10:F4789 | 3 → **1** (+0.72 / +0.01) |
+
+**Search, MultiJail Arabic track:** Qwen3-1.7B's top 5 is **L13:F3270** (rank 1), L15:F1109, L10:F244, L12:F4580, L12:F2897. The two 8B models are still running.
+
+**Rerank:** answers for every candidate × 9 pin values are being generated on `poly_ar_harmful_rerank` (191) and `mj_ar_harmful_rerank` (87), into `outputs/rerank/<model>_float16_{poly,mj}_ar.json`; Qwen3-1.7B is done. They are judged once the Arabic judges are validated (next entry). Logs: `arabic_exp1-436891/2/3`.
+
+### 2026-10-27: Arabic judges chosen; validation running (`judge.py`, `translate.py`, `judge_agreement.py`)
+- **Qwen3Guard-Gen-8B** judges the Arabic directly. It labels safe / unsafe / controversial and refusal yes / no.
+- **Llama-Guard-3** judges an **NLLB-200** English translation (Wang et al.'s method). NLLB is a plain translation model, so it doesn't refuse to translate harmful text.
+- Validation job `judge_validation-436889`, `scripts/jobs/judge_validation.sh`:
+  - Qwen3-8B answers the 100 `poly_ar_harmful_eval` prompts, unpinned and with L14:F7924 at +20
+  - the answers are judged four ways (Llama-Guard on Arabic, Llama-Guard on the translation, Qwen3Guard on Arabic, Qwen3Guard on the translation), with pairwise agreement and Cohen's kappa
+  - English check: Qwen3Guard vs Llama-Guard on the English M3 outputs
+- Results: pending.
+
+### 2026-10-27: Refusal phrases in 24 language sets, first pass (`refusal_phrases.py`, `scripts/jobs/refusal_phrases.sh`)
+Each model's two most common openings over 128 unpinned answers to every multilingual harmful train set: PolyRefuse in 14 languages, MultiJail in 10.
+
+- **Llama-3.1-8B refuses with templated sentences in almost every language,** e.g.:
+  - "Ich kann nicht dabei helfen" (German), "No puedo proporcionar…" (Spanish)
+  - "Я не могу помочь вам" (Russian), "ขออภัย แต่" (Thai)
+  - "Saya tidak bisa membantu" (Javanese), "Sina uwezo wa" (Swahili)
+  - Exceptions: Yoruba (the openings echo the prompt), and no shared opening for Japanese or Korean.
+- **Qwen3-8B refuses clearly in the high-resource languages** (German, Spanish, French, Italian, Polish, Russian, Vietnamese, Arabic, Chinese). For others it opens with hedges or explanations, e.g. Japanese "ご質問の内容について" ("regarding your question"), Thai "ขออธิบาย" ("let me explain"), Dutch "Het is belangrijk om te" ("it's important to"). Yoruba, Swahili, Bengali and Javanese show no clear refusal opening.
+- **Qwen3-1.7B often doesn't refuse at all outside English and a few languages:**
+  - Dutch opens with "Natuurlijk! Hier" ("Of course! Here")
+  - Thai and Yoruba echo the prompt
+  - Spanish, Korean and Russian have no shared opening
+
+Takeaways:
+- **The most common opening is not always a refusal,** so these phrases need a refusal check before they are used for search (planned: a local model labels each opening).
+- **Low-resource languages get fewer templated refusals,** especially on the Qwen models. That's a first hint for direction 2 (why translation jailbreaks work).
+
+Caveats:
+- This first pass cut openings at 6 tokens, which can end mid-word (some Chinese and Bengali openings even end in broken characters). The script now cuts at whole words, so the 24-set run must be redone; only the Arabic sets have been, in the Arabic Experiment 1 entry above.
+- Logs: `refusal_phrases-436876/7/8`; outputs `outputs/refusal_phrases/<model>_multilingual.json`.
 
 ### 2026-10-19: Milestone 1, published neurons behave as described (`neuron_check.py`)
 Setup: JailbreakBench (100 prompts) vs held-out Alpaca (100) for separation. Bypass measured on the first 30 JailbreakBench prompts, greedy decoding, 96 new tokens, string-match refusal check (rough; not the paper's judge). V100-32GB.
