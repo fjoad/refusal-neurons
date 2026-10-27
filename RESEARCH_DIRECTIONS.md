@@ -15,7 +15,7 @@ Every direction below assumes we can find the refusal neuron ourselves, so this 
 ## The five directions
 
 ### 1. Same neuron across languages and modalities? (Nadir's main ask → Papers A and B)
-**Status:** Arabic started. The English neuron fires on Arabic prompts at the same token, and a search run on Arabic prompts gives largely the same top-5 neurons. Not done: the Arabic jailbreak and rerank (need Arabic judging), other languages, images, speech.
+**Status:** Arabic started. The English neuron fires on Arabic prompts at the same token, and a search run on Arabic prompts gives largely the same top-5 neurons. Arabic judging is validated (Qwen3Guard and Llama-Guard on an NLLB translation agree, kappa 0.88), and Apple's Qwen3-8B neuron at +20 jailbreaks Arabic prompts (0.07 → 0.95). In progress: the full Arabic replication (rerank running). Not done: other languages, images, speech.
 
 Find the refusal neuron in, for example, Qwen3-8B using English prompts. Then ask:
 - **Does it fire** when the *same* harmful request is given in Arabic, Hindi, Swahili, as an image of the text, or as speech?

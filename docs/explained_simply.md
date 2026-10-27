@@ -306,7 +306,7 @@ Apple only searched in English. We ran **part 1 of Experiment 1** (the scoring) 
 - **Apple used English refusal sentences here** (their Table 4).
 - **In Arabic the model refuses in Arabic,** so we use the sentence each model actually says, read from 100 of its normal Arabic answers. For Llama that's "لا أستطيع تقديم معلومات" ("I can't provide information").
 
-Part 2 (the rerank) needs a judge that reads Arabic, so it isn't done in Arabic yet.
+Part 2 (the rerank) needs a judge that reads Arabic. That is now set up (section 8b), and the Arabic rerank is running.
 
 **Result, the top 5 neurons in each language** (Apple's refusal neuron in **bold**):
 
@@ -341,15 +341,17 @@ The steps above checked pieces in Arabic. Now we redo *all* of Apple's experimen
 - **Judging Arabic answers, two ways:**
   - **Qwen3Guard** reads the Arabic directly.
   - **Llama-Guard** reads an English translation from NLLB (a plain translator).
-  - First we check how often the two agree.
+  - **They agree** on 94% of Qwen3-8B's Arabic answers (Cohen's kappa 0.88; 1 = perfect, 0 = chance).
+  - Llama-Guard reading the Arabic *untranslated* misses harmful answers: it finds 84% where the others find 95%. So we don't use it that way.
+- **The jailbreak works in Arabic.** Pinning Apple's Qwen3-8B neuron at the English value (+20) on Arabic prompts: harmful answers go from 7% to 95% (both judges).
 - **First results (search only):** Apple's neuron is in the Arabic top 5 on all three models. It ranks #1 for Llama, #2 for Qwen3-1.7B (#1 on MultiJail) and #4 for Qwen3-8B. Most of the other top-5 neurons are the same as in English.
 - **Next:** the rerank (which of the 5 actually jailbreaks best in Arabic), then the attack, capability, per-token, base-model, detector, alignment and residual experiments in Arabic.
 
 ## 9. Caveats
-- One judge (Llama-Guard-3), which doesn't check that answers make sense and doesn't officially cover Arabic.
+- English answers have one judge (Llama-Guard-3), which doesn't check that answers make sense. Arabic answers have two that agree (Qwen3Guard, and Llama-Guard on a translation).
 - Capability is measured on subsets of MMLU and GSM8K.
 - The Arabic sets are small (100–128 prompts), and some MultiJail prompts are borderline.
-- We haven't yet run the *jailbreak* in Arabic, i.e. pinned the neuron on Arabic prompts and judged the Arabic answers.
+- The Arabic jailbreak so far is one model and one neuron on 100 prompts.
 
 ## 10. Take-home
 1. We reproduced Apple's main results on 3 models, with free tools. On both 8B models we got the exact same neuron and the exact same pin value.
@@ -357,6 +359,6 @@ The steps above checked pieces in Arabic. Now we redo *all* of Apple's experimen
 3. The same neuron does the job in Arabic. Searching with the same prompts in Arabic gives largely the same top-5 neurons, with Apple's neuron among them in all three models. It also filters Arabic harmful prompts better than Llama-Guard.
 
 ## 11. Next
-1. Run the jailbreak in Arabic: pin the neuron on Arabic prompts and judge Arabic answers.
+1. Finish finding the Arabic neuron (the rerank), then run all of Apple's experiments in Arabic.
 2. Add a free judge that also checks the answers make sense (a local LLM with Apple's judge prompt).
 3. More languages, then images and speech.

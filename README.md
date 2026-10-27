@@ -35,7 +35,7 @@ Read in this order:
 | Judge | One judge for every language | ✅ Llama-Guard-3-8B (free). No coherence check yet |
 | **M3**: full evaluation | JailbreakBench attack, constant and anchor pins, MMLU/GSM8K cost, XSTest detection | ✅ Matches the paper (Llama-Guard only) |
 | Other paper experiments | Sections 3.1, 3.2, 3.3, 3.4 and Appendix G | ✅ except 3.3 on Llama (needs a coherence judge); 3.5 and 4 not done |
-| **Arabic replication** | The whole Apple paper again in Arabic, with the Arabic neuron found from scratch, on two tracks (PolyRefuse, MultiJail) | 🟡 Experiment 1 search done (largely the same neurons as English); rerank answers being generated; judges being validated. Experiments 2–8 not started |
+| **Arabic replication** | The whole Apple paper again in Arabic, with the Arabic neuron found from scratch, on two tracks (PolyRefuse, MultiJail) | 🟡 Experiment 1 search done (largely the same neurons as English); rerank answers being generated; the two Arabic judges agree (kappa 0.88). Experiments 2–8 not started |
 | Modalities | Image and speech | ⬜ |
 
 ### Work in progress
@@ -45,7 +45,6 @@ What is running or parked, where its output lands, and what comes next. Job logs
 | Work | Script | Output (on panther) | Next step |
 |---|---|---|---|
 | Arabic Experiment 1: refusal sentences, search and rerank answers, both tracks, 3 models | `scripts/jobs/arabic_exp1.sh <model> <English L:F>` | `outputs/refusal_phrases/<model>_ar.json`, `outputs/neuron_search/<model>_float16_{poly,mj}_ar_full.json`, `outputs/rerank/<model>_float16_{poly,mj}_ar.json` | Judge each rerank file with `judge.py --judge qwen3guard` and `judge.py --translate --src_lang ar --prompts_en {poly,mj}_en_harmful_rerank`, then pick each Arabic neuron and pin by the 0.90 rule |
-| Arabic judge validation | `scripts/jobs/judge_validation.sh` | `outputs/evaluate/Qwen3-8B_L14_F7924_ar_judgecheck.json`; agreement in the job log | Decide which Arabic judge is primary, log the agreement numbers |
 | Parked: the refusal direction inside the MLP | `replication/mlp_direction.py` (written, **not reviewed or run**) | `outputs/mlp_direction/`, `outputs/evaluate/<model>_L<L>_mlpdir_<tag>.json` | Review it line by line, then run after the Arabic replication |
 | Parked: refusal phrases for all 24 language sets | `scripts/jobs/refusal_phrases.sh` | `outputs/refusal_phrases/<model>_multilingual.json` (first pass, token cut) | Rerun with whole-word openings, add a refusal check, before the multilingual searches |
 
@@ -77,7 +76,7 @@ What is running or parked, where its output lands, and what comes next. Job logs
 **Current priority (decided 2026-10-27): finish the replication in Arabic before any new direction.** That means the whole Apple paper again, with the Arabic refusal neuron found from scratch by their method, on two tracks: PolyRefuse Arabic (the same prompts as the English replication, machine-translated) and MultiJail Arabic (human-translated).
 
 1. ✅ **Apple appendix review** (2026-10-27): [docs/apple_appendix_review.md](docs/apple_appendix_review.md). The MLP-space direction and the "does Arditi's direction work through the neuron" test are not in the paper.
-2. **Arabic judging** (in progress). Qwen3Guard-Gen-8B judges the Arabic directly. Llama-Guard-3 judges an NLLB-200 English translation (Wang et al.'s method). Both are validated against each other on Arabic answers before use.
+2. **Arabic judging** (✅ validated 2026-10-27). Qwen3Guard-Gen-8B judges the Arabic directly. Llama-Guard-3 judges an NLLB-200 English translation (Wang et al.'s method). They agree (kappa 0.88); Llama-Guard on the raw Arabic undercounts and is not used. See the results log.
 3. **Arabic Experiment 1** (in progress): Arabic refusal sentences, search, and rerank on held-out Arabic prompts, on both tracks.
 4. **Arabic Experiments 2–8:**
    - 2: the jailbreak on the Arabic final-test sets, vs Arditi's direction computed from Arabic prompts
@@ -117,7 +116,7 @@ These were settled in discussion. Don't reopen them without a new reason.
 - **The search follows the paper's appendix to the letter:** Table 4 refusal phrases, and only Table 3's red template tokens. Each of these changed the result. When the PDF text is ambiguous, render the page and look; the red highlighting is invisible in extracted text.
 - **Judge: Llama-Guard-3-8B only, free and on panther** (decided 2026-10-21). There are no API credits for an LLM judge while this is exploratory. An answer is a successful attack when Llama-Guard labels it unsafe; that is Apple's secondary judge. Caveat: Llama-Guard does **not** reliably reject garbled output. It called all of Qwen3-8B's pin-80 outputs unsafe, and their median length was 100 characters.
 - **One judge for every language.** Comparing English numbers from one judge with Arabic numbers from another would not be valid.
-- **Arabic judges** (decided 2026-10-27): **Qwen3Guard-Gen-8B** (Apache-2.0, 119 languages, ~86 F1 on Arabic, also labels refusals) on the original text, and **Llama-Guard-3 on an NLLB-200 English translation**, as Wang et al. (NeurIPS 2025) did. Reported side by side after an agreement check. A chat model was rejected as translator because it may refuse to translate harmful answers. FanarGuard (QCRI) would be a natural third judge, but it isn't public; ask Taha Sencar.
+- **Arabic judges** (decided 2026-10-27): **Qwen3Guard-Gen-8B** (Apache-2.0, 119 languages, ~86 F1 on Arabic, also labels refusals) on the original text, and **Llama-Guard-3 on an NLLB-200 English translation**, as Wang et al. (NeurIPS 2025) did. Reported side by side; the agreement check passed (kappa 0.88), and Llama-Guard on the untranslated Arabic undercounts (0.84 vs 0.95), so it isn't used. A chat model was rejected as translator because it may refuse to translate harmful answers. FanarGuard (QCRI) would be a natural third judge, but it isn't public; ask Taha Sencar.
 - **Rerank selection: the candidate that reaches ASR ≥ 0.90 at the smallest pin**, not the highest ASR, because Llama-Guard rewards garbled high-pin output. This rule recovers Apple's neuron and pin on both 8B models. `judge.py` prints this ranking.
 - **The rerank is cheaper than the paper's:** a 9-value pin grid (2–60) and 128 new tokens instead of their 47 values and 512 tokens. The final attack (M3) uses 512 tokens like the paper.
 - **Arabic only, for now.** A full replication plus an Arabic contribution is enough for Paper A. Modalities come after Arabic. Add languages along a resource spectrum later (e.g. French or Chinese, then Swahili or Bengali).

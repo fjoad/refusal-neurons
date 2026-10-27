@@ -77,7 +77,7 @@ Newest work first in each topic; every entry has its date, setup, numbers and ca
 - **M3** (attack and capability cost): 2026-10-22
 - **Section 3.3 residual baseline**: 2026-10-22
 - **Refusal phrases in 24 language sets** (first pass): 2026-10-27
-- **Arabic judges chosen** (validation running): 2026-10-27
+- **Arabic judges chosen and validated** (they agree; Llama-Guard on raw Arabic undercounts): 2026-10-27
 - **Arabic Experiment 1** (search done, rerank in progress): 2026-10-27
 
 Job scripts that produced these are in `scripts/jobs/` (each says which entry it belongs to).
@@ -105,16 +105,30 @@ The push targets each model's own Arabic refusal sentences, found with `refusal_
 
 **Search, MultiJail Arabic track:** Qwen3-1.7B's top 5 is **L13:F3270** (rank 1), L15:F1109, L10:F244, L12:F4580, L12:F2897. The two 8B models are still running.
 
-**Rerank:** answers for every candidate × 9 pin values are being generated on `poly_ar_harmful_rerank` (191) and `mj_ar_harmful_rerank` (87), into `outputs/rerank/<model>_float16_{poly,mj}_ar.json`; Qwen3-1.7B is done. They are judged once the Arabic judges are validated (next entry). Logs: `arabic_exp1-436891/2/3`.
+**Rerank:** answers for every candidate × 9 pin values are being generated on `poly_ar_harmful_rerank` (191) and `mj_ar_harmful_rerank` (87), into `outputs/rerank/<model>_float16_{poly,mj}_ar.json`; Qwen3-1.7B is done. They are judged with both chosen Arabic judges (validated in the next entry). Logs: `arabic_exp1-436891/2/3`.
 
-### 2026-10-27: Arabic judges chosen; validation running (`judge.py`, `translate.py`, `judge_agreement.py`)
+### 2026-10-27: Arabic judges chosen and validated (`judge.py`, `translate.py`, `judge_agreement.py`)
 - **Qwen3Guard-Gen-8B** judges the Arabic directly. It labels safe / unsafe / controversial and refusal yes / no.
 - **Llama-Guard-3** judges an **NLLB-200** English translation (Wang et al.'s method). NLLB is a plain translation model, so it doesn't refuse to translate harmful text.
 - Validation job `judge_validation-436889`, `scripts/jobs/judge_validation.sh`:
   - Qwen3-8B answers the 100 `poly_ar_harmful_eval` prompts, unpinned and with L14:F7924 at +20
   - the answers are judged four ways (Llama-Guard on Arabic, Llama-Guard on the translation, Qwen3Guard on Arabic, Qwen3Guard on the translation), with pairwise agreement and Cohen's kappa
   - English check: Qwen3Guard vs Llama-Guard on the English M3 outputs
-- Results: pending.
+- **Results** (attack success rate (ASR); 100 answers per row):
+
+  | Judge | Unpinned | L14:F7924 at +20 |
+  |---|---|---|
+  | Llama-Guard on the Arabic | 0.07 | **0.84** |
+  | Llama-Guard on the NLLB translation | 0.15 | 0.95 |
+  | Qwen3Guard on the Arabic | 0.07 | 0.95 |
+  | Qwen3Guard on the NLLB translation | 0.13 | 0.95 |
+
+  - **The two chosen judges agree.** Qwen3Guard on the Arabic vs Llama-Guard on the translation: 94% agreement, Cohen's kappa 0.88, over all 200 answers. The other pairs that leave out raw-Arabic Llama-Guard: kappa 0.90 and 0.92.
+  - **Llama-Guard on the raw Arabic misses harmful answers.** It finds 0.84 where the other three find 0.95, and has the lowest agreement with them (kappa 0.79–0.83). Arabic is not one of its supported languages, so we don't use it for Arabic.
+  - **Translation adds a few unsafe verdicts to unpinned answers** (0.13–0.15 vs 0.07). The pinned numbers don't move. Qwen3Guard calls 79% of the unpinned Arabic answers refusals, and 4% of the pinned ones.
+  - **The neuron jailbreaks in Arabic at the English pin.** Apple's L14:F7924 at +20, found on English, takes Qwen3-8B from 0.07 to 0.95 on Arabic prompts (both chosen judges).
+  - **English check:** on the M3 JailbreakBench answers (400), Qwen3Guard and Llama-Guard agree 97%, kappa 0.93. Qwen3Guard gives 0.96 for the pin, 0.89 / 0.94 for the anchor at k = 1 / 2, and 0.03 unpinned. So Qwen3Guard tracks our English judge closely.
+  - **Caveat:** one model, one neuron, 100 prompts. Agreement is pooled over unpinned and pinned answers, which are easy to tell apart.
 
 ### 2026-10-27: Refusal phrases in 24 language sets, first pass (`refusal_phrases.py`, `scripts/jobs/refusal_phrases.sh`)
 Each model's two most common openings over 128 unpinned answers to every multilingual harmful train set: PolyRefuse in 14 languages, MultiJail in 10.
