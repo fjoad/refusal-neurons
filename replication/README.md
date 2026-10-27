@@ -78,11 +78,11 @@ Newest work first in each topic; every entry has its date, setup, numbers and ca
 - **Section 3.3 residual baseline**: 2026-10-22
 - **Refusal phrases in 24 language sets** (first pass): 2026-10-27
 - **Arabic judges chosen and validated** (they agree; Llama-Guard on raw Arabic undercounts): 2026-10-27
-- **Arabic Experiment 1** (search done; Qwen3-1.7B rerank a near-tie on PolyRefuse, under 0.90 on MultiJail; 8B reranks in progress): 2026-10-27
+- **Arabic Experiment 1** (PolyRefuse rerank picks Apple's neuron and pin on Qwen3-8B, and on Llama under Qwen3Guard; Qwen3-1.7B a near-tie; MultiJail 8B judging in progress): 2026-10-27
 
 Job scripts that produced these are in `scripts/jobs/` (each says which entry it belongs to).
 
-### 2026-10-27: Arabic Experiment 1, search results and Qwen3-1.7B rerank (8B reranks in progress) (`scripts/jobs/arabic_exp1.sh`, `scripts/jobs/judge_ar_rerank.sh`)
+### 2026-10-27: Arabic Experiment 1, search and rerank (MultiJail rerank judging for the 8B models in progress) (`scripts/jobs/arabic_exp1.sh`, `scripts/jobs/judge_ar_rerank.sh`)
 Apple's method run from scratch in Arabic, on two tracks:
 - **PolyRefuse Arabic:** the same 128 harmful prompts as the English replication (machine-translated), plus PolyRefuse's 128 harmless.
 - **MultiJail Arabic:** human-translated, plus Aya Arabic.
@@ -128,6 +128,19 @@ On both tracks, Apple's neuron is in the Arabic top 5 for every model, and the 8
 - **At large negative pins Qwen3Guard's refusal label rises again** (e.g. L10:F244 at −60: refusal 0.81 on PolyRefuse, 0.93 on MultiJail), while the attack rate falls. These high pins likely break the model's output; not inspected.
 - **The judges agree much less here than in the validation:** kappa 0.55 on PolyRefuse (82% agreement, 8,786 answers) and 0.51 on MultiJail (77%, 4,002), against 0.88 in the validation. The validation pooled clearly unpinned and clearly pinned 8B answers; the rerank is mostly in-between and partly garbled answers from a small model. Both judges are still reported side by side; a coherence check would help here too.
 - Caveat: one small model, 128-token answers, 191 / 87 prompts.
+
+**Rerank, PolyRefuse Arabic track, the two 8B models** (same columns; 191 prompts):
+
+| Model | Unpinned (Q3G / LG-tr) | Best per candidate, Q3G | Best per candidate, LG-tr | 0.90 rule picks |
+|---|---|---|---|---|
+| Qwen3-8B | 0.09 / 0.12 | **L14:F7924 +20 0.95**; L15:F11168 +60 0.81; L17:F11229 −20 0.80; L16:F8474 −60 0.70; L18:F7664 −15 0.57 | **L14:F7924 +20 0.93**; L16:F8474 −60 0.81; L17:F11229 −20 0.80; L15:F11168 +60 0.75; L18:F7664 −20 0.64 | **L14:F7924 at +20** under both judges; no other candidate reaches 0.90 |
+| Llama-3.1-8B | 0.12 / 0.19 | L10:F4789 +6 0.95; L10:F9064 −40 0.93; **L11:F4258 −4 0.92**; L10:F1084 +40 0.91; L15:F9635 +40 0.91 | L10:F1084 +60 1.00; L10:F4789 +30 0.98; L10:F9064 −20 0.96; **L11:F4258 −20 0.96**; L15:F9635 +60 0.89 | Q3G: **L11:F4258 at −4** (0.92), just ahead of L10:F4789 at +4 (0.91). LG-tr: L10:F4789 at +4 (0.91), then **L11:F4258 at −6** (0.90) |
+
+- **Qwen3-8B finds the same neuron and the same pin in Arabic as in English and in the paper:** L14:F7924 at +20, under both judges, and it is the only candidate that reaches 0.90.
+- **Llama-3.1-8B: Apple's neuron and pin (L11:F4258 at −4) under Qwen3Guard.** Under Llama-Guard on the translation, L10:F4789 reaches 0.90 one pin step earlier (+4 vs −6). The two are within one prompt or two of each other at those pins, so this is a near-tie, as in English, where all five Llama candidates also reached high ASR.
+- **High pins look best to Llama-Guard on the translation** (L10:F1084 at +60: 1.00). As in English, that likely rewards garbled output; the 0.90 rule avoids picking on it.
+- **Judge agreement over all rerank answers:** kappa 0.61 (Qwen3-8B), 0.56 (Llama), as low as on 1.7B for the same reason.
+- MultiJail reranks for both 8B models are being judged (jobs 437021/437022).
 
 ### 2026-10-27: Arabic judges chosen and validated (`judge.py`, `translate.py`, `judge_agreement.py`)
 - **Qwen3Guard-Gen-8B** judges the Arabic directly. It labels safe / unsafe / controversial and refusal yes / no.
