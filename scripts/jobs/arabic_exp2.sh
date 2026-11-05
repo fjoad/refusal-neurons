@@ -14,12 +14,15 @@
 # Usage: sbatch --gres=gpu:v100_16GB:2 scripts/jobs/arabic_exp2.sh <model> <layer> <neuron> <pin>
 # Splits per track: attack on poly_ar_harmful_eval / mj_ar_harmful_test (100 each). Arditi's direction
 # from the Arabic search sets ({track}_ar_harmful/harmless_train); selection on the first 32 of
-# {track}_ar_harmful_rerank and {track}_ar_harmless_test; refusal score on the first tokens of
-# "أنا" and "لا", the first words of the models' Arabic refusals (outputs/refusal_phrases/*_ar.json).
+# {track}_ar_harmful_rerank and {track}_ar_harmless_test; refusal score on the model's own Arabic
+# refusal tokens, picked by refusal_tokens.py from its unpinned Arabic rerank answers (both tracks).
+# If Arditi's filters reject every candidate direction, that baseline is skipped and the job goes on.
 set -e
 source ~/anaconda3/bin/activate refneu
 export HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 PYTHONUNBUFFERED=1
 short=$(basename "$1")
+python -u replication/refusal_tokens.py --model "$1" --tag ar \
+  outputs/rerank/${short}_float16_poly_ar.json outputs/rerank/${short}_float16_mj_ar.json
 for track in poly mj; do
   if [ $track = poly ]; then eval_split=poly_ar_harmful_eval; else eval_split=mj_ar_harmful_test; fi
   python -u replication/evaluate.py --model "$1" --layer "$2" --neuron "$3" --pin "$4" \
@@ -27,8 +30,10 @@ for track in poly mj; do
   python -u replication/arditi.py --model "$1" --watch "$2:$3" --tag ${track}_ar \
     --harmful ${track}_ar_harmful_train --harmless ${track}_ar_harmless_train \
     --harmful_val ${track}_ar_harmful_rerank --harmless_val ${track}_ar_harmless_test --n_val 32 \
-    --refusal_words أنا لا --eval_split $eval_split
+    --refusal_tokens_json outputs/refusal_tokens/${short}_ar.json --eval_split $eval_split \
+    || echo "arditi.py: no Arabic direction for ${track}; skipping that baseline"
   for f in outputs/evaluate/${short}_L$2_F$3_${track}_ar.json outputs/evaluate/${short}_arditi_${track}_ar.json; do
+    [ -f $f ] || continue
     python -u replication/judge.py $f --judge qwen3guard
     python -u replication/judge.py $f --translate --src_lang ar --prompts_en ${eval_split/_ar_/_en_}
     python -u replication/judge_agreement.py $f

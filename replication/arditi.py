@@ -14,14 +14,15 @@ are normalized once in float64, then cast per device/dtype, rather than repeated
 renormalized in activation precision as in utils/hook_utils.py.
 
 Other languages: --harmful/--harmless/--harmful_val/--harmless_val pick the splits (default:
-Arditi's exact samples), --n_val keeps the first n of each validation split, and --refusal_words
-replaces Arditi's English refusal tokens with the first token of each given word.
+Arditi's exact samples), --n_val keeps the first n of each validation split, and
+--refusal_tokens_json (from refusal_tokens.py) or --refusal_words (first token of each word)
+replaces Arditi's English refusal tokens.
 
 Responses are saved only to outputs/evaluate; logs contain metrics, never text.
 Usage: python replication/arditi.py --model Qwen/Qwen3-1.7B --watch 13:3270 --tag jbb
   Arabic: ... --harmful poly_ar_harmful_train --harmless poly_ar_harmless_train \
       --harmful_val poly_ar_harmful_rerank --harmless_val poly_ar_harmless_test --n_val 32 \
-      --refusal_words أنا لا --eval_split poly_ar_harmful_eval --tag poly_ar
+      --refusal_tokens_json outputs/refusal_tokens/Qwen3-1.7B_ar.json --eval_split poly_ar_harmful_eval --tag poly_ar
 """
 import argparse
 from contextlib import contextmanager
@@ -341,6 +342,7 @@ def main():
     ap.add_argument("--n_val", type=int, default=0, help="first n prompts of each validation split (0 = all)")
     ap.add_argument("--refusal_words", nargs="+", help="refusal words for the score (first token of each); "
                     "default: Arditi's English tokens")
+    ap.add_argument("--refusal_tokens_json", help="refusal_tokens.py output; uses its token_ids")
     args = ap.parse_args()
     if args.bs < 1 or args.n < 0 or args.max_new < 1 or args.n_val < 0:
         ap.error("--bs/--max_new must be positive and --n nonnegative")
@@ -360,7 +362,9 @@ def main():
     started = time.time()
     tok = AutoTokenizer.from_pretrained(args.model, padding_side="left", local_files_only=True)
     tok.pad_token = tok.pad_token or tok.eos_token
-    if args.refusal_words:
+    if args.refusal_tokens_json:
+        token_ids = json.loads((ROOT / args.refusal_tokens_json).read_text())["token_ids"]
+    elif args.refusal_words:
         token_ids = sorted({tok.encode(w, add_special_tokens=False)[0] for w in args.refusal_words})
     else:
         token_ids = REFUSAL_TOKENS[family]
