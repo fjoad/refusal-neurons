@@ -255,6 +255,8 @@ def main():
     ap.add_argument("--phrases_json", default=None,
                     help="refusal_phrases.py output; with --phrases_key, use that split's phrases (for other languages)")
     ap.add_argument("--phrases_key", default=None, help="split name inside --phrases_json")
+    ap.add_argument("--phrases_fallback", action="store_true",
+                    help="if that split has no refusal phrases (the model rarely refuses), use the English Table 4 phrases")
     ap.add_argument("--score_tokens", type=int, default=None,
                     help="score only the first N post-instruction tokens (default: Table 3 for the family; 0 = all)")
     ap.add_argument("--watch", nargs="*", default=[], metavar="L:F",
@@ -266,9 +268,13 @@ def main():
         if args.refusal_phrases or not args.phrases_key:
             ap.error("--phrases_json needs --phrases_key and excludes --refusal_phrases")
         found = json.loads((ROOT / args.phrases_json).read_text())["splits"][args.phrases_key]["phrases"]
-        if not found:
+        if found:
+            args.refusal_phrases = found
+        elif args.phrases_fallback:
+            print(f"no refusal phrases for {args.phrases_key}: using the paper's English Table 4 phrases", flush=True)
+            args.phrases_used_fallback = True
+        else:
             ap.error(f"no refusal phrases for {args.phrases_key} in {args.phrases_json}")
-        args.refusal_phrases = found
     if args.refusal_phrases is None:
         args.refusal_phrases = paper_phrases(args.model)
     try:

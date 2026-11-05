@@ -9,6 +9,10 @@ Thai), so a phrase never ends mid-word. Refusals are templated, so the most comm
 openings are refusal openings. The two most common, if each covers at least --min_share of the
 answers, become that split's phrases. Only openings shared by at least --min_count answers are
 printed or saved; full answers never are.
+With --refusal_check (used for the multilingual runs), Qwen3Guard-Gen-8B first labels each short answer
+as a refusal or not, phrases are counted among the refusals only (share = of the refusals), and each
+split also records the model's unpinned refusal rate. A split with fewer than --min_count refusals gets
+no phrases (neuron_search.py --phrases_fallback then uses the English Table 4 phrases).
 Usage:
   python replication/refusal_phrases.py --model Qwen/Qwen3-8B --splits poly_ar_harmful_train mj_bn_harmful_train
 Then: neuron_search.py --phrases_json outputs/refusal_phrases/<model>_<tag>.json --phrases_key <split>
@@ -34,7 +38,7 @@ def opening(text, n_words, prefix_text):
 
 @torch.no_grad()
 def openings(model, tok, prompts, bs, max_new, prefix_tokens, n_words):
-    out = []
+    out, texts = [], []
     for i in range(0, len(prompts), bs):
         batch = tok(prompts[i:i + bs], return_tensors="pt", padding=True, add_special_tokens=False).to(model.device)
         ids = model.generate(**batch, max_new_tokens=max_new, do_sample=False, pad_token_id=tok.pad_token_id)
@@ -42,7 +46,8 @@ def openings(model, tok, prompts, bs, max_new, prefix_tokens, n_words):
             row = [t for t in row.tolist() if t not in tok.all_special_ids]
             text = tok.decode(row, skip_special_tokens=True).strip()
             out.append(opening(text, n_words, tok.decode(row[:prefix_tokens], skip_special_tokens=True).strip()))
-    return out
+            texts.append(text)
+    return out, texts
 
 
 def main():
@@ -50,7 +55,7 @@ def main():
     ap.add_argument("--model", required=True)
     ap.add_argument("--splits", nargs="+", required=True, help="harmful split names in data/splits/")
     ap.add_argument("--n", type=int, default=128)
-    ap.add_argument("--max_new", type=int, default=24)
+    ap.add_argument("--max_new", type=int, default=48)
     ap.add_argument("--prefix_tokens", type=int, default=6, help="opening length for languages without spaces")
     ap.add_argument("--words", type=int, default=4, help="opening length in whole words")
     ap.add_argument("--min_count", type=int, default=3, help="only openings shared by this many answers are kept")
@@ -58,6 +63,7 @@ def main():
     ap.add_argument("--bs", type=int, default=16)
     ap.add_argument("--dtype", default="float16", choices=["float16", "bfloat16", "float32"])
     ap.add_argument("--tag", default="")
+    ap.add_argument("--refusal_check", action="store_true", help="count openings among Qwen3Guard refusals only")
     args = ap.parse_args()
 
     t0 = time.time()
@@ -68,14 +74,34 @@ def main():
     model.eval()
 
     result = {"args": vars(args), "splits": {}}
+    generated = {}
     for split in args.splits:
         raw = load(split)[:args.n]
         prompts, _, _ = build_prompts(tok, raw)
-        counts = collections.Counter(openings(model, tok, prompts, args.bs, args.max_new, args.prefix_tokens, args.words))
+        generated[split] = (raw, *openings(model, tok, prompts, args.bs, args.max_new, args.prefix_tokens, args.words))
+        print(f"{split}: generated ({(time.time() - t0) / 60:.1f} min)", flush=True)
+    refused = {}
+    if args.refusal_check:
+        from judge import JUDGES, parse_qwen3guard, verdicts
+        del model
+        torch.cuda.empty_cache()
+        jtok = AutoTokenizer.from_pretrained(JUDGES["qwen3guard"], padding_side="left", local_files_only=True)
+        jtok.pad_token = jtok.pad_token or jtok.eos_token
+        judge = AutoModelForCausalLM.from_pretrained(JUDGES["qwen3guard"], torch_dtype=getattr(torch, args.dtype),
+                                                     device_map="auto", local_files_only=True).eval()
+        for split, (raw, _, texts) in generated.items():
+            refused[split] = [parse_qwen3guard(v)["refusal"] for v in verdicts(judge, jtok, raw, texts, args.bs, 32)]
+    for split, (raw, opens, _) in generated.items():
+        keep = refused.get(split, [True] * len(opens))
+        counts = collections.Counter(o for o, r in zip(opens, keep) if r)
+        n_ref = sum(keep)
         top = [(o, c) for o, c in counts.most_common() if c >= args.min_count and o]
-        phrases = [o for o, c in top[:2] if c / len(raw) >= args.min_share]
+        phrases = [o for o, c in top[:2] if n_ref and c / n_ref >= args.min_share]
         result["splits"][split] = {"n": len(raw), "top": top[:10], "phrases": phrases}
-        print(f"{split}: phrases {phrases}  (top: " + "; ".join(f"{o!r} x{c}" for o, c in top[:5]) +
+        if args.refusal_check:
+            result["splits"][split]["refusal_rate"] = n_ref / len(raw)
+        rate = f"refusal rate {n_ref / len(raw):.2f}  " if args.refusal_check else ""
+        print(f"{split}: {rate}phrases {phrases}  (top: " + "; ".join(f"{o!r} x{c}" for o, c in top[:5]) +
               f")  ({(time.time() - t0) / 60:.1f} min)")
 
     out = ROOT / "outputs" / "refusal_phrases"
