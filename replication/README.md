@@ -88,6 +88,21 @@ Newest work first in each topic; every entry has its date, setup, numbers and ca
 
 Job scripts that produced these are in `scripts/jobs/` (each says which entry it belongs to).
 
+### 2026-11-05: Refusal induced on harmless prompts, quick check (`scripts/jobs/induce_refusal.sh`)
+Setup: pin each neuron toward its harmful value (and beyond) at every token while the model answers 100 harmless Alpaca prompts (`harmless_heldout`), 64 tokens, English string-match refusal check. A rough check run for the 5 November meeting.
+
+| Model, neuron | Pin | Refused: no pin → pinned |
+|---|---|---|
+| Qwen3-1.7B L13:F3270 (harmful mean ≈ −9) | −10 / −20 / −40 | 0.00 → 0.00 / 0.01 / 0.04 |
+| Llama-3.1-8B L11:F4258 (harmful mean ≈ +1) | +1 / +2 / +4 | 0.00 → 0.01 / 0.07 / **0.90** |
+| Qwen3-8B L14:F7924 | −4 / −10 / −20 | running |
+
+- **On Llama the one neuron also creates refusal:** at 4× its harmful value, 90% of harmless requests are refused.
+- **On Qwen3-1.7B it does not:** refusals barely rise. There the neuron is needed for refusal but not enough on its own (it shares the role with L10:F244).
+- Caveats: string match on 64 tokens, no judge; whether the pinned answers are coherent refusals is unchecked. Log: `induce_refusal-450029`.
+
+**Part 2 attacks, first languages (Qwen3-1.7B, `part2_attack.sh`, running).** Pin +40 on 100 held-out prompts per language, 512 tokens; Qwen3Guard refusal and unsafe labels. Refused, no pin → pinned: PolyRefuse en 0.78 → 0.01, de 0.68 → 0.11, es 0.66 → 0.05, fr 0.65 → 0.04; MultiJail en 0.59 → 0.07, zh 0.57 → 0.08, it 0.54 → 0.08, vi 0.43 → 0.06. Unsafe: PolyRefuse 0.18–0.28 → 0.84–0.94; MultiJail 0.06–0.16 → 0.60–0.76 (borderline prompts). Full table when all three models finish.
+
 ### 2026-11-05: Part 2, the search in every language, Llama-3.1-8B and Qwen3-8B (`scripts/jobs/part2_search.sh`)
 Setup as for Qwen3-1.7B below, watching Apple's neurons (Llama L11:F4258, Qwen3-8B L14:F7924). 22 language sets each (for Qwen3-8B, the last three were rerun after an out-of-memory crash on long Bengali prompts).
 
@@ -127,7 +142,7 @@ Counting appearances in the 22 top-5 lists: L14:F7924 and L17:F11229 16 each, L1
 Logs: `part2_search-449878` (Llama), `part2_search-449875` + `449987` (Qwen3-8B).
 
 ### 2026-11-05: Part 2, the search in every language, Qwen3-1.7B (`scripts/jobs/part2_search.sh`)
-Setup: for each of 21 language sets (PolyRefuse 13 + MultiJail 8, Arabic done in Part 1), the model's own refusal openings (128 unpinned answers to the harmful train set, 48 tokens; only answers Qwen3Guard labels as refusals are counted), then Apple's search on that language's 128/128 train sets, watching Apple's neuron L13:F3270; then that neuron's AUROC on the language's test sets (PolyRefuse 572/500, MultiJail 100/100). Languages with no refusal opening shared by ≥ 3 answers use the English Table 4 phrases (marked *).
+Setup: for each of 22 language sets (PolyRefuse 13 + MultiJail 9, Arabic done in Part 1), the model's own refusal openings (128 unpinned answers to the harmful train set, 48 tokens; only answers Qwen3Guard labels as refusals are counted), then Apple's search on that language's 128/128 train sets, watching Apple's neuron L13:F3270; then that neuron's AUROC on the language's test sets (PolyRefuse 572/500, MultiJail 100/100). Languages with no refusal opening shared by ≥ 3 answers use the English Table 4 phrases (marked *).
 
 | Set | Unpinned refusal rate | Apple's neuron rank | Top 1 | AUROC |
 |---|---|---|---|---|
@@ -142,9 +157,9 @@ Setup: for each of 21 language sets (PolyRefuse 13 + MultiJail 8, Arabic done in
 | mj vi | 0.66 | 6 | L12:F4580 | 0.95 |
 | mj sw | 0.55 | **354** | L7:F3729 | **0.34** |
 
-Counting appearances in the 21 top-5 lists: L10:F244 and L13:F3270 19 each, L12:F4580 17, L15:F1109 15, L12:F2897 11.
+Counting appearances in the 22 top-5 lists: L10:F244 and L13:F3270 19 each, L12:F4580 17, L15:F1109 15, L12:F2897 11.
 
-- **Qwen3-1.7B has one shared set of refusal neurons across languages.** Apple's neuron and L10:F244 (the near-tie winner of the English rerank) are in the top 5 in 19 of 21 sets, and the top 2 are the same pair in all 12 PolyRefuse languages other than Yoruba. This is a strong candidate for the language-agnostic neuron.
+- **Qwen3-1.7B has one shared set of refusal neurons across languages.** Apple's neuron and L10:F244 (the near-tie winner of the English rerank) are in the top 5 in 19 of 22 sets, and the top 2 are the same pair in all 12 PolyRefuse languages other than Yoruba. This is a strong candidate for the language-agnostic neuron.
 - **The exceptions are Yoruba and Swahili,** the two lowest-resource languages. The model refuses less there (0.44, 0.55), its "refusal" openings are not refusals (they echo the prompt or are garbled, so Qwen3Guard's refusal label is unreliable there), the search finds unrelated early-layer neurons, and Apple's neuron no longer separates harmful from harmless prompts (AUROC 0.66, 0.34). Either the model doesn't understand these prompts as harmful, or the refusal circuit isn't reached in these languages. A first lead for direction 2 (why translation jailbreaks work).
 - **The neuron is a good detector in every other language** (AUROC 0.92–0.99).
 - Caveat: the refusal check uses Qwen3Guard on 48-token openings; in low-resource languages some kept openings are not refusals.
