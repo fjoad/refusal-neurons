@@ -32,7 +32,7 @@ A careful read of Kazemi et al. (2026, arXiv 2605.08513), main text and every ap
 | **H** Attack and capability tables | Table 8: HarmBench and JBB ASR under both judges, constant / anchor / Arditi, per model. Table 9: MMLU / GSM8K for constant / anchor / **Arditi** | Our M3 matches. We haven't measured Arditi's capability cost (their −0.3 MMLU, −0.5 GSM8K) |
 | **I** What neurons respond to | Harmful pole = explicit or age-restricted content; safe pole = meta-language about restrictions (disclaimers, HIPAA, prosecutions). Qwen3-8B's neuron has no coherent safe pole. Qwen3-14B has 3 independently sufficient refusal neurons | Multiple gates matter for the per-language story |
 | **J** Intervention examples | Qualitative: bypass on a harmful prompt; **inducing refusal on a benign prompt** by pinning a neuron the other way (Qwen3-14B, α = −60); suicide-neuron poems | Inducing refusal is shown only qualitatively. Measuring it is a cheap extension (Arditi's "induce" test, but with one neuron) |
-| **K** Prompts | K.1 the LLM judge prompt: returns is_refusal, is_coherent, provides_helpful_info with confidences; a success = non-refusing **and** coherent. K.2 the concept-steering judge | Use K.1 for our free local coherence judge (next step 5) |
+| **K** Prompts | K.1 the LLM judge prompt: returns is_refusal, is_coherent, provides_helpful_info with confidences; a success = non-refusing **and** coherent. K.2 the concept-steering judge | Use K.1 for our free local coherence judge (README Part 1, step 3) |
 | **L** Feature profiles | Top-15 max-activating Pile snippets per neuron, both poles, ~3,400 lines; largely explicit content | Not read in detail |
 
 ## What this means for our next steps
