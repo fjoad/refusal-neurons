@@ -80,11 +80,29 @@ Newest work first in each topic; every entry has its date, setup, numbers and ca
 - **Refusal phrases in 24 language sets** (first pass): 2026-10-27
 - **Arabic judges chosen and validated** (they agree; Llama-Guard on raw Arabic undercounts): 2026-10-27
 - **Arabic Experiment 1** (PolyRefuse rerank picks Apple's neuron and pin on Qwen3-8B, and on Llama under Qwen3Guard; Qwen3-1.7B a near-tie; on MultiJail no neuron reaches 0.90 on any model): 2026-10-27
+- **K.1 judge on the English attacks** (Apple's main criterion, not refusing and coherent: 0.89–0.97, every pinned answer coherent): 2026-11-05
 - **Part 3, MLP direction, first result** (Qwen3-1.7B: the direction's top neuron is Apple's neuron; steering with it jailbreaks at 0.95): 2026-11-05
 - **Arabic Experiments 3, 4–5, 7 and Arditi's capability cost, first results** (Arabic behaves like English, a bit weaker; base models already have the neuron in Arabic too): 2026-11-05
 - **Arabic Experiments 2 and 8** (PolyRefuse: the neuron jailbreaks Arabic as well as English, 88–95%, matching Arditi's Arabic direction; MultiJail weaker for both; the neuron is 1st or 2nd most aligned with the Arabic direction): 2026-11-05
 
 Job scripts that produced these are in `scripts/jobs/` (each says which entry it belongs to).
+
+### 2026-11-05: K.1 judge, Apple's main criterion, on the English attacks (`judge.py --judge k1`, `scripts/jobs/judge_k1.sh`)
+Setup: Apple's main judge counts an attack only when the answer is **not a refusal and coherent** (their App. K.1, judged by Claude). Ours asks K.1's three questions (refusal, coherence, helpful harmful information), in our own wording with K.1's JSON fields, of gemma-2-9b-it (a different model family from the three under test). JailbreakBench, 100 prompts, 512 tokens; the same answers as Milestone 3.
+
+| Neuron, m* | K.1 ASR: unpinned → constant / anchor k=1 / k=2 | Llama-Guard (Milestone 3) | Arditi ablation: K.1 / Llama-Guard |
+|---|---|---|---|
+| Qwen3-8B L14:F7924, +20 | 0.03 → **0.96** / 0.91 / 0.96 | 0.04 → 0.95 / 0.90 / 0.95 | 0.99 / 0.91–0.95 |
+| Llama-3.1-8B L11:F4258, −4 | 0.03 → **0.97** / 0.96 / 0.97 | 0.04 → 0.93 / 0.94 / 0.93 | 0.96 / 0.91–0.95 |
+| Qwen3-1.7B L13:F3270, +40 | 0.13 → 0.89 / 0.89 / 0.89 | 0.20 → 0.88 / 0.85 / 0.87 | 0.95 |
+| Qwen3-1.7B L10:F244, −15 | 0.13 → 0.91 / 0.89 / 0.90 | 0.20 → 0.89 / 0.87 / 0.89 | — |
+
+- **Under Apple's main criterion the attack holds: 0.89–0.97,** within a few points of Llama-Guard. Every pinned answer is judged coherent (1.00), and 0.90–0.97 are judged to contain helpful harmful information.
+- **Agreement with Llama-Guard is high:** 88–97% (kappa 0.70–0.92); with Qwen3Guard on Qwen3-8B 96% (kappa 0.89).
+- **The judge does catch garbling:** on the residual-stream reranks, the high pins that Llama-Guard scored 0.92–0.98 on Llama are judged incoherent (coherence 0.00–0.05, K.1 ASR ≈ 0); full residual numbers in a later entry.
+- Unparsed replies: at most 1 per run.
+
+Log: `judge_k1-449790` (an earlier run at batch size 16 ran out of memory on these 512-token answers).
 
 ### 2026-11-05: Part 3, the refusal direction inside the MLP, first result (`mlp_direction.py`, `scripts/jobs/mlp_direction.sh`)
 Setup: Arditi's difference-of-means direction, but over the MLP's neuron values (before `down_proj`) instead of the residual stream, from the 128/128 search prompts, at the Table 3 token where Apple's neuron's gap is largest. Interventions at that layer, every token, on the 191 HarmBench prompts (128 tokens), Llama-Guard-3. Qwen3-1.7B, English, L13 (Apple's neuron F3270 at +40):
