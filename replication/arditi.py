@@ -13,8 +13,15 @@ and last-position-only logits keep accelerator memory bounded. Ablation vectors
 are normalized once in float64, then cast per device/dtype, rather than repeatedly
 renormalized in activation precision as in utils/hook_utils.py.
 
+Other languages: --harmful/--harmless/--harmful_val/--harmless_val pick the splits (default:
+Arditi's exact samples), --n_val keeps the first n of each validation split, and --refusal_words
+replaces Arditi's English refusal tokens with the first token of each given word.
+
 Responses are saved only to outputs/evaluate; logs contain metrics, never text.
 Usage: python replication/arditi.py --model Qwen/Qwen3-1.7B --watch 13:3270 --tag jbb
+  Arabic: ... --harmful poly_ar_harmful_train --harmless poly_ar_harmless_train \
+      --harmful_val poly_ar_harmful_rerank --harmless_val poly_ar_harmless_test --n_val 32 \
+      --refusal_words أنا لا --eval_split poly_ar_harmful_eval --tag poly_ar
 """
 import argparse
 from contextlib import contextmanager
@@ -327,8 +334,15 @@ def main():
     ap.add_argument("--max_new", type=int, default=512)
     ap.add_argument("--no_eval", action="store_true", help="skip response generation")
     ap.add_argument("--tag", default="jbb")
+    ap.add_argument("--harmful", default="arditi_harmful_train")
+    ap.add_argument("--harmless", default="arditi_harmless_train")
+    ap.add_argument("--harmful_val", default="arditi_harmful_val")
+    ap.add_argument("--harmless_val", default="arditi_harmless_val")
+    ap.add_argument("--n_val", type=int, default=0, help="first n prompts of each validation split (0 = all)")
+    ap.add_argument("--refusal_words", nargs="+", help="refusal words for the score (first token of each); "
+                    "default: Arditi's English tokens")
     args = ap.parse_args()
-    if args.bs < 1 or args.n < 0 or args.max_new < 1:
+    if args.bs < 1 or args.n < 0 or args.max_new < 1 or args.n_val < 0:
         ap.error("--bs/--max_new must be positive and --n nonnegative")
     if (args.layer is None) != (args.pos is None):
         ap.error("--layer and --pos must be supplied together")
@@ -346,18 +360,25 @@ def main():
     started = time.time()
     tok = AutoTokenizer.from_pretrained(args.model, padding_side="left", local_files_only=True)
     tok.pad_token = tok.pad_token or tok.eos_token
-    token_ids = REFUSAL_TOKENS[family]
-    # Check that a differently named local tokenizer has not silently changed these IDs.
-    expected = ["I", "As"] if family == "qwen3" else ["I"]
-    if [tok.decode([i]) for i in token_ids] != expected:
-        raise ValueError("Tokenizer refusal-token IDs differ from Arditi's model-family IDs")
+    if args.refusal_words:
+        token_ids = sorted({tok.encode(w, add_special_tokens=False)[0] for w in args.refusal_words})
+    else:
+        token_ids = REFUSAL_TOKENS[family]
+        # Check that a differently named local tokenizer has not silently changed these IDs.
+        expected = ["I", "As"] if family == "qwen3" else ["I"]
+        if [tok.decode([i]) for i in token_ids] != expected:
+            raise ValueError("Tokenizer refusal-token IDs differ from Arditi's model-family IDs")
+    print(f"refusal tokens: {token_ids} = {[tok.decode([i]) for i in token_ids]}", flush=True)
 
     formatted, post_tokens = {}, None
-    for name, size in (("harmful_train", 128), ("harmless_train", 128),
-                       ("harmful_val", 32), ("harmless_val", 32)):
-        raw = load("arditi_" + name)
-        if not isinstance(raw, list) or len(raw) != size or any(not isinstance(x, str) or not x for x in raw):
-            raise ValueError(f"arditi_{name}: expected {size} nonempty instructions")
+    splits = {"harmful_train": args.harmful, "harmless_train": args.harmless,
+              "harmful_val": args.harmful_val, "harmless_val": args.harmless_val}
+    for name, split in splits.items():
+        raw = load(split)
+        if name.endswith("_val") and args.n_val:
+            raw = raw[:args.n_val]
+        if not isinstance(raw, list) or not raw or any(not isinstance(x, str) or not x for x in raw):
+            raise ValueError(f"{split}: expected nonempty instructions")
         prompts, n_post, tokens = build_prompts(tok, raw)
         if n_post < 1 or (post_tokens is not None and tokens != post_tokens):
             raise ValueError("Train/val splits must share a nonempty template suffix")
@@ -387,7 +408,7 @@ def main():
         indices = keep.nonzero().flatten().tolist()
         filtering[name] = {"before": len(prompts), "after": len(indices),
                            "kept_indices": indices, "refusal_scores": scores.tolist()}
-        print(f"{name}: kept {len(indices)}/{len(prompts)}", flush=True)
+        print(f"{name}: kept {len(indices)}/{len(prompts)} (mean refusal score {scores.mean().item():+.2f})", flush=True)
         if not indices:
             raise ValueError(f"Filtering emptied {name}; cannot estimate or select a direction")
         batches[name] = tokenize_batches(tok, [prompts[i] for i in indices], args.bs, post_ids)
