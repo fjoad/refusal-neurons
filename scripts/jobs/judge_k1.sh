@@ -10,11 +10,12 @@
 #SBATCH --exclude=crimv3mgpu018
 #SBATCH --chdir=/export/home/fjoad/refusal-neurons
 #SBATCH -o logs/%x-%j.out
+# Batch size 4: 512-token answers at 16 run out of memory on 16 GB cards (gemma-2 needs eager attention).
 # Usage: sbatch --gres=gpu:v100_16GB:2 scripts/jobs/judge_k1.sh <output JSON> ...   (globs allowed, quoted)
 source ~/anaconda3/bin/activate refneu
 export HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 PYTHONUNBUFFERED=1
 for f in $@; do
   [ -f $f ] || { echo "missing $f"; continue; }
   echo "##### $f"
-  python -u replication/judge.py $f --judge k1 && python -u replication/judge_agreement.py $f
+  python -u replication/judge.py $f --judge k1 --bs 4 && python -u replication/judge_agreement.py $f
 done
