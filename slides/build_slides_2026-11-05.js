@@ -145,7 +145,7 @@ const warn = (text) => ({ text, options: { bold: true, color: FIRE } });
   label(s, "INTERVENTIONS", 7.0, 4.45, 5.5, TEAL);
   bullets(s, [
     "Constant pin: the neuron held at the pin at every token",
-    "Anchor k=1, 2: pinned only near the start of the answer (Apple's gentler version)",
+    "Anchor k=1, 2: pin scaled by how strongly the neuron fires on that prompt, so harmless prompts are barely touched (k = strength)",
     "Arditi baseline: refusal direction removed from the residual stream",
   ], 7.0, 4.8, 5.7, 1.6, 14);
 }
