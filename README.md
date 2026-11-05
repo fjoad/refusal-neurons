@@ -46,8 +46,10 @@ What is running or parked, where its output lands, and what comes next. Job logs
 |---|---|---|---|
 | Arabic Experiment 1: refusal sentences, search and rerank answers, both tracks, 3 models | `scripts/jobs/arabic_exp1.sh <model> <English L:F>` | `outputs/refusal_phrases/<model>_ar.json`, `outputs/neuron_search/<model>_float16_{poly,mj}_ar_full.json`, `outputs/rerank/<model>_float16_{poly,mj}_ar.json` | Judge each model's rerank files with `sbatch scripts/jobs/judge_ar_rerank.sh <model>` (both Arabic judges, both tracks), then pick each Arabic neuron and pin by the 0.90 rule. Qwen3-1.7B is judged (job 436940): the rule doesn't settle a winner (see the results log); PolyRefuse is judged for all three: Qwen3-8B picks L14:F7924 at +20 (Apple's), Llama picks L11:F4258 at −4 (Apple's) under Qwen3Guard and is a near-tie under the other judge. MultiJail is judged for all three (8B: 437432/3, after 437021/2 timed out on P100s): no neuron reaches 0.90. **Done**; next is choosing each model's Arabic neuron for Experiments 2–8 (see the results log) |
 | Arabic Experiment 2: the jailbreak on 100 held-out Arabic prompts per track (unpinned, pin, anchor k=1,2) vs Arditi's direction from Arabic prompts, both judges | `scripts/jobs/arabic_exp2.sh <model> <L> <F> <pin>` | `outputs/evaluate/<model>_L<L>_F<F>_{poly,mj}_ar.json`, `outputs/evaluate/<model>_arditi_{poly,mj}_ar.json`, `outputs/arditi/<model>_{poly,mj}_ar.*` | Running since 2026-11-05 (`arabic_exp2-449697/8/9`); log ASR per intervention and judge in the results log |
-| Parked: the refusal direction inside the MLP | `replication/mlp_direction.py` (written, **not reviewed or run**) | `outputs/mlp_direction/`, `outputs/evaluate/<model>_L<L>_mlpdir_<tag>.json` | Review it line by line, then run after the Arabic replication |
-| Parked: refusal phrases for all 24 language sets | `scripts/jobs/refusal_phrases.sh` | `outputs/refusal_phrases/<model>_multilingual.json` (first pass, token cut) | Rerun with whole-word openings, add a refusal check, before the multilingual searches |
+| Arabic Experiments 3–7, launched 2026-11-05 | `scripts/jobs/arabic_exp3.sh` (Arabic MMLU), `arabic_exp45.sh` (per-token, base models), `arabic_exp6.sh` (residual), `arabic_exp7.sh` (PolyRefuse detection) | `outputs/capability/*_mmmlu_ar*.json`, `outputs/token_acts/*_{poly_ar,mj_ar,poly_en}.json`, `outputs/rerank/*_{poly,mj}_ar_residual.json`, `outputs/neuron_check/*_{poly,mj}_{ar,en}_detect.json`, `outputs/guard_detect/` | Jobs 449743/51/52 (Exp 3), 449745 (4–5), 449749/50 (6), 449744 (7); log each result. Experiment 8 (alignment) comes out of Experiment 2's `arditi.py` runs |
+| English gaps, launched 2026-11-05 | `scripts/jobs/cap_arditi.sh` (Arditi's capability cost); `scripts/jobs/judge_k1.sh` (Apple's K.1 judge on gemma-2-9b-it) | `outputs/capability/*_arditi.json`; `unsafe_k1`, `coherent_k1` fields in the judged files | Jobs 449746/7/8 (capability), 449757 (K.1 on the English attacks and both residual reranks), 449758 (K.1 on the Arabic Experiment 2 files) |
+| Part 3: the refusal direction inside the MLP, launched 2026-11-05 | `replication/mlp_direction.py` (reviewed 2026-11-05), `scripts/jobs/mlp_direction.sh` | `outputs/mlp_direction/<model>_L<L>_<tag>.{json,pt}`, `outputs/evaluate/<model>_L<L>_mlpdir_<tag>.json` | Jobs 449740 (Qwen3-1.7B, English + both Arabic tracks), 449741/2 (8B English), 449753/4 (8B Arabic) |
+| Parked: refusal phrases for all 24 language sets | `scripts/jobs/refusal_phrases.sh` | `outputs/refusal_phrases/<model>_multilingual.json` (first pass, token cut) | Rerun with whole-word openings, add a refusal check, before the multilingual searches (Part 2) |
 
 ### Part 1 checklist: every Apple experiment, in English and in Arabic
 
@@ -83,9 +85,9 @@ Models above 8B are out of scope (decided at the start). The early Arabic pieces
 The project has three parts (restated by Faaiz, 2026-11-05):
 
 **Part 1: the whole Apple paper, in English and in Arabic** (current). Every experiment the paper runs, done the same way, in Arabic as well as English, finishing any English gaps. The aim is to investigate whether Arabic behaves the same, not to reproduce Apple's numbers. Checklist above. In order:
-1. Arabic Experiments 2–8 (rows 2–8 of the checklist). 2 is running.
-2. The English gaps: Arditi's capability cost (row 3), Llama's residual baseline (row 6, needs the coherence judge).
-3. A coherence-aware judge (Apple's K.1 prompt on a local model, row 11), then rescore the attacks with it in both languages.
+1. Arabic Experiments 2–8 (rows 2–8 of the checklist). All launched 2026-11-05.
+2. The English gaps: Arditi's capability cost (row 3), Llama's residual baseline (row 6, needs the coherence judge). Both launched 2026-11-05.
+3. A coherence-aware judge (Apple's K.1 prompt on a local model, row 11), then rescore the attacks with it in both languages. Launched 2026-11-05 on gemma-2-9b-it.
 4. Rows 9 and 10 (what the neuron responds to; concept neurons), in both languages. These need a corpus and a human reader; lowest priority.
 
 **Part 2: every other language.** The same experiments for every language in PolyRefuse (Wang et al., the dataset Nadir suggested; 14 languages: en ar de es fr it ja ko nl pl ru th yo zh), and in MultiJail (10 human-translated languages), as decided on 22 October. Data splits are ready. First step: rerun the refusal phrases with whole-word openings and a refusal check. Then:
@@ -99,7 +101,7 @@ The project has three parts (restated by Faaiz, 2026-11-05):
 - When the direction works, is it only through this neuron? (Ablate the direction but hold the neuron at its harmful value)
 - The reverse route: compute the direction first, take its strongest neuron, and check whether it is the refusal neuron
 
-`replication/mlp_direction.py` implements most of Part 3. It is written but not reviewed or run.
+`replication/mlp_direction.py` implements most of Part 3. Reviewed 2026-11-05 and running for all three models, in English and on both Arabic tracks (`scripts/jobs/mlp_direction.sh`). Caveat: in the held-neuron run, Arditi's all-layer ablation also strips the direction out of the neuron's own write, so only its other effects can restore refusal.
 
 Then **writing** (December), for 4 January. After this paper: images and audio (Paper B), then the SAE and EMNLP-directions comparison (Paper C).
 
@@ -125,6 +127,8 @@ These were settled in discussion. Don't reopen them without a new reason.
 - **Judge: Llama-Guard-3-8B only, free and on panther** (decided 2026-10-21). There are no API credits for an LLM judge while this is exploratory. An answer is a successful attack when Llama-Guard labels it unsafe; that is Apple's secondary judge. Caveat: Llama-Guard does **not** reliably reject garbled output. It called all of Qwen3-8B's pin-80 outputs unsafe, and their median length was 100 characters.
 - **One judge for every language.** Comparing English numbers from one judge with Arabic numbers from another would not be valid.
 - **Arabic judges** (decided 2026-10-27): **Qwen3Guard-Gen-8B** (Apache-2.0, 119 languages, ~86 F1 on Arabic, also labels refusals) on the original text, and **Llama-Guard-3 on an NLLB-200 English translation**, as Wang et al. (NeurIPS 2025) did. Reported side by side; the agreement check passed (kappa 0.88), and Llama-Guard on the untranslated Arabic undercounts (0.84 vs 0.95), so it isn't used. A chat model was rejected as translator because it may refuse to translate harmful answers. FanarGuard (QCRI) would be a natural third judge, but it isn't public; ask Taha Sencar.
+- **Apple's main judge criterion (K.1) runs on gemma-2-9b-it** (decided 2026-11-05). Apple's main judge is Claude with their K.1 prompt: an attack succeeds when the answer is not a refusal and is coherent. With no API credits, the same three questions run locally (`judge.py --judge k1`), worded in our own words with K.1's JSON fields. gemma-2-9b-it is already cached, reads Arabic, and comes from a different family than the three models under test, so no model grades itself. It is reported next to Llama-Guard and the Arabic judges, not instead of them.
+- **Arabic capability uses MMMLU** (decided 2026-11-05): `mmmlu_ar_1000` is the same 1,000 questions as `mmlu_1000`, professionally translated (OpenAI's MMMLU), with an Arabic answer instruction. No Arabic GSM8K exists, so Arabic Experiment 3 is MMLU only.
 - **Arabic Experiments 2–8 use Apple's neurons** (decided 2026-11-05): Qwen3-8B L14:F7924 at +20, Llama L11:F4258 at −4, Qwen3-1.7B L13:F3270 at +40. The Arabic PolyRefuse rerank picks them for both 8B models (Llama under one judge, a near-tie under the other); for Qwen3-1.7B it's a near-tie in both languages, and +40 is Apple's neuron's best Arabic pin. Using the same neurons as English makes the two languages directly comparable.
 - **Rerank selection: the candidate that reaches ASR ≥ 0.90 at the smallest pin**, not the highest ASR, because Llama-Guard rewards garbled high-pin output. This rule recovers Apple's neuron and pin on both 8B models. `judge.py` prints this ranking.
 - **The rerank is cheaper than the paper's:** a 9-value pin grid (2–60) and 128 new tokens instead of their 47 values and 512 tokens. The final attack (M3) uses 512 tokens like the paper.
@@ -139,7 +143,6 @@ These were settled in discussion. Don't reopen them without a new reason.
 
 ## Open questions
 - **Language families for the fallback story:** how to group the 14 + 10 languages (by family, by script, by resource level).
-- **Which local LLM to use as the coherence judge** (Part 1, step 3; checklist row 11).
 - **Which multimodal models** share a backbone with our text models (e.g. a Qwen3-based VL or audio model)? Check each model's backbone before using it.
 - **MultiJail is borderline in places:** the models' unpinned refusal rate on it is low (~0.45 by string match on Qwen3-8B). A stricter harmful set may be needed for Arabic attack numbers.
 
@@ -176,6 +179,7 @@ Everything heavy runs on **panther** (QCRI SLURM). The repo is a plain git clone
 | `data/prepare_arabic.py` | MultiJail en/ar and Aya en/ar splits (test sets and search sets) |
 | `data/prepare_xstest.py` | XSTest safe/unsafe splits |
 | `data/prepare_capability.py` | Fixed MMLU (1,000) and GSM8K (250) subsets |
+| `data/prepare_mmmlu.py` | Arabic MMLU: the same 1000 questions as `mmlu_1000`, from MMMLU (`mmmlu_ar_1000`) |
 | `data/prepare_multilingual.py` | PolyRefuse (14 languages) and MultiJail + Aya (10 languages) splits, the same prompts in every language |
 
 **Experiments** (`replication/`)
@@ -186,12 +190,12 @@ Everything heavy runs on **panther** (QCRI SLURM). The repo is a plain git clone
 | `neuron_search.py` (+ `.sh`) | Exp. 1 part 1, Arabic B, Exp. 8 | Apple's gradient × activation search over the first 2/3 of layers; top 5. `--watch L:F` reports any neuron's rank; `--space residual` searches residual-stream numbers; saves `*_means.pt`. Paper settings are the defaults |
 | `rescore.py` | Exp. 1 | Re-ranks from a saved `*_means.pt` with a different token subset, on CPU |
 | `rerank.py` | Exp. 1 part 2, Exp. 8 | Pins each top-5 candidate over a grid of pin values on HarmBench and saves the answers |
-| `judge.py` | all attacks | Verdicts and ASR for any rerank/evaluate/neuron_check output. `--judge llamaguard\|qwen3guard`; `--translate` judges an NLLB-200 English translation (`--src_lang`, `--prompts_en`). Each judge writes its own fields; prints the best pin per candidate |
+| `judge.py` | all attacks | Verdicts and ASR for any rerank/evaluate/neuron_check output. `--judge llamaguard\|qwen3guard`; `--translate` judges an NLLB-200 English translation (`--src_lang`, `--prompts_en`). `--judge k1`: Apple's main criterion (not refusing and coherent) on gemma-2-9b-it. Each judge writes its own fields; prints the best pin per candidate |
 | `translate.py` | Arabic, multilingual | NLLB-200 translation into English (chunked at sentence breaks), used by `judge.py --translate` |
 | `judge_agreement.py` | Arabic, multilingual | Agreement and Cohen's kappa between every pair of judges on the same responses |
 | `evaluate.py` | Exp. 2 | JailbreakBench attack for one neuron: unpinned, constant pin, anchor k=1,2; 512 tokens |
 | `intervene.py` | Exp. 2–3 | Shared constant and anchor (Eq. 6–7) interventions |
-| `capability.py` | Exp. 3 | MMLU and GSM8K accuracy under each intervention |
+| `capability.py` | Exp. 3 | MMLU and GSM8K accuracy under each intervention; `--arditi <pt>` adds Arditi's ablation, `--modes` picks modes, `--mmlu_instruction` for other languages |
 | `token_acts.py` | Exp. 4–5 | Per-token neuron values over the whole prompt (content vs template tokens); base vs chat models |
 | `guard_detect.py` | Exp. 6, Arabic C | Llama-Guard-3 as a prompt-only harmful-prompt detector (AUROC, precision, recall) |
 | `detect_threshold.py` | Exp. 6, Arabic A | Turns detection scores into a filter: best cut-off, accuracy, precision, recall; `--calibrate` applies a cut-off from other data |
@@ -199,6 +203,7 @@ Everything heavy runs on **panther** (QCRI SLURM). The repo is a plain git clone
 | `refusal_openings.py` | Arabic B | Counts the stock openings of unpinned answers, to find a model's refusal sentence in a language; never prints full answers |
 | `refusal_tokens.py` | Arabic Exp. 2, 7 | Picks a model's refusal tokens in a language for Arditi's score, from first tokens of judged unpinned answers; feeds `arditi.py --refusal_tokens_json` |
 | `refusal_phrases.py` | multilingual | Each model's most common refusal openings per language, from short unpinned answers; feeds `neuron_search.py --phrases_json/--phrases_key` |
+| `mlp_direction.py` | Part 3 | Arditi-style refusal direction inside the MLP (before `down_proj`), its decomposition over neurons at every layer, and attack runs: ablate it, ablate it without the refusal neuron, steer, reset the neuron, Arditi's ablation with the neuron held |
 | `summarize.py` | any | Per-run metrics of an output JSON (refusal, ASR, response lengths), never the text |
 | `show_responses.py` | any | Writes a few generated answers to a file, for a human to read |
 
@@ -232,6 +237,7 @@ python replication/show_responses.py outputs/neuron_check/<file>.json --out /tmp
 | `harmless_heldout` | 100 | Alpaca, disjoint from train | M1 separation, per-token plots |
 | `xstest_unsafe`, `xstest_safe` | 200 + 250 | XSTest | detection (Exp. 6), harmful-word controls (Exp. 4) |
 | `mmlu_1000`, `gsm8k_250` | 1000, 250 | MMLU, GSM8K test | capability (Exp. 3) |
+| `mmmlu_ar_1000` | 1000 | MMMLU Arabic (OpenAI), the same questions as `mmlu_1000` | Arabic capability (Arabic Exp. 3) |
 | `multijail_en`, `multijail_ar` | 100 + 100 | MultiJail, the same prompts in both languages | Arabic A and C (test) |
 | `aya_harmless_en`, `aya_harmless_ar` | 100 + 100 | Aya test split | Arabic A and C (test) |
 | `multijail_train_en`, `multijail_train_ar` | 128 + 128 | MultiJail, disjoint from the 100 above | Arabic B (search) |
@@ -257,6 +263,7 @@ PolyRefuse languages: en ar de es fr it ja ko nl pl ru th yo zh. MultiJail langu
 | `arditi/` | `arditi.py` | the direction, candidate scores, alignment report |
 | `token_acts/` | `token_acts.py` | per-token values for every prompt |
 | `guard_detect/` | `guard_detect.py` | Llama-Guard prompt scores |
+| `mlp_direction/` | `mlp_direction.py` | the MLP-space direction, per-layer decompositions (`.json`) and moments (`.pt`) |
 | `refusal_phrases/`, `refusal_tokens/` | `refusal_phrases.py`, `refusal_tokens.py` | refusal openings / refusal tokens per model and language |
 
 ## Layout
