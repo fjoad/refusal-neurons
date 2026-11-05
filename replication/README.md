@@ -47,6 +47,7 @@ Everything else follows Section 2 and Appendices A, C and G as written.
 | Detection threshold | "optimal threshold" on XSTest | same (best accuracy on XSTest), plus a cut-off calibrated on other data | The optimal one is optimistic; calibrated numbers in the log |
 | Residual baseline (3.3) | residual dims (hook point not stated) | each decoder layer's input | Paper's L12:F291 = our L13:F291, so they likely used layer outputs |
 | Arditi refusal score | Arditi's pipeline | Arditi's rules re-implemented in `arditi.py` (refusal tokens "I", "As" for Qwen; "I" for Llama), Qwen3 template with thinking off | Arditi's code doesn't support Qwen3 |
+| Arditi in Arabic | (not in either paper) | Refusal tokens picked per model from its unpinned Arabic answers that Qwen3Guard labels refusals (`refusal_tokens.py`); direction from the Arabic search sets; selection on the first 32 of the Arabic rerank and harmless test sets | Arditi's English tokens don't apply; no Arabic validation split exists |
 
 ## Data
 - **Train:** 128 harmful (AdvBench, MaliciousInstruct, TDC2023) and 128 harmless (Alpaca) prompts: Arditi et al.'s exact sample (`arditi_*_train` splits). Our own seed-42 sample (`harmful_train`/`harmless_train`) gave different rankings.
@@ -79,8 +80,23 @@ Newest work first in each topic; every entry has its date, setup, numbers and ca
 - **Refusal phrases in 24 language sets** (first pass): 2026-10-27
 - **Arabic judges chosen and validated** (they agree; Llama-Guard on raw Arabic undercounts): 2026-10-27
 - **Arabic Experiment 1** (PolyRefuse rerank picks Apple's neuron and pin on Qwen3-8B, and on Llama under Qwen3Guard; Qwen3-1.7B a near-tie; on MultiJail no neuron reaches 0.90 on any model): 2026-10-27
+- **Arabic Experiment 2** (running; refusal tokens for the Arabic Arditi baseline chosen): 2026-11-05
 
 Job scripts that produced these are in `scripts/jobs/` (each says which entry it belongs to).
+
+### 2026-11-05: Arabic Experiment 2, the jailbreak (running) (`scripts/jobs/arabic_exp2.sh`)
+Apple's neurons at the decided pins (Qwen3-8B L14:F7924 +20, Llama L11:F4258 −4, Qwen3-1.7B L13:F3270 +40) on the 100 held-out Arabic prompts of each track (`poly_ar_harmful_eval`, `mj_ar_harmful_test`): unpinned, constant pin, anchor k = 1, 2, 512 tokens. Baseline: Arditi's direction computed from Arabic prompts and ablated. Both Arabic judges. Jobs `arabic_exp2-449697/8/9`.
+
+**Arabic refusal tokens for Arditi's score** (`refusal_tokens.py`; first token of the unpinned Arabic rerank answers, both tracks, split by Qwen3Guard's refusal label; kept if ≥ 10 answers and ≥ 75% of them refusals):
+
+| Model | Tokens | Refusals covered |
+|---|---|---|
+| Qwen3-8B | "أ" (start of "أنا", "I"; 138 refusals / 7 other answers) | 138 / 204 |
+| Llama-3.1-8B | "لا" ("no / can't"; 201 / 12) | 201 / 213 |
+| Qwen3-1.7B | "أ" (60 / 4), "لا" (27 / 8) | 87 / 173 |
+
+- Qwen3-1.7B's Arabic refusals open in many different ways; no small token set covers most of them.
+- A first check on Qwen3-1.7B with "أ" + "لا" (`arditi_check-449688`): on PolyRefuse 11 of 252 candidate directions pass Arditi's filters; on MultiJail none do (nearly all fail "induce": adding the direction to harmless prompts doesn't make the refusal tokens more likely than not). The job then skips that baseline rather than stopping.
 
 ### 2026-10-27: Arabic Experiment 1, search and rerank (`scripts/jobs/arabic_exp1.sh`, `scripts/jobs/judge_ar_rerank.sh`)
 Apple's method run from scratch in Arabic, on two tracks:

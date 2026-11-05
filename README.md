@@ -45,7 +45,7 @@ What is running or parked, where its output lands, and what comes next. Job logs
 | Work | Script | Output (on panther) | Next step |
 |---|---|---|---|
 | Arabic Experiment 1: refusal sentences, search and rerank answers, both tracks, 3 models | `scripts/jobs/arabic_exp1.sh <model> <English L:F>` | `outputs/refusal_phrases/<model>_ar.json`, `outputs/neuron_search/<model>_float16_{poly,mj}_ar_full.json`, `outputs/rerank/<model>_float16_{poly,mj}_ar.json` | Judge each model's rerank files with `sbatch scripts/jobs/judge_ar_rerank.sh <model>` (both Arabic judges, both tracks), then pick each Arabic neuron and pin by the 0.90 rule. Qwen3-1.7B is judged (job 436940): the rule doesn't settle a winner (see the results log); PolyRefuse is judged for all three: Qwen3-8B picks L14:F7924 at +20 (Apple's), Llama picks L11:F4258 at −4 (Apple's) under Qwen3Guard and is a near-tie under the other judge. MultiJail is judged for all three (8B: 437432/3, after 437021/2 timed out on P100s): no neuron reaches 0.90. **Done**; next is choosing each model's Arabic neuron for Experiments 2–8 (see the results log) |
-| Arabic Experiment 2: the jailbreak on 100 held-out Arabic prompts per track (unpinned, pin, anchor k=1,2) vs Arditi's direction from Arabic prompts, both judges | `scripts/jobs/arabic_exp2.sh <model> <L> <F> <pin>` | `outputs/evaluate/<model>_L<L>_F<F>_{poly,mj}_ar.json`, `outputs/evaluate/<model>_arditi_{poly,mj}_ar.json`, `outputs/arditi/<model>_{poly,mj}_ar.*` | Submitted 2026-11-05 for all 3 models; log ASR per intervention and judge in the results log |
+| Arabic Experiment 2: the jailbreak on 100 held-out Arabic prompts per track (unpinned, pin, anchor k=1,2) vs Arditi's direction from Arabic prompts, both judges | `scripts/jobs/arabic_exp2.sh <model> <L> <F> <pin>` | `outputs/evaluate/<model>_L<L>_F<F>_{poly,mj}_ar.json`, `outputs/evaluate/<model>_arditi_{poly,mj}_ar.json`, `outputs/arditi/<model>_{poly,mj}_ar.*` | Running since 2026-11-05 (`arabic_exp2-449697/8/9`); log ASR per intervention and judge in the results log |
 | Parked: the refusal direction inside the MLP | `replication/mlp_direction.py` (written, **not reviewed or run**) | `outputs/mlp_direction/`, `outputs/evaluate/<model>_L<L>_mlpdir_<tag>.json` | Review it line by line, then run after the Arabic replication |
 | Parked: refusal phrases for all 24 language sets | `scripts/jobs/refusal_phrases.sh` | `outputs/refusal_phrases/<model>_multilingual.json` (first pass, token cut) | Rerun with whole-word openings, add a refusal check, before the multilingual searches |
 
@@ -188,8 +188,9 @@ Everything heavy runs on **panther** (QCRI SLURM). The repo is a plain git clone
 | `token_acts.py` | Exp. 4–5 | Per-token neuron values over the whole prompt (content vs template tokens); base vs chat models |
 | `guard_detect.py` | Exp. 6, Arabic C | Llama-Guard-3 as a prompt-only harmful-prompt detector (AUROC, precision, recall) |
 | `detect_threshold.py` | Exp. 6, Arabic A | Turns detection scores into a filter: best cut-off, accuracy, precision, recall; `--calibrate` applies a cut-off from other data |
-| `arditi.py` | Exp. 7, Fig. 5 | Arditi's refusal direction (selection, ablation attack) and the Appendix G cosine alignment. `--harmful/--harmless/--harmful_val/--harmless_val/--n_val` and `--refusal_words` run it in another language |
+| `arditi.py` | Exp. 7, Fig. 5 | Arditi's refusal direction (selection, ablation attack) and the Appendix G cosine alignment. `--harmful/--harmless/--harmful_val/--harmless_val/--n_val` and `--refusal_tokens_json` run it in another language |
 | `refusal_openings.py` | Arabic B | Counts the stock openings of unpinned answers, to find a model's refusal sentence in a language; never prints full answers |
+| `refusal_tokens.py` | Arabic Exp. 2, 7 | Picks a model's refusal tokens in a language for Arditi's score, from first tokens of judged unpinned answers; feeds `arditi.py --refusal_tokens_json` |
 | `refusal_phrases.py` | multilingual | Each model's most common refusal openings per language, from short unpinned answers; feeds `neuron_search.py --phrases_json/--phrases_key` |
 | `summarize.py` | any | Per-run metrics of an output JSON (refusal, ASR, response lengths), never the text |
 | `show_responses.py` | any | Writes a few generated answers to a file, for a human to read |
@@ -249,6 +250,7 @@ PolyRefuse languages: en ar de es fr it ja ko nl pl ru th yo zh. MultiJail langu
 | `arditi/` | `arditi.py` | the direction, candidate scores, alignment report |
 | `token_acts/` | `token_acts.py` | per-token values for every prompt |
 | `guard_detect/` | `guard_detect.py` | Llama-Guard prompt scores |
+| `refusal_phrases/`, `refusal_tokens/` | `refusal_phrases.py`, `refusal_tokens.py` | refusal openings / refusal tokens per model and language |
 
 ## Layout
 
