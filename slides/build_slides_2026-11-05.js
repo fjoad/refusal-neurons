@@ -107,7 +107,7 @@ const warn = (text) => ({ text, options: { bold: true, color: FIRE } });
   const cols = [
     { h: "Part 1: the Apple paper in Arabic", c: AMBER, body: ["Every experiment of the paper, in Arabic, on two datasets (PolyRefuse, MultiJail)", "Plus the English gaps"], st: "Mostly done" },
     { h: "Part 2: every other language", c: TEAL, body: ["PolyRefuse: 14 languages", "MultiJail: 10 human-translated languages", "One neuron for all languages, per family, or per language?"], st: "Search done · attacks running" },
-    { h: "Part 3: Nadir's MLP questions", c: SLATE, body: ["Arditi's direction built inside the MLP", "How much of it is the neuron?", "Does it work only through the neuron?", "Reverse route: direction first, then its top neuron"], st: "Done in English · Arabic partly" },
+    { h: "Part 3: MLP questions", c: SLATE, body: ["Nanda's direction built inside the MLP", "How much of it is the neuron?", "Does it work only through the neuron?", "Reverse route: direction first, then its top neuron"], st: "Done in English · Arabic partly" },
   ];
   const w = (CW - 0.5) / 3;
   cols.forEach((c, i) => {
@@ -146,7 +146,7 @@ const warn = (text) => ({ text, options: { bold: true, color: FIRE } });
   bullets(s, [
     "Constant pin: the neuron held at the pin at every token",
     "Anchor k=1, 2: pin scaled by how strongly the neuron fires on that prompt, so harmless prompts are barely touched (k = strength)",
-    "Arditi baseline: refusal direction removed from the residual stream",
+    "Nanda baseline: refusal direction removed from the residual stream",
   ], 7.0, 4.8, 5.7, 1.6, 14);
 }
 
@@ -160,21 +160,21 @@ const warn = (text) => ({ text, options: { bold: true, color: FIRE } });
   ], ML, 1.55, CW, 1.0, 15);
   label(s, "SUCCESSFUL ATTACKS, ARABIC, 100 HELD-OUT PROMPTS (APPLE'S K.1 CRITERION)", ML, 2.65, CW);
   table(s, [
-    ["Model", "PolyRefuse: no pin → pinned", "MultiJail: no pin → pinned", "Arditi, Arabic direction (PolyRefuse)"],
+    ["Model", "PolyRefuse: no pin → pinned", "MultiJail: no pin → pinned", "Nanda, Arabic direction (PolyRefuse)"],
     ["Qwen3-8B", hl("15% → 97%"), "15% → 82%", "97%"],
     ["Llama-3.1-8B", hl("22% → 96%"), "30% → 91%", "99%"],
     ["Qwen3-1.7B", hl("32% → 99%"), "39% → 92%", "100%"],
   ], ML, 3.0, CW, [2.4, 3.2, 3.0, 3.53], { size: 15, rowH: 0.48 });
-  result(s, [b("Arabic behaves like English. "), t("One neuron switches refusal off as well as Arditi's whole direction does, and every pinned answer stays coherent.")], { y: 5.4 });
+  result(s, [b("Arabic behaves like English. "), t("One neuron switches refusal off as well as Nanda's whole direction does, and every pinned answer stays coherent.")], { y: 5.4 });
 }
 
 // ------------------------------------------------------------------ 5. Arabic cost + detection
 {
   const s = newSlide("Arabic: small cost to ability, and the neuron is a good detector", "p1",
-    "Exp 3: Arabic MMLU (OpenAI's MMMLU, the same 1,000 questions as our English MMLU set), answer-letter accuracy. Anchoring costs about 1 point. Exp 7: AUROC of the neuron's activation as a harmful-prompt detector, vs Llama-Guard-3. Exp 8: Apple's neuron is the 1st or 2nd most aligned neuron with Arditi's Arabic direction.");
+    "Exp 3: Arabic MMLU (OpenAI's MMMLU, the same 1,000 questions as our English MMLU set), answer-letter accuracy. Anchoring costs about 1 point. Exp 7: AUROC of the neuron's activation as a harmful-prompt detector, vs Llama-Guard-3. Exp 8: Apple's neuron is the 1st or 2nd most aligned neuron with Nanda's Arabic direction.");
   label(s, "ARABIC MMLU ACCURACY (1,000 QUESTIONS)", ML, 1.55, 6.3);
   table(s, [
-    ["Model", "No pin", "Constant", "Anchor k=1", "Arditi"],
+    ["Model", "No pin", "Constant", "Anchor k=1", "Nanda"],
     ["Qwen3-8B", "56.4", "46.9", hl("55.7"), "55.3"],
     ["Llama-3.1-8B", "45.3", "40.5", hl("45.3"), "44.0"],
     ["Qwen3-1.7B", "39.5", "31.7", hl("38.4"), "36.4"],
@@ -188,7 +188,7 @@ const warn = (text) => ({ text, options: { bold: true, color: FIRE } });
   bullets(s, [
     "Anchored pin (Apple's gentler version) costs about 1 point; a constant pin costs 5–9",
     "One number from one neuron detects harmful Arabic prompts almost as well as a dedicated 8B safety model",
-    "Apple's neuron is the 1st or 2nd most aligned neuron with Arditi's Arabic refusal direction",
+    "Apple's neuron is the 1st or 2nd most aligned neuron with Nanda's Arabic refusal direction",
   ], ML, 4.0, CW, 1.8, 15);
   result(s, [b("Every Arabic result so far matches the English paper. "), t("Remaining: what the neuron responds to (needs a human reader).")], { y: 6.15 });
 }
@@ -196,7 +196,7 @@ const warn = (text) => ({ text, options: { bold: true, color: FIRE } });
 // ------------------------------------------------------------------ 6. English gaps
 {
   const s = newSlide("English gaps filled: the neuron beats the residual stream", "en",
-    "Section 3.3: the same search over the residual stream. Under the K.1 criterion the best single residual dimension reaches 32% on Llama and 16% on Qwen3-8B; Apple reports 29–45% and 39%. Arditi's capability cost: MMLU 1,000 questions, GSM8K.");
+    "Section 3.3: the same search over the residual stream. Under the K.1 criterion the best single residual dimension reaches 32% on Llama and 16% on Qwen3-8B; Apple reports 29–45% and 39%. Nanda's capability cost: MMLU 1,000 questions, GSM8K.");
   label(s, "ATTACK SUCCESS OF THE BEST SINGLE DIMENSION (K.1 CRITERION)", ML, 1.55, 6.2);
   table(s, [
     ["Model", "MLP neuron", "Residual stream"],
@@ -212,7 +212,7 @@ const warn = (text) => ({ text, options: { bold: true, color: FIRE } });
     ["Llama-3.1-8B", "63.8 → 63.5", "72.8 → 74.4"],
     ["Qwen3-1.7B", "53.7 → 51.7", "58.4 → 57.6"],
   ], 7.0, 1.9, 5.7, [2.1, 1.8, 1.8], { size: 14 });
-  result(s, [b("Section 3.3 confirmed: "), t("the refusal switch lives in one MLP neuron, not in any single residual-stream dimension. Arditi's ablation costs 1–2 points.")], { y: 4.6 });
+  result(s, [b("Section 3.3 confirmed: "), t("the refusal switch lives in one MLP neuron, not in any single residual-stream dimension. Nanda's ablation costs 1–2 points.")], { y: 4.6 });
 }
 
 // ------------------------------------------------------------------ 7. Part 2 rank grid
@@ -335,7 +335,7 @@ const FAIL = { "Llama-3.1-8B": [12], "Qwen3-8B": [12, 21], "Qwen3-1.7B": [12, 21
 // ------------------------------------------------------------------ 11. Part 3
 {
   const s = newSlide("Inside the MLP: the refusal direction's top neuron is Apple's neuron", "p3",
-    "Arditi's difference-of-means direction, computed over the MLP's neuron values (before down_proj) at the neuron's layer, from the 128/128 search prompts. Interventions at that layer, every token; HarmBench 191 prompts, 128 tokens, Llama-Guard-3. Steering: subtract α times the harmful-minus-harmless gap; α=4 shown. Held: Arditi's ablation with the neuron held at its harmful mean value.");
+    "Nanda's difference-of-means direction, computed over the MLP's neuron values (before down_proj) at the neuron's layer, from the 128/128 search prompts. Interventions at that layer, every token; HarmBench 191 prompts, 128 tokens, Llama-Guard-3. Steering: subtract α times the harmful-minus-harmless gap; α=4 shown. Held: Nanda's ablation with the neuron held at its harmful mean value.");
   table(s, [
     ["", "Qwen3-8B", "Llama-3.1-8B", "Qwen3-1.7B"],
     ["Direction's top neuron", hl("Apple's (23%)"), hl("Apple's (22%)"), hl("Apple's (18%)")],
@@ -345,14 +345,14 @@ const FAIL = { "Llama-3.1-8B": [12], "Qwen3-8B": [12, 21], "Qwen3-1.7B": [12, 21
     ["Reset Apple's neuron to its harmless value", "17%", "23%", "42%"],
     ["Steer past harmless (α = 4)", hl("96%"), hl("92%"), hl("95%")],
     ["Pin Apple's neuron", hl("97%"), hl("94%"), hl("93%")],
-    ["Arditi's ablation / with Apple's neuron held on", "96% / 97%", "96% / 97%", "94% / 95%"],
+    ["Nanda's ablation / with Apple's neuron held on", "96% / 97%", "96% / 97%", "94% / 95%"],
   ], ML, 1.55, CW, [4.9, 2.4, 2.4, 2.43], { size: 14, rowH: 0.4 });
   s.addText("% = harmful answers (attack success). Percent in row 1 = share of the direction's squared size on that one neuron.",
     { x: ML, y: 5.2, w: CW, h: 0.3, fontFace: FONT, fontSize: 12, color: MUTED, margin: 0 });
   bullets(s, [
     "Reverse route works: build the direction first, and its biggest neuron is the refusal neuron, with no neuron search",
     "Switching refusal off is not enough; the neuron has to be pushed past its harmless value",
-    "Arditi's direction does not act only through this neuron: holding it on does not bring refusal back",
+    "Nanda's direction does not act only through this neuron: holding it on does not bring refusal back",
   ], ML, 5.55, CW, 1.5, 14);
 }
 
@@ -376,7 +376,7 @@ const FAIL = { "Llama-3.1-8B": [12], "Qwen3-8B": [12, 21], "Qwen3-1.7B": [12, 21
     ["Steer, α = 4", "81%", "64%"],
     ["Pin Apple's neuron", "89%", "58%"],
   ], 7.2, 1.95, 5.5, [2.1, 1.7, 1.7], { size: 14 });
-  result(s, [b("Two independent routes, one answer: "), t("searching neuron by neuron in 22 languages and decomposing Arditi's direction find the same small group of neurons. Arabic shows the same pattern.")], { y: 4.9, h: 0.8 });
+  result(s, [b("Two independent routes, one answer: "), t("searching neuron by neuron in 22 languages and decomposing Nanda's direction find the same small group of neurons. Arabic shows the same pattern.")], { y: 4.9, h: 0.8 });
 }
 
 // ------------------------------------------------------------------ 12b. quick check: the other direction
