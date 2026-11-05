@@ -80,11 +80,11 @@ Newest work first in each topic; every entry has its date, setup, numbers and ca
 - **Refusal phrases in 24 language sets** (first pass): 2026-10-27
 - **Arabic judges chosen and validated** (they agree; Llama-Guard on raw Arabic undercounts): 2026-10-27
 - **Arabic Experiment 1** (PolyRefuse rerank picks Apple's neuron and pin on Qwen3-8B, and on Llama under Qwen3Guard; Qwen3-1.7B a near-tie; on MultiJail no neuron reaches 0.90 on any model): 2026-10-27
-- **Arabic Experiment 2** (running; refusal tokens for the Arabic Arditi baseline chosen): 2026-11-05
+- **Arabic Experiments 2 and 8** (PolyRefuse: the neuron jailbreaks Arabic as well as English, 88–95%, matching Arditi's Arabic direction; MultiJail weaker for both; the neuron is 1st or 2nd most aligned with the Arabic direction): 2026-11-05
 
 Job scripts that produced these are in `scripts/jobs/` (each says which entry it belongs to).
 
-### 2026-11-05: Arabic Experiment 2, the jailbreak (running) (`scripts/jobs/arabic_exp2.sh`)
+### 2026-11-05: Arabic Experiments 2 and 8, the jailbreak and the alignment with Arditi's direction (`scripts/jobs/arabic_exp2.sh`)
 Apple's neurons at the decided pins (Qwen3-8B L14:F7924 +20, Llama L11:F4258 −4, Qwen3-1.7B L13:F3270 +40) on the 100 held-out Arabic prompts of each track (`poly_ar_harmful_eval`, `mj_ar_harmful_test`): unpinned, constant pin, anchor k = 1, 2, 512 tokens. Baseline: Arditi's direction computed from Arabic prompts and ablated. Both Arabic judges. Jobs `arabic_exp2-449697/8/9`.
 
 **Arabic refusal tokens for Arditi's score** (`refusal_tokens.py`; first token of the unpinned Arabic rerank answers, both tracks, split by Qwen3Guard's refusal label; kept if ≥ 10 answers and ≥ 75% of them refusals):
@@ -97,6 +97,37 @@ Apple's neurons at the decided pins (Qwen3-8B L14:F7924 +20, Llama L11:F4258 −
 
 - Qwen3-1.7B's Arabic refusals open in many different ways; no small token set covers most of them.
 - A first check on Qwen3-1.7B with "أ" + "لا" (`arditi_check-449688`): on PolyRefuse 11 of 252 candidate directions pass Arditi's filters; on MultiJail none do (nearly all fail "induce": adding the direction to harmless prompts doesn't make the refusal tokens more likely than not). The job then skips that baseline rather than stopping.
+
+**Results: ASR on the 100 held-out prompts** (each cell: Qwen3Guard on the Arabic / Llama-Guard-3 on the NLLB English translation; pins: constant; anchor k = 1, 2 in brackets, Qwen3Guard):
+
+| Model, track | Unpinned | Neuron pinned (anchor k=1, k=2) | Arditi's Arabic direction ablated |
+|---|---|---|---|
+| Qwen3-8B, PolyRefuse | 0.07 / 0.15 | **0.95 / 0.95** (0.89, 0.93) | 0.80 / 0.90 |
+| Qwen3-8B, MultiJail | 0.03 / 0.00 | 0.76 / 0.54 (0.71, 0.76) | 0.52 / 0.45 |
+| Llama-3.1-8B, PolyRefuse | 0.15 / 0.23 | **0.90 / 0.94** (0.89, 0.92) | 0.88 / 0.94 |
+| Llama-3.1-8B, MultiJail | 0.07 / 0.05 | 0.68 / 0.58 (0.64, 0.67) | 0.60 / 0.49 |
+| Qwen3-1.7B, PolyRefuse | 0.40 / 0.50 | **0.88 / 0.94** (0.86, 0.89) | 0.88 / 0.93 |
+| Qwen3-1.7B, MultiJail | 0.14 / 0.17 | 0.58 / 0.52 (0.62, 0.58) | none: no direction passes Arditi's filters |
+
+Qwen3Guard's refusal rate falls from 0.58–0.80 unpinned to 0.04–0.17 pinned on every row. Judge agreement per file: 83–94%, kappa 0.64–0.84.
+
+- **PolyRefuse (the same prompts as English, machine-translated): Arabic behaves like English.** Apple's neuron at its English pin takes the attack from 7–40% to 88–95%, about as strong as Arditi's whole direction computed from Arabic prompts, and as in English (95% Qwen3-8B, 93% Llama on JailbreakBench). Anchor matches constant.
+- **MultiJail (human-translated): both methods are weaker, the neuron still at least as strong as Arditi.** Refusals still drop to ~10%, but fewer answers are judged harmful (0.58–0.76 Qwen3Guard). This matches Experiment 1 (pins remove refusal without making answers harmful, likely borderline prompts; not verified by reading).
+- **Qwen3-1.7B is less safe in Arabic to begin with:** 40% of PolyRefuse prompts succeed unpinned (Qwen3Guard), vs 7–15% for the 8B models.
+- **Arditi in Arabic is weaker than in English:** the refusal-score filter keeps only 34–85 of the 128 harmful training prompts (English: nearly all), because the Arabic first-token score is a weaker refusal signal.
+
+**Experiment 8, alignment (App. G) with the Arabic direction:**
+
+| Model, track | Selected (pos, layer); English | Apple's neuron vs that direction: cosine, own-layer rank; English |
+|---|---|---|
+| Qwen3-8B, PolyRefuse | (−8, 19); English (−1, 20) | −0.192, **1st**; English −0.149, 1st |
+| Qwen3-8B, MultiJail | (−8, 21) | −0.134, 2nd |
+| Llama-3.1-8B, PolyRefuse | (−5, 12); English (−1, 12) | +0.494, **1st**; English +0.583, 1st |
+| Llama-3.1-8B, MultiJail | (−5, 12) | +0.432, **1st** |
+| Qwen3-1.7B, PolyRefuse | (−1, 16); English (−8, 15) | −0.167, 2nd; English −0.323, 1st |
+| Qwen3-1.7B, MultiJail | none selected | — |
+
+All union-bound p-values ≤ 1e-9. **The Arabic direction lands in the same or a neighbouring layer as the English one, and Apple's neuron is the 1st or 2nd most aligned neuron in its own layer on every track that has a direction.** Logs: `arabic_exp2-449697/8/9`.
 
 ### 2026-10-27: Arabic Experiment 1, search and rerank (`scripts/jobs/arabic_exp1.sh`, `scripts/jobs/judge_ar_rerank.sh`)
 Apple's method run from scratch in Arabic, on two tracks:

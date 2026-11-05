@@ -353,7 +353,12 @@ The steps above checked pieces in Arabic. Now we redo *all* of Apple's experimen
   - **Qwen3-8B picks Apple's neuron at Apple's pin** (L14:F7924 at +20) under both judges: 9–12% harmful answers unpinned, 93–95% pinned. No other candidate reaches 90%.
   - **Llama picks Apple's neuron at Apple's pin** (L11:F4258 at −4) under Qwen3Guard. Under the other judge a neighbour (L10:F4789) edges it by one or two prompts: a near-tie, as in English.
 - **Rerank on MultiJail Arabic (human-translated), all three models:** no neuron gets 90% harmful answers. The pins do stop most refusals (Qwen3-8B with Apple's neuron: refusals go from 56% to 10%), but many of the answers that stop refusing are judged safe. MultiJail has many borderline prompts, where answering isn't necessarily harmful. Apple's neuron is still the best on Qwen3-8B by Qwen3Guard.
-- **Next:** the attack, capability, per-token, base-model, detector, alignment and residual experiments in Arabic.
+- **The attack on 100 new Arabic prompts (Experiment 2), with the same neuron and pin as English:**
+  - **PolyRefuse:** harmful answers go from 7–40% to **88–95%** on all three models, about the same as in English. Arditi's method, recomputed from Arabic prompts, does about as well (80–90%), so one neuron is as strong as the whole direction in Arabic too.
+  - **MultiJail:** 58–76% pinned. Refusals still drop to about 10%, but more answers are judged safe, as in the rerank. Arditi's method does no better (49–60%) and finds no direction at all for Qwen3-1.7B.
+  - The small Qwen3-1.7B already answers 40% of the PolyRefuse Arabic prompts harmfully with no pin.
+- **Alignment (Experiment 8):** Arditi's Arabic direction sits in the same or the next layer as the English one, and Apple's neuron is the 1st or 2nd neuron in its layer most lined up with it, on every track that has a direction.
+- **Running now:** capability on Arabic MMLU (the same 1,000 questions, professionally translated), per-token firing and base models, the detector on PolyRefuse, the residual baseline, and Apple's coherence-aware judge.
 
 ## 9. Caveats
 - English answers have one judge (Llama-Guard-3), which doesn't check that answers make sense. Arabic answers have two that agree (Qwen3Guard, and Llama-Guard on a translation).
