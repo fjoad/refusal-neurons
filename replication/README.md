@@ -125,16 +125,17 @@ Setup: Arditi's difference-of-means direction, but over the MLP's neuron values 
 8B models and the Arabic tracks are running. Log: `mlp_direction-449792`.
 
 ### 2026-11-05: Arabic Experiments 3, 4–5 and 7, and Arditi's capability cost, first results (`arabic_exp3.sh`, `arabic_exp45.sh`, `arabic_exp7.sh`, `cap_arditi.sh`)
-**Experiment 3, capability on Arabic MMLU** (`mmmlu_ar_1000`: the same 1,000 questions as `mmlu_1000`, from MMMLU; Arabic answer instruction; no Arabic GSM8K exists). Qwen3-1.7B and Qwen3-8B so far:
+**Experiment 3, capability on Arabic MMLU** (`mmmlu_ar_1000`: the same 1,000 questions as `mmlu_1000`, from MMMLU; Arabic answer instruction; no Arabic GSM8K exists). All three models:
 
 | Model | Arabic MMLU: base → constant / anchor k=1 / k=2 / Arditi's Arabic direction | English MMLU, same order |
 |---|---|---|
 | Qwen3-1.7B L13:F3270, +40 | 0.395 → 0.317 / 0.384 / 0.373 / 0.364 | 0.537 → 0.484 / 0.529 / 0.524 / 0.517 |
-| Qwen3-8B L14:F7924, +20 | 0.564 → 0.469 / 0.557 / 0.553 / 0.553 | 0.675 → 0.604 / 0.679 / 0.681 / queued |
+| Qwen3-8B L14:F7924, +20 | 0.564 → 0.469 / 0.557 / 0.553 / 0.553 | 0.675 → 0.604 / 0.679 / 0.681 / 0.666 |
+| Llama-3.1-8B L11:F4258, −4 | 0.453 → 0.405 / 0.453 / 0.448 / 0.440 | 0.638 → 0.607 / 0.638 / 0.638 / 0.635 |
 
-Same pattern as English in both models: the constant pin costs 8–10 points, the anchor recovers nearly all of it (−0.7 to −2), and Arditi's ablation costs 1–3. Arabic scores are 12–14 points below English to begin with. Logs: `arabic_exp3-449743`, `arabic_exp3-449795`; Llama running.
+Same pattern as English in all three models: the constant pin costs 5–10 points, the anchor recovers nearly all of it (0 to −2), and Arditi's ablation costs 1–3. Arabic scores are 11–19 points below English to begin with. Logs: `arabic_exp3-449743/95/96`.
 
-**English gap, Arditi's own capability cost** (English direction, all-layer ablation): Qwen3-1.7B MMLU 0.537 → 0.517, GSM8K 0.584 → 0.576. Smaller than the constant pin's, larger than the anchor's. 8B models queued. Log: `cap_arditi-449746`.
+**English gap, Arditi's own capability cost** (English direction, all-layer ablation): MMLU / GSM8K, base → Arditi: Qwen3-1.7B 0.537 → 0.517 / 0.584 → 0.576; Qwen3-8B 0.675 → 0.666 / 0.580 → 0.572; Llama 0.638 → 0.635 / GSM8K running. About 1–2 points: like the anchor, far below the constant pin. Logs: `cap_arditi-449746/97/98`.
 
 **Experiments 4–5, where the neuron fires, per token** (100 harmful vs 100 harmless prompts per set; mean peak activation on the harmful prompts over the user's text / over Table 3's template tokens; AUROC from the template tokens):
 
