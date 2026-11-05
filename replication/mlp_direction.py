@@ -1,6 +1,8 @@
 """Mean harmful-minus-harmless refusal direction inside the MLP, before down_proj.
 
-Status (2026-10-27): written, not yet reviewed line by line or run. Review it before use.
+Status: written 2026-10-27; reviewed 2026-11-05 (first runs then). Caveat for arditi_ablate_neuron_held:
+the all-layer ablation also projects the direction out of the MLP output, so the held neuron's write
+along Arditi's direction is removed too; restored refusal can only come through its other components.
 
 Part A measures h = act_fn(gate_proj(x)) * up_proj(x) on Table 3's tokens.
 The main direction uses t*, the token with the largest absolute gap for the
@@ -355,6 +357,9 @@ def read_arditi(path, width, n_layers):
         return None
     saved = torch.load(path, map_location="cpu", weights_only=True)
     direction, selected = saved.get("direction"), saved.get("selected")
+    if direction is None and selected is None:
+        print(f"{path}: Arditi's filters rejected every candidate, so it has no direction.", flush=True)
+        return None
     if not isinstance(direction, torch.Tensor) or direction.shape != (width,):
         raise ValueError("Arditi file lacks a direction with this model's residual width")
     if not isinstance(selected, dict) or not isinstance(selected.get("layer"), int):

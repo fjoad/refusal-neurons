@@ -120,6 +120,8 @@ def main():
                      + (f"  unparsed {unparsed}" if unparsed else ""))
         where = f"L{run['layer']}:F{run['neuron']} " if run.get("layer") is not None else ""
         mode = f" {run['mode']}" + (f" k={run['k']:g}" if run.get("k") is not None else "") if run.get("mode") else ""
+        if (run.get("params") or {}).get("alpha") is not None:
+            mode += f" alpha={run['params']['alpha']:g}"
         print(f"{where}pin={run['pin']}{mode}: {name} ASR {run[asr_key]:.3f}{extra}  ({(time.time() - t0) / 60:.1f} min)")
     if not isinstance(d["runs"], list):
         for run in runs:

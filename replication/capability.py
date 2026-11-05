@@ -2,12 +2,16 @@
 
 MMLU: next-token choice among A/B/C/D after the chat template (paper Appendix A).
 GSM8K: greedy generation, then the number after '####' (or the last number) vs the gold answer.
-Modes: none, constant (h_i <- m*), anchor (Eq. 7, per k). Same chat template as the attacks.
+Modes: none, constant (h_i <- m*), anchor (Eq. 7, per k), and with --arditi, Arditi's all-layer
+ablation of a saved refusal direction. Same chat template as the attacks. --modes picks a subset.
+--mmlu_instruction replaces the English answer instruction (e.g. Arabic for MMMLU).
 Writes outputs/capability/<model>_L<l>_F<i>_<tag>.json and logs accuracies.
 Usage:
   python replication/capability.py --model Qwen/Qwen3-8B --layer 14 --neuron 7924 --pin 20 \
       --search outputs/neuron_search/Qwen3-8B_float16_arditi.json
+  Arditi's cost only: ... --modes arditi --arditi outputs/arditi/Qwen3-8B_jbb.pt --tag arditi
 """
+import contextlib
 import argparse
 import json
 import re
@@ -16,6 +20,7 @@ import time
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
+from arditi import intervention
 from evaluate import generate
 from intervene import Pin, anchor_values, neuron_gap
 from neuron_check import ROOT, build_prompts, load
@@ -23,9 +28,12 @@ from neuron_check import ROOT, build_prompts, load
 LETTERS = "ABCD"
 
 
-def mmlu_text(q):
+MMLU_INSTRUCTION = "Answer with the letter of the correct option only."
+
+
+def mmlu_text(q, instruction=MMLU_INSTRUCTION):
     options = "\n".join(f"{l}. {c}" for l, c in zip(LETTERS, q["choices"]))
-    return f"{q['question']}\n\n{options}\n\nAnswer with the letter of the correct option only."
+    return f"{q['question']}\n\n{options}\n\n{instruction}"
 
 
 def gsm_text(q):
@@ -73,6 +81,10 @@ def main():
     ap.add_argument("--bs", type=int, default=16)
     ap.add_argument("--dtype", default="float16", choices=["float16", "bfloat16", "float32"])
     ap.add_argument("--tag", default="capability")
+    ap.add_argument("--modes", nargs="+", default=["none", "constant", "anchor"],
+                    choices=["none", "constant", "anchor", "arditi"])
+    ap.add_argument("--arditi", help="arditi.py .pt with a selected direction; adds the 'arditi' mode")
+    ap.add_argument("--mmlu_instruction", default=MMLU_INSTRUCTION)
     args = ap.parse_args()
 
     t0 = time.time()
@@ -89,26 +101,39 @@ def main():
     out_dir.mkdir(parents=True, exist_ok=True)
     out_path = out_dir / f"{args.model.split('/')[-1]}_L{args.layer}_F{args.neuron}_{args.tag}.json"
     result = {"args": vars(args), "d": d, "results": []}
-    modes = [("none", None)] + [("constant", None)] + [("anchor", k) for k in args.k]
+    modes = [(m, k) for m, ks in [("none", [None]), ("constant", [None]), ("anchor", args.k), ("arditi", [None])]
+             if m in args.modes for k in ks]
+    direction = None
+    if args.arditi:
+        direction = torch.load(ROOT / args.arditi, map_location="cpu", weights_only=True).get("direction")
+        if direction is None:
+            raise ValueError(f"{args.arditi} has no selected direction")
+        modes += [] if "arditi" in args.modes else [("arditi", None)]
+    elif "arditi" in args.modes:
+        raise ValueError("--modes arditi needs --arditi")
 
     for task in args.tasks:
         data = load(getattr(args, task))
         data = data[:args.n] if args.n else data
-        texts = [mmlu_text(q) if task == "mmlu" else gsm_text(q) for q in data]
+        texts = [mmlu_text(q, args.mmlu_instruction) if task == "mmlu" else gsm_text(q) for q in data]
         prompts, _, post_tokens = build_prompts(tok, texts)
         for mode, k in modes:
-            if mode == "none":
+            if mode in ("none", "arditi"):
                 values = None
             elif mode == "constant":
                 values = args.pin
             else:
                 values = anchor_values(model, tok, pin, prompts, post_tokens, args.pin, d, k, args.bs)
+            ctx = intervention(model, direction) if mode == "arditi" else contextlib.nullcontext()
+            with ctx:
+                if task == "mmlu":
+                    preds = mmlu_preds(model, tok, pin, prompts, values, args.bs)
+                else:
+                    outs = generate(model, tok, pin, prompts, values, args.bs, args.max_new)
             if task == "mmlu":
-                preds = mmlu_preds(model, tok, pin, prompts, values, args.bs)
                 correct = [p == q["answer"] for p, q in zip(preds, data)]
                 extra = {"preds": preds}
             else:
-                outs = generate(model, tok, pin, prompts, values, args.bs, args.max_new)
                 answers = [gsm_answer(o) for o in outs]
                 correct = [a is not None and abs(a - float(q["answer"])) < 1e-6 for a, q in zip(answers, data)]
                 extra = {"answers": answers, "responses": outs}
