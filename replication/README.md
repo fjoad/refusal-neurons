@@ -80,9 +80,51 @@ Newest work first in each topic; every entry has its date, setup, numbers and ca
 - **Refusal phrases in 24 language sets** (first pass): 2026-10-27
 - **Arabic judges chosen and validated** (they agree; Llama-Guard on raw Arabic undercounts): 2026-10-27
 - **Arabic Experiment 1** (PolyRefuse rerank picks Apple's neuron and pin on Qwen3-8B, and on Llama under Qwen3Guard; Qwen3-1.7B a near-tie; on MultiJail no neuron reaches 0.90 on any model): 2026-10-27
+- **Arabic Experiments 3, 4–5, 7 and Arditi's capability cost, first results** (Arabic behaves like English, a bit weaker; base models already have the neuron in Arabic too): 2026-11-05
 - **Arabic Experiments 2 and 8** (PolyRefuse: the neuron jailbreaks Arabic as well as English, 88–95%, matching Arditi's Arabic direction; MultiJail weaker for both; the neuron is 1st or 2nd most aligned with the Arabic direction): 2026-11-05
 
 Job scripts that produced these are in `scripts/jobs/` (each says which entry it belongs to).
+
+### 2026-11-05: Arabic Experiments 3, 4–5 and 7, and Arditi's capability cost, first results (`arabic_exp3.sh`, `arabic_exp45.sh`, `arabic_exp7.sh`, `cap_arditi.sh`)
+**Experiment 3, capability on Arabic MMLU** (`mmmlu_ar_1000`: the same 1,000 questions as `mmlu_1000`, from MMMLU; Arabic answer instruction; no Arabic GSM8K exists). So far Qwen3-1.7B only (the 8B runs are queued):
+
+| Model | Arabic MMLU: base → constant / anchor k=1 / k=2 / Arditi's Arabic direction | English MMLU, same order |
+|---|---|---|
+| Qwen3-1.7B L13:F3270, +40 | 0.395 → 0.317 / 0.384 / 0.373 / 0.364 | 0.537 → 0.484 / 0.529 / 0.524 / 0.517 |
+
+Same pattern as English: the constant pin costs about 8 points, the anchor recovers most of it (−1 to −2), and Arditi's ablation sits between them (−3). Logs: `arabic_exp3-449743`.
+
+**English gap, Arditi's own capability cost** (English direction, all-layer ablation): Qwen3-1.7B MMLU 0.537 → 0.517, GSM8K 0.584 → 0.576. Smaller than the constant pin's, larger than the anchor's. 8B models queued. Log: `cap_arditi-449746`.
+
+**Experiments 4–5, where the neuron fires, per token** (100 harmful vs 100 harmless prompts per set; mean peak activation on the harmful prompts over the user's text / over Table 3's template tokens; AUROC from the template tokens):
+
+| Model | PolyRefuse English | PolyRefuse Arabic | MultiJail Arabic |
+|---|---|---|---|
+| Qwen3-8B | −3.4 / −3.8; 0.996 | −2.7 / −2.8; 0.961 | −2.4 / −3.4; 0.956 |
+| Llama-3.1-8B | +0.65 / +1.26; 1.000 | +0.34 / +0.82; 0.996 | +0.28 / +0.59; 0.930 |
+| Qwen3-1.7B | −8.9 / −10.3; 0.992 | −7.0 / −6.8; 0.948 | −3.6 / −5.8; 0.881 |
+| Qwen3-8B-Base | −2.3 / −0.5; 0.880 | −2.1 / −0.6; 0.928 | −1.9 / −0.6; 0.894 |
+| Qwen3-1.7B-Base | −6.1 / −3.0; 0.863 | −4.7 / −2.6; 0.920 | −2.7 / −2.1; 0.872 |
+
+- **Chat models (Exp. 4): the neuron fires on Arabic prompts the same way as English,** most strongly at the template tokens before the answer, at roughly 60–80% of the English strength, and still separates harmful from harmless prompts (AUROC 0.88–1.00).
+- **Base models (Exp. 5): as in English, the base checkpoints already have the neuron, firing on the harmful words in the prompt rather than at the template.** This holds in Arabic too: content-token firing is −2.1 (8B) and −4.7 (1.7B) on PolyRefuse Arabic, and the base model separates the Arabic sets at least as well as the English set.
+- MultiJail is the weakest set throughout, consistent with its borderline prompts.
+
+Log: `arabic_exp45-449745`.
+
+**Experiment 7, the neuron as a harmful-prompt detector** (AUROC over Table 3's tokens; PolyRefuse test: 572 harmful + 500 harmless; MultiJail: 100 + 100 Aya):
+
+| Detector | PolyRefuse English | PolyRefuse Arabic | MultiJail English | MultiJail Arabic |
+|---|---|---|---|---|
+| Qwen3-8B neuron | 0.992 | 0.951 | 0.972 (earlier entry) | 0.956 (earlier entry) |
+| Llama-3.1-8B neuron | 1.000 | 0.995 | 0.991 | 0.927 |
+| Qwen3-1.7B neuron | 0.984 | 0.959 | 0.954 | 0.898 |
+| Llama-Guard-3 (prompt only) | 1.000 (precision 0.996, recall 0.972) | 0.995 (0.991, 0.925) | 0.910 AUROC on MultiJail Arabic (earlier entry) | |
+
+- **Each single neuron is a strong detector in Arabic** (0.90–1.00), a few points below English.
+- **On PolyRefuse, Llama-Guard matches or beats the neurons;** the neurons' advantage over Llama-Guard (earlier entry) is on MultiJail Arabic. PolyRefuse prompts are clear-cut (AdvBench-style), MultiJail's are not.
+
+Log: `arabic_exp7-449744`.
 
 ### 2026-11-05: Arabic Experiments 2 and 8, the jailbreak and the alignment with Arditi's direction (`scripts/jobs/arabic_exp2.sh`)
 Apple's neurons at the decided pins (Qwen3-8B L14:F7924 +20, Llama L11:F4258 −4, Qwen3-1.7B L13:F3270 +40) on the 100 held-out Arabic prompts of each track (`poly_ar_harmful_eval`, `mj_ar_harmful_test`): unpinned, constant pin, anchor k = 1, 2, 512 tokens. Baseline: Arditi's direction computed from Arabic prompts and ablated. Both Arabic judges. Jobs `arabic_exp2-449697/8/9`.
