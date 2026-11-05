@@ -135,7 +135,7 @@ Setup: Arditi's difference-of-means direction, but over the MLP's neuron values 
 
 Same pattern as English in all three models: the constant pin costs 5–10 points, the anchor recovers nearly all of it (0 to −2), and Arditi's ablation costs 1–3. Arabic scores are 11–19 points below English to begin with. Logs: `arabic_exp3-449743/95/96`.
 
-**English gap, Arditi's own capability cost** (English direction, all-layer ablation): MMLU / GSM8K, base → Arditi: Qwen3-1.7B 0.537 → 0.517 / 0.584 → 0.576; Qwen3-8B 0.675 → 0.666 / 0.580 → 0.572; Llama 0.638 → 0.635 / GSM8K running. About 1–2 points: like the anchor, far below the constant pin. Logs: `cap_arditi-449746/97/98`.
+**English gap, Arditi's own capability cost** (English direction, all-layer ablation): MMLU / GSM8K, base → Arditi: Qwen3-1.7B 0.537 → 0.517 / 0.584 → 0.576; Qwen3-8B 0.675 → 0.666 / 0.580 → 0.572; Llama 0.638 → 0.635 / 0.728 → 0.744. About 0–2 points: like the anchor, far below the constant pin. Logs: `cap_arditi-449746/97/98`.
 
 **Experiments 4–5, where the neuron fires, per token** (100 harmful vs 100 harmless prompts per set; mean peak activation on the harmful prompts over the user's text / over Table 3's template tokens; AUROC from the template tokens):
 
