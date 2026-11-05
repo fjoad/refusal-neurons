@@ -82,7 +82,7 @@ def post_instruction_acts(model, tok, hook, prompts, n_post, bs):
     for i in range(0, len(prompts), bs):
         batch = tok(prompts[i:i + bs], return_tensors="pt", padding=True, add_special_tokens=False).to(model.device)
         hook.records.clear()
-        model(**batch)
+        model(**batch, logits_to_keep=1)  # only the hook's activations are used; full logits OOM on long prompts
         out.append(hook.records[0][:, -n_post:])  # left padding: suffix is the last n_post tokens
     return torch.cat(out).numpy()
 

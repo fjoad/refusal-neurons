@@ -12,7 +12,8 @@
 #SBATCH --exclude=crimv3mgpu018
 #SBATCH --chdir=/export/home/fjoad/refusal-neurons
 #SBATCH -o logs/%x-%j.out
-# Usage: sbatch scripts/jobs/part2_search.sh <model> <Apple's neuron L:F>
+# Usage: sbatch scripts/jobs/part2_search.sh <model> <Apple's neuron L:F> [resume_from, e.g. mj_bn]
+# With resume_from, the phrase step is skipped (its file exists) and languages before it are skipped.
 set -e
 source ~/anaconda3/bin/activate refneu
 export HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 PYTHONUNBUFFERED=1
@@ -20,10 +21,13 @@ short=$(basename "$1"); L=${2%:*}; F=${2#*:}
 POLY="en de es fr it ja ko nl pl ru th yo zh"; MJ="en zh it vi ko th bn sw jv"
 S=""; for l in $POLY ar; do S="$S poly_${l}_harmful_train"; done; for l in $MJ ar; do S="$S mj_${l}_harmful_train"; done
 P=outputs/refusal_phrases/${short}_multilingual.json
-python -u replication/refusal_phrases.py --model "$1" --splits $S --tag multilingual --refusal_check
+[ -n "$3" ] || python -u replication/refusal_phrases.py --model "$1" --splits $S --tag multilingual --refusal_check
+skip=${3:+1}
 for track in poly mj; do
   if [ $track = poly ]; then langs=$POLY; else langs=$MJ; fi
   for l in $langs; do
+    [ "${track}_${l}" = "$3" ] && skip=""
+    [ -n "$skip" ] && continue
     echo "##### $track $l"
     python -u replication/neuron_search.py --model "$1" --watch "$2" --tag ${track}_${l} \
       --harmful ${track}_${l}_harmful_train --harmless ${track}_${l}_harmless_train \
