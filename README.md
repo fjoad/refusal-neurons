@@ -66,7 +66,7 @@ Each experiment is run the same way as the paper. In Arabic the point is to see 
 | 8 | Alignment with Arditi's direction (App. G) | ✅ Matches Table 7; the neuron is #1 in its own layer in all 3 | ✅ Arabic direction in the same or next layer; Apple's neuron 1st (Llama both tracks, Qwen3-8B PolyRefuse) or 2nd in its layer | `arditi.py` | "Appendix G alignment" |
 | 9 | What the neuron responds to: max-activating text (3.5, App. I, L) | ⬜ Needs a corpus (The Pile) and a human to read the top snippets, which are largely explicit | ⬜ Needs an Arabic corpus | — | — |
 | 10 | Concept neurons, e.g. "suicide" steering (4) | ⬜ A different question from refusal | ⬜ | — | — |
-| 11 | Apple's main judge: refusal **and** coherence (App. K.1) | 🟡 English attacks rescored on gemma-2-9b-it: 0.89–0.97, every pinned answer coherent; residual baselines running | 🟡 Running on the Arabic attacks | — | — |
+| 11 | Apple's main judge: refusal **and** coherence (App. K.1) | 🟡 English attacks rescored on gemma-2-9b-it: 0.89–0.97, every pinned answer coherent; residual baselines running | ✅ Arabic attacks: PolyRefuse 0.96–0.99, MultiJail 0.79–0.94 (well above the guards: the pinned answers stop refusing but some prompts are borderline) | — | — |
 | — | Inducing refusal on harmless prompts (App. J, qualitative only) | ⬜ | ⬜ | — | — |
 
 Models above 8B are out of scope (decided at the start). The early Arabic pieces below fed into rows 1, 4 and 7.

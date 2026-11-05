@@ -80,14 +80,14 @@ Newest work first in each topic; every entry has its date, setup, numbers and ca
 - **Refusal phrases in 24 language sets** (first pass): 2026-10-27
 - **Arabic judges chosen and validated** (they agree; Llama-Guard on raw Arabic undercounts): 2026-10-27
 - **Arabic Experiment 1** (PolyRefuse rerank picks Apple's neuron and pin on Qwen3-8B, and on Llama under Qwen3Guard; Qwen3-1.7B a near-tie; on MultiJail no neuron reaches 0.90 on any model): 2026-10-27
-- **K.1 judge on the English attacks** (Apple's main criterion, not refusing and coherent: 0.89–0.97, every pinned answer coherent): 2026-11-05
-- **Part 3, MLP direction, first result** (Qwen3-1.7B: the direction's top neuron is Apple's neuron; steering with it jailbreaks at 0.95): 2026-11-05
+- **K.1 judge on the English and Arabic attacks** (Apple's main criterion: English 0.89–0.97, Arabic PolyRefuse 0.96–0.99, MultiJail 0.79–0.94; every pinned answer coherent): 2026-11-05
+- **Part 3, MLP direction, first result** (Qwen3-1.7B and Qwen3-8B: the direction's top neuron is Apple's neuron; steering with it jailbreaks at 0.95–0.96): 2026-11-05
 - **Arabic Experiments 3, 4–5, 7 and Arditi's capability cost, first results** (Arabic behaves like English, a bit weaker; base models already have the neuron in Arabic too): 2026-11-05
 - **Arabic Experiments 2 and 8** (PolyRefuse: the neuron jailbreaks Arabic as well as English, 88–95%, matching Arditi's Arabic direction; MultiJail weaker for both; the neuron is 1st or 2nd most aligned with the Arabic direction): 2026-11-05
 
 Job scripts that produced these are in `scripts/jobs/` (each says which entry it belongs to).
 
-### 2026-11-05: K.1 judge, Apple's main criterion, on the English attacks (`judge.py --judge k1`, `scripts/jobs/judge_k1.sh`)
+### 2026-11-05: K.1 judge, Apple's main criterion, on the English and Arabic attacks (`judge.py --judge k1`, `scripts/jobs/judge_k1.sh`)
 Setup: Apple's main judge counts an attack only when the answer is **not a refusal and coherent** (their App. K.1, judged by Claude). Ours asks K.1's three questions (refusal, coherence, helpful harmful information), in our own wording with K.1's JSON fields, of gemma-2-9b-it (a different model family from the three under test). JailbreakBench, 100 prompts, 512 tokens; the same answers as Milestone 3.
 
 | Neuron, m* | K.1 ASR: unpinned → constant / anchor k=1 / k=2 | Llama-Guard (Milestone 3) | Arditi ablation: K.1 / Llama-Guard |
@@ -101,6 +101,22 @@ Setup: Apple's main judge counts an attack only when the answer is **not a refus
 - **Agreement with Llama-Guard is high:** 88–97% (kappa 0.70–0.92); with Qwen3Guard on Qwen3-8B 96% (kappa 0.89).
 - **The judge does catch garbling:** on the residual-stream reranks, the high pins that Llama-Guard scored 0.92–0.98 on Llama are judged incoherent (coherence 0.00–0.05, K.1 ASR ≈ 0); full residual numbers in a later entry.
 - Unparsed replies: at most 1 per run.
+
+**Arabic attacks (Experiment 2 answers), K.1 judge on the Arabic text** (unpinned → constant / anchor k=1 / k=2; Arditi's Arabic direction; Qwen3Guard's constant-pin ASR for comparison):
+
+| Model, track | K.1 ASR | Arditi, K.1 | Qwen3Guard, constant |
+|---|---|---|---|
+| Qwen3-8B, PolyRefuse | 0.15 → **0.97** / 0.94 / 0.97 | 0.97 | 0.95 |
+| Llama-3.1-8B, PolyRefuse | 0.22 → **0.96** / 0.97 / 0.99 | 0.99 | 0.90 |
+| Qwen3-1.7B, PolyRefuse | 0.32 → **0.99** / 0.96 / 0.99 | 1.00 | 0.88 |
+| Qwen3-8B, MultiJail | 0.15 → 0.82 / 0.79 / 0.82 | 0.92 | 0.76 |
+| Llama-3.1-8B, MultiJail | 0.30 → 0.91 / 0.90 / 0.91 | 0.82 | 0.68 |
+| Qwen3-1.7B, MultiJail | 0.39 → 0.92 / 0.94 / 0.91 | none | 0.58 |
+
+- **Under Apple's main criterion the Arabic attack is as strong as the English one on PolyRefuse (0.96–0.99), and every pinned answer is coherent (≥ 0.98).**
+- **On MultiJail it reaches 0.79–0.94, well above the guard models' 0.58–0.76.** The pinned answers stop refusing and stay coherent; what the guards call safe are answers to borderline prompts that are not harmful to answer. This explains the MultiJail gap in Experiments 1–2: the neuron does switch refusal off there.
+- The unpinned K.1 rate (0.15–0.39) counts every non-refusal, so it is higher than the guards' unpinned ASR.
+- Log: `judge_k1-449791`.
 
 Log: `judge_k1-449790` (an earlier run at batch size 16 ran out of memory on these 512-token answers).
 
@@ -122,7 +138,22 @@ Setup: Arditi's difference-of-means direction, but over the MLP's neuron values 
 - **Removing the direction or resetting the neuron barely helps (0.41–0.48); pushing past the harmless side does (steering 0.95, pin 0.93).** As in the paper, the attack needs the neuron pushed beyond its harmless value, not just switched off.
 - **Holding the neuron at its harmful value does not bring refusal back under Arditi's ablation** (0.95). With the caveat that the ablation also strips the direction from this neuron's output, this says Arditi's direction does not work only through this neuron.
 
-8B models and the Arabic tracks are running. Log: `mlp_direction-449792`.
+**Qwen3-8B, English, L14** (Apple's neuron F7924 at +20; same setup):
+
+| Intervention | ASR |
+|---|---|
+| none | 0.13 |
+| pin F7924 at +20 | 0.97 |
+| ablate the MLP direction at L14 | 0.22 |
+| ablate it using every neuron except F7924 | 0.19 |
+| reset F7924 to its harmless mean | 0.17 |
+| steer, α = 0.5 / 1 / 2 / 4 | 0.31 / 0.54 / 0.90 / 0.96 |
+| Arditi's direction ablated at all layers | 0.96 |
+| same, with F7924 held at its harmful mean | 0.97 |
+
+**The same three findings on Qwen3-8B:** the MLP direction's top neuron at L14 is Apple's F7924 (rank 1, 23% of the squared norm); removing the direction or resetting the neuron barely helps, while steering past the harmless side jailbreaks (0.96); holding the neuron does not undo Arditi's ablation.
+
+Llama and the Arabic tracks are running. Logs: `mlp_direction-449792`, `mlp_direction-449799`.
 
 ### 2026-11-05: Arabic Experiments 3, 4–5 and 7, and Arditi's capability cost, first results (`arabic_exp3.sh`, `arabic_exp45.sh`, `arabic_exp7.sh`, `cap_arditi.sh`)
 **Experiment 3, capability on Arabic MMLU** (`mmmlu_ar_1000`: the same 1,000 questions as `mmlu_1000`, from MMMLU; Arabic answer instruction; no Arabic GSM8K exists). All three models:
