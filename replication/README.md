@@ -80,12 +80,38 @@ Newest work first in each topic; every entry has its date, setup, numbers and ca
 - **Refusal phrases in 24 language sets** (first pass): 2026-10-27
 - **Arabic judges chosen and validated** (they agree; Llama-Guard on raw Arabic undercounts): 2026-10-27
 - **Arabic Experiment 1** (PolyRefuse rerank picks Apple's neuron and pin on Qwen3-8B, and on Llama under Qwen3Guard; Qwen3-1.7B a near-tie; on MultiJail no neuron reaches 0.90 on any model): 2026-10-27
+- **Part 2 search in every language, Qwen3-1.7B** (Apple's neuron and L10:F244 in the top 5 in 19 of 21 language sets; Yoruba and Swahili are the exceptions): 2026-11-05
 - **K.1 judge on the English and Arabic attacks** (Apple's main criterion: English 0.89–0.97, Arabic PolyRefuse 0.96–0.99, MultiJail 0.79–0.94; every pinned answer coherent): 2026-11-05
 - **Part 3, MLP direction, first result** (Qwen3-1.7B and Qwen3-8B: the direction's top neuron is Apple's neuron; steering with it jailbreaks at 0.95–0.96): 2026-11-05
 - **Arabic Experiments 3, 4–5, 7 and Arditi's capability cost, first results** (Arabic behaves like English, a bit weaker; base models already have the neuron in Arabic too): 2026-11-05
 - **Arabic Experiments 2 and 8** (PolyRefuse: the neuron jailbreaks Arabic as well as English, 88–95%, matching Arditi's Arabic direction; MultiJail weaker for both; the neuron is 1st or 2nd most aligned with the Arabic direction): 2026-11-05
 
 Job scripts that produced these are in `scripts/jobs/` (each says which entry it belongs to).
+
+### 2026-11-05: Part 2, the search in every language, Qwen3-1.7B (`scripts/jobs/part2_search.sh`)
+Setup: for each of 21 language sets (PolyRefuse 13 + MultiJail 8, Arabic done in Part 1), the model's own refusal openings (128 unpinned answers to the harmful train set, 48 tokens; only answers Qwen3Guard labels as refusals are counted), then Apple's search on that language's 128/128 train sets, watching Apple's neuron L13:F3270; then that neuron's AUROC on the language's test sets (PolyRefuse 572/500, MultiJail 100/100). Languages with no refusal opening shared by ≥ 3 answers use the English Table 4 phrases (marked *).
+
+| Set | Unpinned refusal rate | Apple's neuron rank | Top 1 | AUROC |
+|---|---|---|---|---|
+| poly en | 0.92 | 2 | L10:F244 | 0.984 |
+| poly de / es / fr / it | 0.80 / 0.84 / 0.91 / 0.83 | 2 / 2 / 2 / 2 | L10:F244 | 0.97–0.98 |
+| poly ja / ko* / nl / pl / ru | 0.80 / 0.77 / 0.81 / 0.73 / 0.84 | 2 in all | L10:F244 | 0.94–0.96 |
+| poly th* / zh | 0.75 / 0.89 | 2 / 2 | L10:F244 | 0.95 / 0.96 |
+| poly yo | 0.44 | **175** | L7:F4490 | **0.66** |
+| mj en / jv | 0.67 / 0.66 | **1** / **1** | L13:F3270 | 0.95 / 0.99 |
+| mj zh / it / bn | 0.68 / 0.67 / 0.59 | 3 / 3 / 3 | L10:F244, L15:F1109 | 0.92–0.96 |
+| mj ko* / th* | 0.59 / 0.76 | 4 / 4 | L12:F4580, L15:F1109 | 0.97 / 0.93 |
+| mj vi | 0.66 | 6 | L12:F4580 | 0.95 |
+| mj sw | 0.55 | **354** | L7:F3729 | **0.34** |
+
+Counting appearances in the 21 top-5 lists: L10:F244 and L13:F3270 19 each, L12:F4580 17, L15:F1109 15, L12:F2897 11.
+
+- **Qwen3-1.7B has one shared set of refusal neurons across languages.** Apple's neuron and L10:F244 (the near-tie winner of the English rerank) are in the top 5 in 19 of 21 sets, and the top 2 are the same pair in all 12 PolyRefuse languages other than Yoruba. This is a strong candidate for the language-agnostic neuron.
+- **The exceptions are Yoruba and Swahili,** the two lowest-resource languages. The model refuses less there (0.44, 0.55), its "refusal" openings are not refusals (they echo the prompt or are garbled, so Qwen3Guard's refusal label is unreliable there), the search finds unrelated early-layer neurons, and Apple's neuron no longer separates harmful from harmless prompts (AUROC 0.66, 0.34). Either the model doesn't understand these prompts as harmful, or the refusal circuit isn't reached in these languages. A first lead for direction 2 (why translation jailbreaks work).
+- **The neuron is a good detector in every other language** (AUROC 0.92–0.99).
+- Caveat: the refusal check uses Qwen3Guard on 48-token openings; in low-resource languages some kept openings are not refusals.
+
+Log: `part2_search-449835`. Qwen3-8B and Llama: running (`part2_search-449875/8`, after a first run ran out of memory).
 
 ### 2026-11-05: K.1 judge, Apple's main criterion, on the English and Arabic attacks (`judge.py --judge k1`, `scripts/jobs/judge_k1.sh`)
 Setup: Apple's main judge counts an attack only when the answer is **not a refusal and coherent** (their App. K.1, judged by Claude). Ours asks K.1's three questions (refusal, coherence, helpful harmful information), in our own wording with K.1's JSON fields, of gemma-2-9b-it (a different model family from the three under test). JailbreakBench, 100 prompts, 512 tokens; the same answers as Milestone 3.
@@ -99,7 +125,7 @@ Setup: Apple's main judge counts an attack only when the answer is **not a refus
 
 - **Under Apple's main criterion the attack holds: 0.89–0.97,** within a few points of Llama-Guard. Every pinned answer is judged coherent (1.00), and 0.90–0.97 are judged to contain helpful harmful information.
 - **Agreement with Llama-Guard is high:** 88–97% (kappa 0.70–0.92); with Qwen3Guard on Qwen3-8B 96% (kappa 0.89).
-- **The judge does catch garbling:** on the residual-stream reranks, the high pins that Llama-Guard scored 0.92–0.98 on Llama are judged incoherent (coherence 0.00–0.05, K.1 ASR ≈ 0); full residual numbers in a later entry.
+- **The judge does catch garbling, which settles Section 3.3 for Llama.** On the residual-stream reranks (191 HarmBench prompts), the best residual dimension under K.1 reaches **0.32 on Llama** (L15:F325 at +4; then L13:F2742 0.26, L14:F2082 0.20) and **0.16 on Qwen3-8B** (L22:F690 at +60). The high pins that Llama-Guard scored 0.92–0.98 on Llama are judged incoherent (coherence 0.00–0.05, K.1 ASR ≈ 0). Apple reports 29–45% for Llama's residual baseline and 39% for Qwen3-8B, against 97% for the MLP neuron. Log: `judge_k1-449757`.
 - Unparsed replies: at most 1 per run.
 
 **Arabic attacks (Experiment 2 answers), K.1 judge on the Arabic text** (unpinned → constant / anchor k=1 / k=2; Arditi's Arabic direction; Qwen3Guard's constant-pin ASR for comparison):
@@ -153,7 +179,17 @@ Setup: Arditi's difference-of-means direction, but over the MLP's neuron values 
 
 **The same three findings on Qwen3-8B:** the MLP direction's top neuron at L14 is Apple's F7924 (rank 1, 23% of the squared norm); removing the direction or resetting the neuron barely helps, while steering past the harmless side jailbreaks (0.96); holding the neuron does not undo Arditi's ablation.
 
-Llama and the Arabic tracks are running. Logs: `mlp_direction-449792`, `mlp_direction-449799`.
+**Qwen3-1.7B, Arabic** (Arabic search sets; Arabic rerank prompts, 191 PolyRefuse / 87 MultiJail, 128 tokens; Qwen3Guard): the MLP direction's top neuron at L13 is again F3270 (23% of the squared norm on PolyRefuse, 16% on MultiJail).
+
+| Intervention | PolyRefuse | MultiJail |
+|---|---|---|
+| none | 0.42 | 0.16 |
+| pin F3270 at +40 | 0.89 | 0.58 |
+| ablate the MLP direction / without F3270 / reset F3270 | 0.53 / 0.47 / 0.50 | 0.20 / 0.17 / 0.17 |
+| steer, α = 0.5 / 1 / 2 / 4 | 0.58 / 0.76 / 0.84 / 0.81 | 0.26 / 0.28 / 0.46 / 0.64 |
+| Arditi's Arabic direction / with F3270 held | 0.91 / 0.90 | no direction |
+
+The same pattern as English in Arabic. Llama and the 8B Arabic tracks are running. Logs: `mlp_direction-449792`, `mlp_direction-449799`.
 
 ### 2026-11-05: Arabic Experiments 3, 4–5 and 7, and Arditi's capability cost, first results (`arabic_exp3.sh`, `arabic_exp45.sh`, `arabic_exp7.sh`, `cap_arditi.sh`)
 **Experiment 3, capability on Arabic MMLU** (`mmmlu_ar_1000`: the same 1,000 questions as `mmlu_1000`, from MMMLU; Arabic answer instruction; no Arabic GSM8K exists). All three models:
