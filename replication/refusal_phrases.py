@@ -83,14 +83,16 @@ def main():
     refused = {}
     if args.refusal_check:
         from judge import JUDGES, parse_qwen3guard, verdicts
-        del model
+        import gc
+        del model  # accelerate's hooks keep references; collect before freeing GPU memory for the 8B judge
+        gc.collect()
         torch.cuda.empty_cache()
         jtok = AutoTokenizer.from_pretrained(JUDGES["qwen3guard"], padding_side="left", local_files_only=True)
         jtok.pad_token = jtok.pad_token or jtok.eos_token
         judge = AutoModelForCausalLM.from_pretrained(JUDGES["qwen3guard"], torch_dtype=getattr(torch, args.dtype),
                                                      device_map="auto", local_files_only=True).eval()
         for split, (raw, _, texts) in generated.items():
-            refused[split] = [parse_qwen3guard(v)["refusal"] for v in verdicts(judge, jtok, raw, texts, args.bs, 32)]
+            refused[split] = [parse_qwen3guard(v)["refusal"] for v in verdicts(judge, jtok, raw, texts, min(args.bs, 8), 32)]
     for split, (raw, opens, _) in generated.items():
         keep = refused.get(split, [True] * len(opens))
         counts = collections.Counter(o for o, r in zip(opens, keep) if r)
