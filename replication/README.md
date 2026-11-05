@@ -89,7 +89,7 @@ Newest work first in each topic; every entry has its date, setup, numbers and ca
 Job scripts that produced these are in `scripts/jobs/` (each says which entry it belongs to).
 
 ### 2026-11-05: Part 2, the search in every language, Llama-3.1-8B and Qwen3-8B (`scripts/jobs/part2_search.sh`)
-Setup as for Qwen3-1.7B below, watching Apple's neurons (Llama L11:F4258, Qwen3-8B L14:F7924). 22 language sets for Llama; 20 of 22 so far for Qwen3-8B (Swahili and Javanese, plus the Bengali detector, are rerunning after an out-of-memory crash on long Bengali prompts).
+Setup as for Qwen3-1.7B below, watching Apple's neurons (Llama L11:F4258, Qwen3-8B L14:F7924). 22 language sets each (for Qwen3-8B, the last three were rerun after an out-of-memory crash on long Bengali prompts).
 
 **Llama-3.1-8B:**
 
@@ -104,7 +104,7 @@ Setup as for Qwen3-1.7B below, watching Apple's neurons (Llama L11:F4258, Qwen3-
 
 Counting appearances in the 22 top-5 lists: L11:F4258 21, L15:F9635 18, L10:F1084 16, L10:F4789 15, L10:F9064 13.
 
-**Qwen3-8B (20 of 22 sets):**
+**Qwen3-8B:**
 
 | Set | Unpinned refusal rate | Apple's neuron rank | AUROC |
 |---|---|---|---|
@@ -113,17 +113,18 @@ Counting appearances in the 22 top-5 lists: L11:F4258 21, L15:F9635 18, L10:F108
 | poly es / it / th | 0.88–0.95 | 4 / 5 / 3 | 0.97–0.99 |
 | poly ja / pl / ru / zh | 0.87–0.94 | 18 / 11 / 15 / 7 | 0.97–0.99 |
 | poly yo | **0.30** | **4423** | **0.60** |
-| mj zh / vi / ko / th / bn | 0.66–0.78 | **1** | 0.96–0.98 |
+| mj zh / vi / ko / th / bn / jv | 0.52–0.78 | **1** | 0.95–0.99 |
 | mj en / it | 0.72 / 0.71 | 2 / 2 | 0.97 / 0.98 |
+| mj sw | **0.43** | 5 | **0.65** |
 
-Counting appearances in the 20 top-5 lists: L14:F7924 and L17:F11229 14 each, L16:F8474 13, L18:F7664 and L16:F5318 11, L15:F11168 9.
+Counting appearances in the 22 top-5 lists: L14:F7924 and L17:F11229 16 each, L16:F8474 13, L16:F5318 12, L18:F7664 11, L15:F11168 9.
 
 - **Llama has the cleanest result: Apple's neuron ranks first in 16 of 22 language sets and is in the top 5 in all but Yoruba.** It is the language-agnostic refusal neuron for this model. Its detection AUROC is 0.99–1.00 on PolyRefuse and 0.85–0.99 on MultiJail.
-- **Qwen3-8B has a shared group of about five neurons in layers 14–18** that trade places from language to language. Apple's neuron is first in 9 of 20 sets, and in the top 5 in 14. Where it ranks lower (Japanese, Russian, Polish, Chinese, PolyRefuse English) it still detects at 0.97–0.99.
-- **Yoruba fails on all three models.** The models refuse only 10–44% of Yoruba harmful prompts, and the neuron separates harmful from harmless poorly (AUROC 0.60–0.81). Swahili also failed on Qwen3-1.7B but not on Llama (rank 1, AUROC 0.85).
+- **Qwen3-8B has a shared group of about five neurons in layers 14–18** that trade places from language to language. Apple's neuron is first in 10 of 22 sets, and in the top 5 in 16. Where it ranks lower (Japanese, Russian, Polish, Chinese, PolyRefuse English) it still detects at 0.97–0.99.
+- **Yoruba fails on all three models.** The models refuse only 10–44% of Yoruba harmful prompts, and the neuron separates harmful from harmless poorly (AUROC 0.60–0.81). Swahili is weak on both Qwen models (AUROC 0.34 on the 1.7B, 0.65 on the 8B, where the model refuses 43%) but not on Llama (rank 1, AUROC 0.85).
 - **The neurons that recur across languages are the ones Part 3's MLP direction loads on.** On Llama, the MLP direction at layers 10–15 has as its top neurons F9064 (L10), F4258 (L11) and F9635 (L15), which are three of the five most frequent neurons here.
 
-Logs: `part2_search-449878` (Llama), `part2_search-449875` (Qwen3-8B, first 20 sets; rerun from Bengali as `part2_search-449987`).
+Logs: `part2_search-449878` (Llama), `part2_search-449875` + `449987` (Qwen3-8B).
 
 ### 2026-11-05: Part 2, the search in every language, Qwen3-1.7B (`scripts/jobs/part2_search.sh`)
 Setup: for each of 21 language sets (PolyRefuse 13 + MultiJail 8, Arabic done in Part 1), the model's own refusal openings (128 unpinned answers to the harmful train set, 48 tokens; only answers Qwen3Guard labels as refusals are counted), then Apple's search on that language's 128/128 train sets, watching Apple's neuron L13:F3270; then that neuron's AUROC on the language's test sets (PolyRefuse 572/500, MultiJail 100/100). Languages with no refusal opening shared by ≥ 3 answers use the English Table 4 phrases (marked *).
