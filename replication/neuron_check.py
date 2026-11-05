@@ -116,6 +116,9 @@ def main():
     ap.add_argument("--harmful", default="jailbreakbench", help="split name in data/splits/")
     ap.add_argument("--harmless", default="harmless_heldout", help="split name in data/splits/")
     ap.add_argument("--tag", default="", help="suffix for the output file, e.g. ar")
+    ap.add_argument("--gen_split", default=None,
+                    help="generate on this split instead of --harmful (e.g. harmless prompts; with negative --m the "
+                         "neuron is pinned toward its harmful value, to test whether it induces refusal)")
     args = ap.parse_args()
 
     t0 = time.time()
@@ -151,7 +154,7 @@ def main():
     print(f"AUROC (min/max over Table 3 tokens {post_tokens[:n_paper]}): {auroc_paper:.3f}")
 
     # B) bypass by pinning, opposite to the harmful sign
-    gen_prompts = p_harm[:args.n_gen]
+    gen_prompts = (build_prompts(tok, load(args.gen_split))[0] if args.gen_split else p_harm)[:args.n_gen]
     runs = {}
     for m in args.m:
         hook.value = None if m == 0 else -sign * m
@@ -169,7 +172,7 @@ def main():
         "args": vars(args), "post_tokens": post_tokens, "per_token_means": per_token, "auroc": auroc,
         "harmful_sign": sign, "auroc_paper_tokens": auroc_paper,
         "detection_scores": scores_paper.tolist(), "detection_labels": labels.tolist(),
-        "prompts": harmful[:args.n_gen], "runs": runs,
+        "prompts": (load(args.gen_split) if args.gen_split else harmful)[:args.n_gen], "runs": runs,
         "minutes": (time.time() - t0) / 60}, indent=1, ensure_ascii=False))
     print(f"saved outputs/neuron_check/{name}  ({(time.time() - t0) / 60:.1f} min)")
     # print(show(out / name))  # uncomment to also print response snippets into the job log
