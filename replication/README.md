@@ -80,19 +80,41 @@ Newest work first in each topic; every entry has its date, setup, numbers and ca
 - **Refusal phrases in 24 language sets** (first pass): 2026-10-27
 - **Arabic judges chosen and validated** (they agree; Llama-Guard on raw Arabic undercounts): 2026-10-27
 - **Arabic Experiment 1** (PolyRefuse rerank picks Apple's neuron and pin on Qwen3-8B, and on Llama under Qwen3Guard; Qwen3-1.7B a near-tie; on MultiJail no neuron reaches 0.90 on any model): 2026-10-27
+- **Part 3, MLP direction, first result** (Qwen3-1.7B: the direction's top neuron is Apple's neuron; steering with it jailbreaks at 0.95): 2026-11-05
 - **Arabic Experiments 3, 4–5, 7 and Arditi's capability cost, first results** (Arabic behaves like English, a bit weaker; base models already have the neuron in Arabic too): 2026-11-05
 - **Arabic Experiments 2 and 8** (PolyRefuse: the neuron jailbreaks Arabic as well as English, 88–95%, matching Arditi's Arabic direction; MultiJail weaker for both; the neuron is 1st or 2nd most aligned with the Arabic direction): 2026-11-05
 
 Job scripts that produced these are in `scripts/jobs/` (each says which entry it belongs to).
 
+### 2026-11-05: Part 3, the refusal direction inside the MLP, first result (`mlp_direction.py`, `scripts/jobs/mlp_direction.sh`)
+Setup: Arditi's difference-of-means direction, but over the MLP's neuron values (before `down_proj`) instead of the residual stream, from the 128/128 search prompts, at the Table 3 token where Apple's neuron's gap is largest. Interventions at that layer, every token, on the 191 HarmBench prompts (128 tokens), Llama-Guard-3. Qwen3-1.7B, English, L13 (Apple's neuron F3270 at +40):
+
+| Intervention | ASR |
+|---|---|
+| none | 0.38 |
+| pin Apple's neuron at +40 | 0.93 |
+| ablate the MLP direction at L13 | 0.48 |
+| ablate it using every neuron except F3270 | 0.41 |
+| reset F3270 to its harmless mean | 0.42 |
+| steer: subtract α × the harmful−harmless gap, α = 0.5 / 1 / 2 / 4 | 0.57 / 0.81 / 0.95 / 0.95 |
+| Arditi's residual direction ablated at all layers | 0.94 |
+| same, with F3270 held at its harmful mean | 0.95 |
+
+- **The reverse route works: the MLP direction's strongest neuron at L13 is Apple's neuron F3270** (rank 1, 18% of the direction's squared norm in English, 23% with the Arabic PolyRefuse prompts). No neuron-level search was needed to find it.
+- **Removing the direction or resetting the neuron barely helps (0.41–0.48); pushing past the harmless side does (steering 0.95, pin 0.93).** As in the paper, the attack needs the neuron pushed beyond its harmless value, not just switched off.
+- **Holding the neuron at its harmful value does not bring refusal back under Arditi's ablation** (0.95). With the caveat that the ablation also strips the direction from this neuron's output, this says Arditi's direction does not work only through this neuron.
+
+8B models and the Arabic tracks are running. Log: `mlp_direction-449792`.
+
 ### 2026-11-05: Arabic Experiments 3, 4–5 and 7, and Arditi's capability cost, first results (`arabic_exp3.sh`, `arabic_exp45.sh`, `arabic_exp7.sh`, `cap_arditi.sh`)
-**Experiment 3, capability on Arabic MMLU** (`mmmlu_ar_1000`: the same 1,000 questions as `mmlu_1000`, from MMMLU; Arabic answer instruction; no Arabic GSM8K exists). So far Qwen3-1.7B only (the 8B runs are queued):
+**Experiment 3, capability on Arabic MMLU** (`mmmlu_ar_1000`: the same 1,000 questions as `mmlu_1000`, from MMMLU; Arabic answer instruction; no Arabic GSM8K exists). Qwen3-1.7B and Qwen3-8B so far:
 
 | Model | Arabic MMLU: base → constant / anchor k=1 / k=2 / Arditi's Arabic direction | English MMLU, same order |
 |---|---|---|
 | Qwen3-1.7B L13:F3270, +40 | 0.395 → 0.317 / 0.384 / 0.373 / 0.364 | 0.537 → 0.484 / 0.529 / 0.524 / 0.517 |
+| Qwen3-8B L14:F7924, +20 | 0.564 → 0.469 / 0.557 / 0.553 / 0.553 | 0.675 → 0.604 / 0.679 / 0.681 / queued |
 
-Same pattern as English: the constant pin costs about 8 points, the anchor recovers most of it (−1 to −2), and Arditi's ablation sits between them (−3). Logs: `arabic_exp3-449743`.
+Same pattern as English in both models: the constant pin costs 8–10 points, the anchor recovers nearly all of it (−0.7 to −2), and Arditi's ablation costs 1–3. Arabic scores are 12–14 points below English to begin with. Logs: `arabic_exp3-449743`, `arabic_exp3-449795`; Llama running.
 
 **English gap, Arditi's own capability cost** (English direction, all-layer ablation): Qwen3-1.7B MMLU 0.537 → 0.517, GSM8K 0.584 → 0.576. Smaller than the constant pin's, larger than the anchor's. 8B models queued. Log: `cap_arditi-449746`.
 
