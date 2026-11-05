@@ -88,6 +88,43 @@ Newest work first in each topic; every entry has its date, setup, numbers and ca
 
 Job scripts that produced these are in `scripts/jobs/` (each says which entry it belongs to).
 
+### 2026-11-05: Part 2, the search in every language, Llama-3.1-8B and Qwen3-8B (`scripts/jobs/part2_search.sh`)
+Setup as for Qwen3-1.7B below, watching Apple's neurons (Llama L11:F4258, Qwen3-8B L14:F7924). 22 language sets for Llama; 20 of 22 so far for Qwen3-8B (Swahili and Javanese, plus the Bengali detector, are rerunning after an out-of-memory crash on long Bengali prompts).
+
+**Llama-3.1-8B:**
+
+| Set | Unpinned refusal rate | Apple's neuron rank | Top 1 | AUROC |
+|---|---|---|---|---|
+| poly en | 0.93 | 3 | L20:F9928 | 1.000 |
+| poly de / es / fr / ja / ko / nl / pl / ru / th / zh | 0.78–0.95 | **1 in all** | L11:F4258 | 0.99–1.00 |
+| poly it | 0.92 | 2 | L15:F9635 | 0.999 |
+| poly yo | **0.10** | 13 | L17:F12795 | **0.81** |
+| mj zh / vi / ko / th / bn / sw | 0.45–0.75 | **1 in all** | L11:F4258 | 0.85–0.99 |
+| mj en / it / jv | 0.76 / 0.77 / 0.71 | 4 / 2 / 4 | L20:F9928, L15:F9635, L10:F9064 | 0.99 / 0.96 / 0.94 |
+
+Counting appearances in the 22 top-5 lists: L11:F4258 21, L15:F9635 18, L10:F1084 16, L10:F4789 15, L10:F9064 13.
+
+**Qwen3-8B (20 of 22 sets):**
+
+| Set | Unpinned refusal rate | Apple's neuron rank | AUROC |
+|---|---|---|---|
+| poly en | 0.98 | 6 | 0.992 |
+| poly de / fr / ko / nl | 0.85–0.97 | **1** | 0.97–0.99 |
+| poly es / it / th | 0.88–0.95 | 4 / 5 / 3 | 0.97–0.99 |
+| poly ja / pl / ru / zh | 0.87–0.94 | 18 / 11 / 15 / 7 | 0.97–0.99 |
+| poly yo | **0.30** | **4423** | **0.60** |
+| mj zh / vi / ko / th / bn | 0.66–0.78 | **1** | 0.96–0.98 |
+| mj en / it | 0.72 / 0.71 | 2 / 2 | 0.97 / 0.98 |
+
+Counting appearances in the 20 top-5 lists: L14:F7924 and L17:F11229 14 each, L16:F8474 13, L18:F7664 and L16:F5318 11, L15:F11168 9.
+
+- **Llama has the cleanest result: Apple's neuron ranks first in 16 of 22 language sets and is in the top 5 in all but Yoruba.** It is the language-agnostic refusal neuron for this model. Its detection AUROC is 0.99–1.00 on PolyRefuse and 0.85–0.99 on MultiJail.
+- **Qwen3-8B has a shared group of about five neurons in layers 14–18** that trade places from language to language. Apple's neuron is first in 9 of 20 sets, and in the top 5 in 14. Where it ranks lower (Japanese, Russian, Polish, Chinese, PolyRefuse English) it still detects at 0.97–0.99.
+- **Yoruba fails on all three models.** The models refuse only 10–44% of Yoruba harmful prompts, and the neuron separates harmful from harmless poorly (AUROC 0.60–0.81). Swahili also failed on Qwen3-1.7B but not on Llama (rank 1, AUROC 0.85).
+- **The neurons that recur across languages are the ones Part 3's MLP direction loads on.** On Llama, the MLP direction at layers 10–15 has as its top neurons F9064 (L10), F4258 (L11) and F9635 (L15), which are three of the five most frequent neurons here.
+
+Logs: `part2_search-449878` (Llama), `part2_search-449875` (Qwen3-8B, first 20 sets; rerun from Bengali as `part2_search-449987`).
+
 ### 2026-11-05: Part 2, the search in every language, Qwen3-1.7B (`scripts/jobs/part2_search.sh`)
 Setup: for each of 21 language sets (PolyRefuse 13 + MultiJail 8, Arabic done in Part 1), the model's own refusal openings (128 unpinned answers to the harmful train set, 48 tokens; only answers Qwen3Guard labels as refusals are counted), then Apple's search on that language's 128/128 train sets, watching Apple's neuron L13:F3270; then that neuron's AUROC on the language's test sets (PolyRefuse 572/500, MultiJail 100/100). Languages with no refusal opening shared by ≥ 3 answers use the English Table 4 phrases (marked *).
 
@@ -111,7 +148,7 @@ Counting appearances in the 21 top-5 lists: L10:F244 and L13:F3270 19 each, L12:
 - **The neuron is a good detector in every other language** (AUROC 0.92–0.99).
 - Caveat: the refusal check uses Qwen3Guard on 48-token openings; in low-resource languages some kept openings are not refusals.
 
-Log: `part2_search-449835`. Qwen3-8B and Llama: running (`part2_search-449875/8`, after a first run ran out of memory).
+Log: `part2_search-449835`.
 
 ### 2026-11-05: K.1 judge, Apple's main criterion, on the English and Arabic attacks (`judge.py --judge k1`, `scripts/jobs/judge_k1.sh`)
 Setup: Apple's main judge counts an attack only when the answer is **not a refusal and coherent** (their App. K.1, judged by Claude). Ours asks K.1's three questions (refusal, coherence, helpful harmful information), in our own wording with K.1's JSON fields, of gemma-2-9b-it (a different model family from the three under test). JailbreakBench, 100 prompts, 512 tokens; the same answers as Milestone 3.
@@ -189,7 +226,22 @@ Setup: Arditi's difference-of-means direction, but over the MLP's neuron values 
 | steer, α = 0.5 / 1 / 2 / 4 | 0.58 / 0.76 / 0.84 / 0.81 | 0.26 / 0.28 / 0.46 / 0.64 |
 | Arditi's Arabic direction / with F3270 held | 0.91 / 0.90 | no direction |
 
-The same pattern as English in Arabic. Llama and the 8B Arabic tracks are running. Logs: `mlp_direction-449792`, `mlp_direction-449799`.
+The same pattern as English in Arabic. Logs: `mlp_direction-449792`, `mlp_direction-449799`.
+
+**Llama-3.1-8B, English, L11** (Apple's neuron F4258 at −4; same setup as the 1.7B):
+
+| Intervention | ASR |
+|---|---|
+| none | 0.15 |
+| pin F4258 at −4 | 0.94 |
+| ablate the MLP direction at L11 | 0.23 |
+| ablate it using every neuron except F4258 | 0.17 |
+| reset F4258 to its harmless mean | 0.23 |
+| steer, α = 0.5 / 1 / 2 / 4 | 0.29 / 0.47 / 0.77 / 0.92 |
+| Arditi's direction ablated at all layers | 0.96 |
+| same, with F4258 held at its harmful mean | 0.97 |
+
+**The same three findings on Llama:** the MLP direction's top neuron at L11 is Apple's F4258 (rank 1, 22% of the squared norm); removing the direction or resetting the neuron barely helps (0.17–0.23), steering past the harmless side jailbreaks (0.92); holding the neuron does not undo Arditi's ablation. The direction's top neurons at the neighbouring layers, L10:F9064 (11%) and L15:F9635 (10%), are the neurons that recur with F4258 across languages in Part 2. Log: `mlp_direction-449800`. The 8B Arabic tracks are queued.
 
 ### 2026-11-05: Arabic Experiments 3, 4–5 and 7, and Arditi's capability cost, first results (`arabic_exp3.sh`, `arabic_exp45.sh`, `arabic_exp7.sh`, `cap_arditi.sh`)
 **Experiment 3, capability on Arabic MMLU** (`mmmlu_ar_1000`: the same 1,000 questions as `mmlu_1000`, from MMMLU; Arabic answer instruction; no Arabic GSM8K exists). All three models:
