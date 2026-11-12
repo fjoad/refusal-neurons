@@ -49,8 +49,8 @@ const R = {
   restore: { rows: [
       ["11% → 20% / 18%", "5% → 14% / 27%", "62% → 86% / 90%", "34% → 65% / 66%"],
       [{ text: "21% → 66% / 73%", options: { bold: true, color: TEAL } }, "0% → 18% / 58%", "39% → 89% / 79%", "30% → 76% / 75%"],
-      [{ text: "61% → 99% / 98%", options: { bold: true, color: TEAL } }, { text: "2% → 88% / 100%", options: { bold: true, color: FIRE } }, { text: "27% → 96% / 92%", options: { bold: true, color: TEAL } }, null]],
-    answer: [b("The neuron can switch refusal back on (Llama: Swahili and Javanese; Qwen3-8B: Javanese), but it is a blunt switch: "), t("harmless prompts get refused too. Only a mild pin on Llama in Swahili is selective (+1: 43% of harmful, 4% of harmless). In Yoruba, and in Swahili on Qwen3-8B, harmful and harmless rise together.")] },
+      [{ text: "61% → 99% / 98%", options: { bold: true, color: TEAL } }, { text: "2% → 88% / 100%", options: { bold: true, color: FIRE } }, { text: "27% → 96% / 92%", options: { bold: true, color: TEAL } }, "0% → 51% / 50%"]],
+    answer: [b("The neuron can switch refusal back on (Llama: Swahili and Javanese; Qwen3-8B: Javanese), but it is a blunt switch: "), t("at full strength harmless prompts are refused too. Milder pins are selective: Llama in Swahili at +1 refuses 43% of harmful and 4% of harmless; Qwen3-8B in Javanese at −10, 78% and 11%. In Yoruba, harmful and harmless rise together.")] },
 };
 
 const pres = new pptxgen();
