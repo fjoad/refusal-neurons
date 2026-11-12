@@ -28,8 +28,11 @@ Usage:
   python replication/judge.py <file> --judge qwen3guard
   python replication/judge.py <file> --judge k1          # Apple's main criterion: not refusing and coherent
   python replication/judge.py <file> --translate --src_lang ar --prompts_en poly_en_harmful_test
+--skip_done leaves a file alone when every run already has this judge's verdicts. On a GPU out-of-memory
+error the batch is halved and retried, so long answers no longer stop a job.
 """
 import argparse
+import gc
 import json
 import re
 import time
@@ -63,11 +66,24 @@ def verdicts(model, tok, prompts, responses, bs, max_new, k1=False):
     else:
         chats = [tok.apply_chat_template([{"role": "user", "content": p}, {"role": "assistant", "content": r or " "}],
                                          tokenize=False) for p, r in zip(prompts, responses)]
-    out = []
-    for i in range(0, len(chats), bs):
-        batch = tok(chats[i:i + bs], return_tensors="pt", padding=True, add_special_tokens=False).to(model.device)
-        gen = model.generate(**batch, max_new_tokens=max_new, do_sample=False, pad_token_id=tok.pad_token_id)
+    out, i = [], 0
+    while i < len(chats):
+        batch = gen = None
+        try:
+            batch = tok(chats[i:i + bs], return_tensors="pt", padding=True, add_special_tokens=False).to(model.device)
+            gen = model.generate(**batch, max_new_tokens=max_new, do_sample=False, pad_token_id=tok.pad_token_id)
+        except torch.OutOfMemoryError:
+            if bs == 1:
+                raise
+        if gen is None:  # out of memory (long answers): free it, halve the batch and redo this batch
+            del batch
+            gc.collect()
+            torch.cuda.empty_cache()
+            bs = max(1, bs // 2)
+            print(f"out of GPU memory while judging; batch size now {bs}", flush=True)
+            continue
         out += tok.batch_decode(gen[:, batch.input_ids.shape[1]:], skip_special_tokens=True)
+        i += bs
     return out
 
 
@@ -106,6 +122,8 @@ def main():
     ap.add_argument("--bs", type=int, default=16)
     ap.add_argument("--dtype", default="float16", choices=["float16", "bfloat16", "float32"])
     ap.add_argument("--k1_model", default=JUDGES["k1"], help="local model for --judge k1")
+    ap.add_argument("--skip_done", action="store_true",
+                    help="do nothing if every run already has this judge's verdicts (to finish interrupted jobs)")
     args = ap.parse_args()
     JUDGES["k1"] = args.k1_model
 
@@ -114,6 +132,9 @@ def main():
     d = json.loads(path.read_text())
     runs = d["runs"] if isinstance(d["runs"], list) else [dict(run, pin=k) for k, run in d["runs"].items()]
     name = args.judge + ("_tr" if args.translate else "")
+    if args.skip_done and all(f"asr_{name}" in r for r in runs):
+        print(f"{path} already judged with {name}; skipped")
+        return
 
     if args.translate:
         if args.prompts_en:

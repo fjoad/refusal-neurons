@@ -18,7 +18,8 @@ source ~/anaconda3/bin/activate refneu
 export HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 PYTHONUNBUFFERED=1
 short=$(basename "$1")
 M="python -u replication/mlp_direction.py --model $1 --layer $2 --neuron $3 --pin $4 --all_layers --bs 16"
-for track in ${5:-en poly mj}; do
+tracks="${@:5}"  # every argument after the pin is a track
+for track in ${tracks:-en poly mj}; do
   if [ $track = en ]; then
     $M --tag en
     f=outputs/evaluate/${short}_L$2_mlpdir_en.json

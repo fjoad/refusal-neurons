@@ -59,6 +59,8 @@ def main():
     ap.add_argument("--bs", type=int, default=32)
     ap.add_argument("--dtype", default="float16", choices=["float16", "bfloat16", "float32"])
     ap.add_argument("--tag", default="")
+    ap.add_argument("--add_watched", action="store_true",
+                    help="also sweep the search file's watched neurons (e.g. Apple's) when they are not in its top 5")
     args = ap.parse_args()
 
     t0 = time.time()
@@ -70,7 +72,11 @@ def main():
         if args.space is not None and args.space != search_space:
             ap.error(f"--space {args.space} disagrees with search space {search_space}")
     args.space = args.space or search_space or "mlp"
-    model_name, candidates = search["args"]["model"], search["candidates"]
+    model_name, candidates = search["args"]["model"], list(search["candidates"])
+    if args.add_watched:
+        have = {(c["layer"], c["neuron"]) for c in candidates}
+        candidates += [w for w in search.get("watched", [])
+                       if (w["layer"], w["neuron"]) not in have and w.get("mean_act_harmful") is not None]
     prompts_raw = load(args.split)
     prompts_raw = prompts_raw[:args.n_prompts] if args.n_prompts else prompts_raw
     tok = AutoTokenizer.from_pretrained(model_name, padding_side="left", local_files_only=True)

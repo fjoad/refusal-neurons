@@ -41,10 +41,10 @@ def main():
     ap.add_argument("paths", nargs="+")
     ap.add_argument("--calibrate", help="choose the threshold on this file, apply it to the others")
     args = ap.parse_args()
-    cal = None
+    cal = cal_sign = None
     if args.calibrate:
         s, l, sign = load(args.calibrate)
-        cal = best_threshold(s, l)
+        cal, cal_sign = best_threshold(s, l), sign
         print(f"calibration {args.calibrate}: threshold {cal * sign:+.3f} (raw activation)")
     for path in args.paths:
         s, l, sign = load(path)
@@ -53,8 +53,11 @@ def main():
         line = (f"{path}: AUROC {roc_auc_score(l, s):.3f} | optimal threshold: raw activation "
                 f"{'<=' if sign < 0 else '>='} {thr * sign:+.3f} -> acc {acc:.3f} prec {prec:.3f} rec {rec:.3f}")
         if cal is not None:
-            acc, prec, rec = metrics(s, l, cal)
-            line += f" | calibrated threshold {cal * sign:+.3f} -> acc {acc:.3f} prec {prec:.3f} rec {rec:.3f}"
+            # Scores are stored sign-flipped by each file's own harmful sign; put them on the calibration file's sign.
+            acc, prec, rec = metrics(s * sign * cal_sign, l, cal)
+            line += f" | calibrated threshold {cal * cal_sign:+.3f} -> acc {acc:.3f} prec {prec:.3f} rec {rec:.3f}"
+            if sign != cal_sign:
+                line += " (harmful sign differs from the calibration file: the neuron fires the other way here)"
         print(line)
 
 

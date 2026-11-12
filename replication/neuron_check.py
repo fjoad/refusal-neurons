@@ -8,6 +8,7 @@ B) Bypass: pin the neuron to a constant m at every token (prefill + generation) 
 Usage: python replication/neuron_check.py --model Qwen/Qwen3-1.7B --layer 13 --neuron 3270
 """
 import argparse
+import gc
 import json
 import time
 from pathlib import Path
@@ -89,12 +90,25 @@ def post_instruction_acts(model, tok, hook, prompts, n_post, bs):
 
 @torch.no_grad()
 def generate(model, tok, hook, prompts, bs, max_new):
-    texts = []
-    for i in range(0, len(prompts), bs):
-        batch = tok(prompts[i:i + bs], return_tensors="pt", padding=True, add_special_tokens=False).to(model.device)
-        ids = model.generate(**batch, max_new_tokens=max_new, do_sample=False)
+    texts, i = [], 0
+    while i < len(prompts):
+        batch = ids = None
+        try:
+            batch = tok(prompts[i:i + bs], return_tensors="pt", padding=True, add_special_tokens=False).to(model.device)
+            ids = model.generate(**batch, max_new_tokens=max_new, do_sample=False)
+        except torch.OutOfMemoryError:
+            if bs == 1:
+                raise
         hook.records.clear()
+        if ids is None:  # out of memory: free it, halve the batch and redo this batch
+            del batch
+            gc.collect()
+            torch.cuda.empty_cache()
+            bs = max(1, bs // 2)
+            print(f"out of GPU memory while generating; batch size now {bs}", flush=True)
+            continue
         texts += tok.batch_decode(ids[:, batch.input_ids.shape[1]:], skip_special_tokens=True)
+        i += bs
     return texts
 
 
