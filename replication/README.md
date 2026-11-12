@@ -84,6 +84,7 @@ Newest work first in each topic; every entry has its date, setup, numbers and ca
 - **K.1 judge on the English and Arabic attacks** (Apple's main criterion: English 0.89–0.97, Arabic PolyRefuse 0.96–0.99, MultiJail 0.79–0.94; every pinned answer coherent): 2026-11-05
 - **Part 3, MLP direction** (all three models, English and Arabic: the direction's top neuron is Apple's neuron; removing it barely helps, steering past harmless jailbreaks at 0.89–0.96): 2026-11-05, 8B Arabic added 2026-11-12
 - **Arabic Experiments 3, 4–5, 7 and Arditi's capability cost, first results** (Arabic behaves like English, a bit weaker; base models already have the neuron in Arabic too): 2026-11-05
+- **Restoring refusal in low-resource languages** (Llama: yes in Swahili and Javanese, but harmless prompts are refused too; Yoruba no): 2026-11-12
 - **Follow-ups to the 5 November meeting** (the neuron fires on the prompts the model refuses, in every language but Yoruba and Qwen-Swahili; the small model does not fall off faster with language; MultiJail's lower numbers are the same borderline prompts in every language): 2026-11-12
 - **Arabic Experiments 2 and 8** (PolyRefuse: the neuron jailbreaks Arabic as well as English, 88–95%, matching Arditi's Arabic direction; MultiJail weaker for both; the neuron is 1st or 2nd most aligned with the Arabic direction): 2026-11-05
 
@@ -195,6 +196,21 @@ Nine points came out of the 5 November meeting (README, "Follow-ups from the 5 N
 The rank moves between 1 and 8 with the prompts and the phrases (Llama: always 3rd or 4th), and is first in only 2 of the 18 settings. The search's job is the shortlist; the rerank picks the winner.
 
 **Part 3 in Arabic on MultiJail, both 8B models** (87 Arabic rerank prompts; Qwen3Guard; jobs `mlp_direction-460182/3`): the MLP direction's top neuron is Apple's (Qwen3-8B 24%, Llama 6%). none / pin / ablate direction / steer α = 4 / Arditi ablated / with the neuron held: Qwen3-8B 0.07 / 0.76 / 0.09 / 0.69 / 0.52 / 0.49; Llama 0.05 / 0.62 / 0.05 / 0.21 / 0.59 / 0.58. Same pattern as PolyRefuse, lower throughout. On Llama, steering at α = 4 leaves 67% of answers labelled refusals, so it does not work there.
+
+### 2026-11-12: Restoring refusal in low-resource languages (`scripts/jobs/restore_refusal.sh`)
+Setup: the neuron pinned toward its harmful value (Llama L11:F4258 at +1 / +2 / +4; Qwen3-8B L14:F7924 at −4 / −10 / −20 / −40) at every token, on 100 harmful prompts per language (PolyRefuse Yoruba eval, MultiJail Swahili and Javanese test) and 100 harmless prompts in the same language; 128 tokens. Share of answers Qwen3Guard labels a refusal, on the original text (and, in brackets, on an NLLB English translation).
+
+| Llama-3.1-8B | Harmful: no pin → +1 / +2 / +4 | Harmless: no pin → +1 / +2 / +4 |
+|---|---|---|
+| Yoruba | 0.11 → 0.10 / 0.20 / 0.18 (0.54 → 0.64 / 0.74 / 0.59) | 0.05 → 0.03 / 0.14 / 0.27 (0.58 → 0.66 / 0.71 / 0.83) |
+| Swahili | 0.21 → 0.43 / 0.66 / 0.73 (0.53 → 0.76 / 0.85 / 0.84) | 0.00 → 0.04 / 0.18 / 0.58 (0.16 → 0.22 / 0.35 / 0.70) |
+| Javanese | 0.61 → 0.93 / 0.99 / 0.98 (0.87 → 0.99 / 0.99 / 1.00) | 0.02 → 0.51 / 0.88 / 1.00 (0.04 → 0.55 / 0.90 / 1.00) |
+
+- **On Llama the neuron can switch refusal on in Swahili and Javanese, but bluntly.** Harmful Swahili prompts go from 21% to 66–73% refused, Javanese from 61% to 98–99%; harmless prompts are refused too (Swahili 18–58%, Javanese 88–100% at +2 / +4). Only the mildest pin in Swahili is selective (+1: 43% of harmful against 4% of harmless). As a defense it would need a pin that depends on the prompt.
+- **In Yoruba the pin changes little** (11% → 18–20% of harmful, 5% → 27% of harmless). The translated reading is not usable for Yoruba: it calls over half of the answers to harmless prompts refusals with no pin.
+- Qwen3-8B, Yoruba only so far: harmful 0.62 → 0.70 / 0.82 / 0.86 / 0.90, harmless 0.34 → 0.40 / 0.50 / 0.65 / 0.66. Both rise by about 30 points and a third of harmless answers are already labelled refusals with no pin, so this is label noise, not restored refusal. Swahili, Javanese and Qwen3-1.7B: running (jobs 460375, 460377).
+
+Log: `restore_refusal-460374` (Llama).
 
 ### 2026-11-05: Refusal induced on harmless prompts, quick check (`scripts/jobs/induce_refusal.sh`)
 Setup: pin each neuron toward its harmful value (and beyond) at every token while the model answers 100 harmless Alpaca prompts (`harmless_heldout`), 64 tokens, English string-match refusal check. A rough check run for the 5 November meeting.

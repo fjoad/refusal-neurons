@@ -49,8 +49,8 @@ const R = {
   restore: { rows: [
       ["11% → 20% / 18%", "5% → 14% / 27%", "62% → 86% / 90%", "34% → 65% / 66%"],
       [{ text: "21% → 66% / 73%", options: { bold: true, color: TEAL } }, "0% → 18% / 58%", null, null],
-      [{ text: "61% → 99% / 98%", options: { bold: true, color: TEAL } }, null, null, null]],
-    answer: [b("On Llama, switching the neuron on brings refusal back in Swahili and Javanese, "), t("at a price: at the stronger pin over half of harmless Swahili prompts are refused too. In Yoruba it does not: the pin raises \"refusals\" on harmful and harmless prompts alike, and the judge reads Yoruba poorly.")] },
+      [{ text: "61% → 99% / 98%", options: { bold: true, color: TEAL } }, { text: "2% → 88% / 100%", options: { bold: true, color: FIRE } }, null, null]],
+    answer: [b("On Llama, switching the neuron on brings refusal back in Swahili and Javanese, but it is a blunt switch: "), t("harmless prompts get refused too (Swahili 18–58%, Javanese 88–100%). Only a mild pin in Swahili is selective (+1: 43% of harmful, 4% of harmless). In Yoruba little changes, and the judge reads Yoruba poorly.")] },
 };
 
 const pres = new pptxgen();
