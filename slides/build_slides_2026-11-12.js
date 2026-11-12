@@ -274,19 +274,29 @@ function raised(s, items, y, h) {
 {
   const s = newSlide("1. Why does Nanda's ablation cost less than the constant pin?", "q",
     "Setup: the 1,000 MMLU questions, answer-letter accuracy. The neuron is reset to its average value on harmless prompts, then pinned at 10%, 25%, 50% and 100% of its attack pin. KL = how far the model's next-token probabilities move from the unmodified model, averaged over the questions (0 = identical). If the cost comes from the size of the pin, accuracy falls and KL rises with the pin, and the reset costs nothing. If the neuron has other jobs, even the reset costs.");
-  question(s,
-    "Previous slide: Nanda's ablation costs 1–2 points of ability, the constant pin 5–9. Why is Nanda's better?",
-    "The pin forces the neuron far outside its normal range on every prompt (Qwen3-8B: normally between −4 and 0, pinned at +20). Ablation only removes something that is near zero on harmless prompts. Alternative: the neuron has other jobs, so any overwrite hurts.",
-    ["1,000 MMLU questions, one pass per setting",
-      "Pin the neuron at its harmless average, then at 10%, 25%, 50%, 100% of the attack pin",
-      "Measure accuracy, and how far the model's output moves (KL)"]);
+  const lw = 5.4;
+  label(s, "THE QUESTION", ML, 1.5, lw, AMBER);
+  s.addText("Previous slide: Nanda's ablation costs 1–2 points of ability, the constant pin 5–9. Why? Is the neuron doing other jobs, or is the pin just too big?",
+    { x: ML, y: 1.8, w: lw, h: 0.8, fontFace: FONT, fontSize: 14, color: INK, valign: "top", margin: 0 });
+  label(s, "FIRST, THE NEURON'S OWN VALUES", ML, 2.7, lw, AMBER);
+  table(s, [
+    ["Average value", "Qwen3-8B", "Llama", "Qwen3-1.7B"],
+    ["On an exam question", "−0.1", "0.0", "−0.5"],
+    ["On harmless prompts", "−0.16", "−0.01", "+0.05"],
+    ["On harmful prompts", "−4.41", "+1.11", "−10.25"],
+    [{ text: "The attack pin", options: { bold: true } }, warn("+20"), warn("−4"), warn("+40")],
+  ], ML, 3.0, lw, [2.1, 1.1, 1.1, 1.1], { size: 12, rowH: 0.36 });
+  s.addText("The pin sits on the other side of zero, at about 4 times the neuron's strongest natural value. That is far outside anything the model ever sees.",
+    { x: ML, y: 4.9, w: lw, h: 0.55, fontFace: FONT, fontSize: 12, color: INK, valign: "top", margin: 0 });
+  s.addText("Test: hold the neuron at each value below while the model answers 1,000 exam questions.",
+    { x: ML, y: 5.45, w: lw, h: 0.5, fontFace: FONT, fontSize: 12, bold: true, color: INK, valign: "top", margin: 0 });
   const x = 6.3, w = CW - 5.7;
-  label(s, "MMLU ACCURACY (AND HOW FAR THE OUTPUT MOVES, KL)", x, 1.5, w);
-  const rows = ["No intervention", "Reset to harmless average", "Pin at 10% of the attack pin", "Pin at 25%", "Pin at 50%", "Pin at 100% (the attack)", "Anchor pin", "Nanda's ablation"];
-  table(s, [["Intervention", ...MODELS], ...rows.map((r, i) => [r, ...MODELS.map((m) => v(R.q1[m] && R.q1[m][i]))])],
-    x, 1.85, w, [2.6, 1.5, 1.5, 1.43], { size: 12, rowH: 0.4 });
-  s.addText("Each cell: accuracy on 1,000 questions, and in brackets the average shift of the model's output from the unmodified model (0 = no change).",
-    { x, y: 5.5, w, h: 0.5, fontFace: FONT, fontSize: 11, color: MUTED, margin: 0 });
+  label(s, "EXAM SCORE IN %, 1,000 MMLU QUESTIONS (NOT NEURON VALUES)", x, 1.5, w);
+  const rows = ["No intervention", "Held at its harmless average", "Held at 10% of the pin: +2 / −0.4 / +4", "Held at 25%: +5 / −1 / +10", "Held at 50%: +10 / −2 / +20", "Held at the full pin: +20 / −4 / +40", "Anchor pin (next slide)", "Nanda's ablation"];
+  table(s, [["What is done to the neuron", ...MODELS], ...rows.map((r, i) => [r, ...MODELS.map((m) => v(R.q1[m] && R.q1[m][i]))])],
+    x, 1.85, w, [3.3, 1.25, 1.25, 1.23], { size: 11, rowH: 0.4 });
+  s.addText("Values in the row labels are for Qwen3-8B / Llama / Qwen3-1.7B. In brackets in the cells: how far the model's output moved from the untouched model (0 = identical).",
+    { x, y: 5.52, w, h: 0.45, fontFace: FONT, fontSize: 10.5, color: MUTED, margin: 0 });
   if (R.q1.answer) result(s, R.q1.answer, { y: 6.08, h: 0.82, size: 14 }); else pendingBar(s, 6.2, 0.65);
 }
 
@@ -302,12 +312,18 @@ function raised(s, items, y, h) {
       "Record the pin the anchor actually uses on each question",
       "Split accuracy into \"fired\" and \"did not fire\""]);
   const x = 6.3, w = CW - 5.7;
-  label(s, "THE NEURON ON 1,000 MMLU QUESTIONS", x, 1.5, w);
-  const rows = ["Questions where the neuron fires", "Pin the anchor actually uses: median (5th to 95th percentile)", "Accuracy where it fired: no pin / constant / anchor", "Accuracy where it did not fire: no pin / constant / anchor"];
-  table(s, [["", ...MODELS], ...rows.map((r, i) => [r, ...MODELS.map((m) => v(R.q2[m] && R.q2[m][i]))])],
-    x, 1.85, w, [2.9, 1.4, 1.4, 1.33], { size: 12, rowH: 0.62 });
-  s.addText("For reference, the full attack pin is +20 (Qwen3-8B), −4 (Llama), +40 (Qwen3-1.7B).",
-    { x, y: 5.1, w, h: 0.3, fontFace: FONT, fontSize: 11, color: MUTED, margin: 0 });
+  label(s, "THE NEURON ON 1,000 MMLU EXAM QUESTIONS", x, 1.5, w);
+  const q2 = (m, i) => v(R.q2[m] && R.q2[m][i]);
+  table(s, [
+    ["", ...MODELS],
+    ["The neuron's value on exam questions (middle 90%)", "−0.5 to 0.0", "0.0 to +0.1", "−1.9 to −0.2"],
+    ["It counts as \"firing\" beyond (cut-off from the filter test)", "−2.80", "+0.46", "−7.7"],
+    ["Questions where it fires", ...MODELS.map((m) => q2(m, 0))],
+    ["Value the anchor holds it at (the full pin is +20 / −4 / +40)", ...MODELS.map((m) => q2(m, 1))],
+    ["Exam score: no pin / full pin / anchor", ...MODELS.map((m) => q2(m, 3))],
+  ], x, 1.85, w, [3.1, 1.33, 1.33, 1.27], { size: 11, rowH: 0.52 });
+  s.addText("Why the anchor is not zero: anchor value = full pin × (the neuron's value ÷ its usual gap) − the gap. When the neuron is silent the first part vanishes, and \"minus the gap\" is left: about +4.2, −1.1 and +10.3.",
+    { x, y: 5.05, w, h: 0.75, fontFace: FONT, fontSize: 11, color: INK, margin: 0 });
   if (R.q2.answer) result(s, R.q2.answer, { y: 6.08, h: 0.82, size: 14 }); else pendingBar(s, 6.2, 0.65);
 }
 
@@ -396,7 +412,7 @@ function raised(s, items, y, h) {
 {
   const s = newSlide("5. Where the model does refuse, is the neuron there?", "q",
     "Setup: the 100 attack prompts per language, the model's unpinned answers, labelled refusal or not by Qwen3Guard. For each prompt, the neuron's strongest value at the template tokens. Shown: its average on the prompts the model refused, on the prompts it answered, and on harmless prompts. AUROC of refused against harmless in brackets. Caveat: Qwen3Guard's refusal label is unreliable in Yoruba and Swahili.");
-  s.addText("Question from the previous slide. For each language: split the 100 harmful prompts into those the model refused and those it answered (no pin), and read the neuron on each group.",
+  s.addText("For each language: split the 100 harmful prompts into those the model refused and those it answered (no pin), and read the neuron on each group. Reading the numbers: the Qwen neurons go negative when they fire, Llama's goes positive; near 0 means silent.",
     { x: ML, y: 1.42, w: CW, h: 0.5, fontFace: FONT, fontSize: 14, color: MUTED, margin: 0 });
   label(s, "THE NEURON'S AVERAGE VALUE: ON REFUSED / ON ANSWERED / ON HARMLESS PROMPTS", ML, 1.95, CW);
   table(s, [
@@ -421,7 +437,7 @@ function raised(s, items, y, h) {
   const s = newSlide("6. Is there a language-specific step in the smaller model?", "q",
     "Strength = the neuron's harmful-minus-harmless gap at its strongest template token, on each language's test prompts (PolyRefuse 572 harmful + 500 harmless; MultiJail 100 + 100), divided by the same gap in English. If the small model had an extra language-dependent step, its neuron should lose more strength outside English than the large model's. Still to do: the layer where harmful and harmless prompts first separate, per language.");
   question(s,
-    "Slides 8 and 11: on Qwen3-1.7B the neuron is second nearly everywhere and fails worst in Swahili. Maybe the small model has a language-specific step mixed into refusal?",
+    "Slides 8 and 11: on Qwen3-1.7B the neuron is second nearly everywhere and fails worst in Swahili. Is there a language-specific step in the small model?",
     "If so, the small model's neuron should lose more of its strength outside English than the large model's does.",
     ["For every language: the neuron's gap between harmful and harmless prompts",
       "Divide by the same gap in English",
@@ -439,6 +455,8 @@ function raised(s, items, y, h) {
     ["Swahili (MultiJail)", warn("13%"), warn("2%"), "19%"],
     ["Yoruba", warn("7%"), warn("8%"), warn("5%")],
   ], x, 1.85, w, [2.5, 1.5, 1.5, 1.53], { size: 13, rowH: 0.4 });
+  s.addText("Strength = the neuron's average on harmful prompts minus its average on harmless prompts, in that language. 100% = as strong as in English (English gaps: −4.2, −10.3, +1.1).",
+    { x, y: 5.5, w, h: 0.5, fontFace: FONT, fontSize: 11, color: MUTED, margin: 0 });
   result(s, [b("No sign of it in this measure. "), t("The small model keeps as much of its English strength as the large one in every language except Swahili. Yoruba is at 5–8% of English on all three models. Still to check: the layer where the signal first appears.")], { y: 6.2, h: 0.68, size: 14 });
 }
 
@@ -531,7 +549,7 @@ function raised(s, items, y, h) {
 {
   const s = newSlide("9. The same breakdown in the residual stream", "q",
     "Reading A: spread Nanda's residual-stream direction over its own coordinates (4,096 for the 8B models, 2,048 for Qwen3-1.7B) with the same share formula. Participation ratio = how many coordinates the direction is effectively spread over. Reading B: the residual stream is the sum of what every earlier layer wrote, and an MLP layer writes each neuron's value times its write vector. So neuron j's part of the direction is its gap times the projection of its write vector on the direction; divided by the direction's length it is that neuron's share.");
-  s.addText("Two readings of the note. A: is any single residual-stream number a big part of the direction? B: how much of the direction does Apple's neuron account for?",
+  s.addText("A: is any single residual-stream number a big part of Nanda's direction (same share formula as slide 17)? B: how much of that direction does Apple's neuron write (its gap × how far its output points along the direction, as a share of the direction's length)?",
     { x: ML, y: 1.42, w: CW, h: 0.5, fontFace: FONT, fontSize: 14, color: MUTED, margin: 0 });
   const w = (CW - 0.4) / 2;
   label(s, "A. THE RESIDUAL DIRECTION OVER ITS OWN NUMBERS", ML, 2.0, w, AMBER);
@@ -614,7 +632,7 @@ function raised(s, items, y, h) {
     ["", "Llama: harmful", "Llama: harmless", "Qwen3-8B: harmful", "Qwen3-8B: harmless"],
     ...["Yoruba", "Swahili", "Javanese"].map((l, i) => [l, ...RS[i].map(v)]),
   ], x, 1.85, w, [1.15, 1.5, 1.45, 1.5, 1.43], { size: 11, rowH: 0.5 });
-  s.addText("100 prompts per cell, in that language. Pins: Llama +2 / +4, Qwen3-8B −20 / −40 (toward the neuron's harmful value). Refusal by Qwen3Guard on the original text. Qwen3-1.7B: running.",
+  s.addText("Each cell: share of 100 prompts refused with no pin → at the two strongest pins. The neuron's value on English harmful prompts is +1.1 (Llama) and −4.4 (Qwen3-8B); here it is held at +2 / +4 and −20 / −40. Refusal by Qwen3Guard. Qwen3-1.7B: running.",
     { x, y: 3.9, w, h: 0.5, fontFace: FONT, fontSize: 11, color: MUTED, margin: 0 });
   label(s, "SAME IDEA IN ENGLISH, 100 HARMLESS PROMPTS (COMPLETED)", x, 4.5, w);
   table(s, [
