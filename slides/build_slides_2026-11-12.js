@@ -14,24 +14,32 @@ const TEAL = "0F766E", TEAL_SOFT = "E6F2F1", SLATE = "475569", AMBER = "B45309",
   AMBER_SOFT = "FBF1E6", FIRE = "D9480F", FIRE_SOFT = "FCE3D6";
 const FONT = "Arial";
 
+const b = (text) => ({ text, options: { bold: true } });
+const t = (text) => ({ text });
+
 // ---------------------------------------------------------------------------------------------- results
 // Fill these as jobs finish (null = pending). Sources: logs/why_quick-*.out, mlp_direction-*.out,
 // restore_refusal-*.out, part2_judge-*.out on panther.
 const R = {
   // Q1: MMLU accuracy and mean KL per intervention, per model: [none, reset, 10%, 25%, 50%, 100%, anchor, ablation]
-  q1: { "Qwen3-8B": ["67.4", "67.8 (0.00)", "68.4 (0.02)", "67.9 (0.11)", "66.3 (0.48)", "60.4 (2.51)", "68.0 (0.12)", "66.6 (0.12)"], "Llama-3.1-8B": null,
+  q1: { "Qwen3-8B": ["67.4", "67.8 (0.00)", "68.4 (0.02)", "67.9 (0.11)", "66.3 (0.48)", "60.4 (2.51)", "68.0 (0.12)", "66.6 (0.12)"],
+    "Llama-3.1-8B": ["63.8", "64.1 (0.00)", "63.7 (0.00)", "63.7 (0.02)", "63.3 (0.05)", "60.8 (0.24)", "64.0 (0.03)", "63.5 (0.03)"],
+    answer: [b("It is the size of the pin, not the neuron. "), t("Resetting the neuron to its harmless value costs nothing on any model. The cost appears only near the full attack pin (3 to 7 points), far outside the neuron's normal range. Nanda's ablation moves the output about as much as a pin at a quarter to half strength.")],
     "Qwen3-1.7B": ["53.5", "53.7 (0.00)", "53.3 (0.01)", "53.0 (0.08)", "52.4 (0.22)", "48.3 (0.72)", "53.1 (0.12)", "51.7 (0.43)"] },
   // Q2: [questions where the neuron fires (of 1,000), anchor pin median (5th-95th pct), accuracy on fired: none / constant / anchor]
-  q2: { "Qwen3-8B": ["0 of 1,000", "+4.7 (+4.3 to +6.7)", "none fired", "67.4 / 60.4 / 68.0"], "Llama-3.1-8B": null,
+  q2: { "Qwen3-8B": ["0 of 1,000", "+4.7 (+4.3 to +6.7)", "none fired", "67.4 / 60.4 / 68.0"],
+    "Llama-3.1-8B": ["0 of 1,000", "−1.2 (−1.4 to −1.1)", "none fired", "63.8 / 60.8 / 64.0"],
+    answer: [b("The neuron fires on none of the 1,000 questions, on any model. But the anchor is not off: "), t("it still holds the neuron at about a quarter to a third of the full pin on every question. So Experiment 3 shows that a weak pin is cheap, not that the anchor leaves normal prompts alone.")],
     "Qwen3-1.7B": ["0 of 1,000", "+12.3 (+11.2 to +17.7)", "none fired", "53.5 / 48.3 / 53.1"] },
   // Q4: rank of Apple's neuron, per model [Qwen3-8B, Llama, Qwen3-1.7B]
-  q4: { own_phrases: ["8", null, "2"], poly_table4: [null, null, "5"], mj_table4: [null, null, "4"] },
+  q4: { own_phrases: ["8", null, "2"], poly_table4: ["4", null, "5"], mj_table4: ["1", null, "4"] },
   // Q9a: [largest coordinate share, top-10 share, participation ratio, MLP direction's largest share (same token)]
-  q9a: { "Qwen3-8B": ["0.8%", "5%", "963 of 4,096", "23%"], "Llama-3.1-8B": null, "Qwen3-1.7B": ["1.0%", "7%", "549 of 2,048", "18%"] },
+  q9a: { "Qwen3-8B": ["0.8%", "5%", "963 of 4,096", "23%"], "Llama-3.1-8B": ["0.5%", "3%", "1,277 of 4,096", "22%"],
+    answer: [b("A: yes, no single number matters. "), t("The largest holds 0.5–1.0% of the residual direction, against 18–23% for the top neuron inside the MLP. "), b("B: it depends on the model. "), t("Apple's neuron is 17% of the direction on Llama and 5% on Qwen3-1.7B (the largest of any neuron in both), but 0.5% on Qwen3-8B.")], "Qwen3-1.7B": ["1.0%", "7%", "549 of 2,048", "18%"] },
   // Q9b: [direction's layer, neuron's share of the residual direction, rank in its layer, largest single-neuron share]
-  q9b: { "Qwen3-8B": ["20", "0.5%", "1st of 12,288", "8.4% (L19:F5693)"], "Llama-3.1-8B": null, "Qwen3-1.7B": ["15", "5.3%", "1st of 6,144", "5.3% (Apple's)"] },
+  q9b: { "Qwen3-8B": ["20", "0.5%", "1st of 12,288", "8.4% (L19:F5693)"], "Llama-3.1-8B": ["12", "16.9%", "1st of 14,336", "16.9% (Apple's)"], "Qwen3-1.7B": ["15", "5.3%", "1st of 6,144", "5.3% (Apple's)"] },
   // Part 3, Arabic MultiJail: [top neuron (share), none, remove direction, steer a=4, pin, Nanda / held]
-  part3mj: { "Qwen3-8B": ["Apple's (24%)", "7%", "9%", "69%", "76%", "52% / 49%"], "Llama-3.1-8B": null },
+  part3mj: { "Qwen3-8B": ["Apple's (24%)", "7%", "9%", "69%", "76%", "52% / 49%"], "Llama-3.1-8B": ["Apple's (6%)", "5%", "5%", "21%", "62%", "59% / 58%"] },
   // K.1 judge on the per-language attacks: [PolyRefuse no pin -> pinned, MultiJail no pin -> pinned]
   k1: { "Qwen3-8B": null, "Llama-3.1-8B": null, "Qwen3-1.7B": null },
   // Restore refusal: per model, refused on harmful prompts, no pin -> strongest pin: [Yoruba, Swahili, Javanese, harmless prompts refused at that pin]
@@ -82,8 +90,6 @@ function result(s, runs, opts = {}) {
 }
 const pendingBar = (s, y, h) => result(s, [b("Result: "), t("pending, the job is still running.")], { y, h, color: MUTED, bg: SOFT });
 
-const b = (text) => ({ text, options: { bold: true } });
-const t = (text) => ({ text });
 const hl = (text) => ({ text, options: { bold: true, color: TEAL } });
 const warn = (text) => ({ text, options: { bold: true, color: FIRE } });
 const P = () => ({ text: "pending", options: { color: MUTED, italic: true } });
@@ -274,7 +280,7 @@ function raised(s, items, y, h) {
     x, 1.85, w, [2.6, 1.5, 1.5, 1.43], { size: 12, rowH: 0.4 });
   s.addText("Each cell: accuracy on 1,000 questions, and in brackets the average shift of the model's output from the unmodified model (0 = no change).",
     { x, y: 5.5, w, h: 0.5, fontFace: FONT, fontSize: 11, color: MUTED, margin: 0 });
-  if (R.q1.answer) result(s, R.q1.answer, { y: 6.2, h: 0.65 }); else pendingBar(s, 6.2, 0.65);
+  if (R.q1.answer) result(s, R.q1.answer, { y: 6.08, h: 0.82, size: 14 }); else pendingBar(s, 6.2, 0.65);
 }
 
 // ------------------------------------------------------------------ 6. Q2
@@ -295,7 +301,7 @@ function raised(s, items, y, h) {
     x, 1.85, w, [2.9, 1.4, 1.4, 1.33], { size: 12, rowH: 0.62 });
   s.addText("For reference, the full attack pin is +20 (Qwen3-8B), −4 (Llama), +40 (Qwen3-1.7B).",
     { x, y: 5.1, w, h: 0.3, fontFace: FONT, fontSize: 11, color: MUTED, margin: 0 });
-  if (R.q2.answer) result(s, R.q2.answer, { y: 6.2, h: 0.65 }); else pendingBar(s, 6.2, 0.65);
+  if (R.q2.answer) result(s, R.q2.answer, { y: 6.08, h: 0.82, size: 14 }); else pendingBar(s, 6.2, 0.65);
 }
 
 // ------------------------------------------------------------------ ref: the rank grid
@@ -533,8 +539,8 @@ function raised(s, items, y, h) {
   bullets(s, [
     "If A is tiny: no single residual-stream number carries the direction, which would explain why pinning one residual number jailbreaks only 16–32% (slide 16, right)",
     "If B is small: the residual direction is mostly made by other parts of the model, which would explain why holding the neuron \"on\" did not undo Nanda's ablation (slide 16, amber row)",
-  ], ML, 4.95, CW, 1.1, 13);
-  if (R.q9a.answer) result(s, R.q9a.answer, { y: 6.2, h: 0.65, size: 14 }); else pendingBar(s, 6.2, 0.65);
+  ], ML, 5.05, CW, 1.0, 12);
+  if (R.q9a.answer) result(s, R.q9a.answer, { y: 6.12, h: 0.8, size: 14 }); else pendingBar(s, 6.2, 0.65);
 }
 
 // ------------------------------------------------------------------ 14. per-language attacks
@@ -578,10 +584,10 @@ function raised(s, items, y, h) {
     { x: ML, y: 4.75, w: CW, h: 0.3, fontFace: FONT, fontSize: 12, color: MUTED, margin: 0 });
   bullets(s, [
     "Built from Arabic prompts, the direction's biggest neuron is again Apple's neuron",
-    "Removing the direction barely helps (9% → 12%, 13% → 16%); pushing past harmless jailbreaks (89–95%)",
-    "Holding the neuron on does not undo Nanda's ablation, as in English",
+    "Removing the direction barely helps on either dataset; pinning the neuron jailbreaks (91–95% on PolyRefuse, 62–76% on MultiJail)",
+    "Holding the neuron on does not undo Nanda's ablation, as in English. Steering is weaker on MultiJail, most of all on Llama (21%)",
   ], ML, 5.1, CW, 1.0, 13);
-  result(s, [b("All three findings from English hold in Arabic on both larger models.")], { y: 6.3, h: 0.55, size: 14 });
+  result(s, [b("All three findings from English hold in Arabic on both larger models. "), t("MultiJail is lower in every row, as everywhere (its borderline prompts, question 7).")], { y: 6.3, h: 0.55, size: 14 });
 }
 
 // ------------------------------------------------------------------ 16. restore refusal

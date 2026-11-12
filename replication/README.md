@@ -143,7 +143,58 @@ Nine points came out of the 5 November meeting (README, "Follow-ups from the 5 N
 - On Llama the English-specific candidates (L20:F9928, L20:F9424, L17:F13532) drop out in other languages; what survives across languages is Apple's neuron and L15:F9635.
 - Larger k (10, 20, 50) needs the full rankings from the saved means; not done yet.
 
-Results for notes 1, 2, 4 and 9 (jobs `why_quick-460347/8/9`) are added below when they finish.
+**Notes 1 and 2: the ability cost, looked at closely** (`why_capability.py`; 1,000 MMLU questions, answer-letter accuracy; in brackets the mean KL of the next-token distribution from the unmodified model; jobs `why_quick-460347/8/9`).
+
+| Intervention | Qwen3-8B L14:F7924 (m* = +20) | Llama L11:F4258 (m* = −4) | Qwen3-1.7B L13:F3270 (m* = +40) |
+|---|---|---|---|
+| none | 0.674 | 0.638 | 0.535 |
+| neuron reset to its harmless mean | 0.678 (0.000) | 0.641 (0.000) | 0.537 (0.000) |
+| constant pin at 10% of m* | 0.684 (0.02) | 0.637 (0.00) | 0.533 (0.01) |
+| at 25% | 0.679 (0.11) | 0.637 (0.02) | 0.530 (0.08) |
+| at 50% | 0.663 (0.48) | 0.633 (0.05) | 0.524 (0.22) |
+| at 100% (the attack pin) | 0.604 (2.51) | 0.608 (0.24) | 0.483 (0.72) |
+| anchor k = 1 | 0.680 (0.12) | 0.640 (0.03) | 0.531 (0.12) |
+| Arditi's direction ablated | 0.666 (0.12) | 0.635 (0.03) | 0.517 (0.43) |
+
+| The neuron on the 1,000 questions | Qwen3-8B | Llama | Qwen3-1.7B |
+|---|---|---|---|
+| Natural value: median (5th–95th percentile) | −0.09 (−0.52 to −0.01) | +0.02 (0.00 to +0.08) | −0.50 (−1.90 to −0.23) |
+| Questions passing the detector cut-off (−2.80 / +0.46 / −7.7) | 0 | 0 | 0 |
+| Pin the anchor actually uses: median (5th–95th percentile) | +4.65 (+4.27 to +6.71) | −1.19 (−1.42 to −1.13) | +12.3 (+11.2 to +17.7) |
+
+- **Note 1: the cost comes from the size of the pin, not from the neuron having other jobs.** Resetting the neuron to its harmless mean costs nothing on any model (KL ≈ 0), and the cost grows with the pin: nothing up to 25% of m*, then 3–7 points at the full pin, which is far outside the neuron's natural range. Arditi's ablation moves the output about as much as a pin at 25–50% of m*, which is why it is cheaper than the full pin.
+- **Note 2: the neuron fires on none of the 1,000 MMLU questions, on any model, but the anchor is not off.** Because of the −d term in Eq. 6–7, the anchor still holds the neuron at about 23–31% of m* on every question (+4.7, −1.2, +12.3). Its accuracy matches a constant pin at 25% of m*. So Experiment 3's "the anchor costs nothing" shows that a pin of that size is cheap; it does not show that the anchor leaves normal prompts untouched, and it says nothing about prompts where the neuron fires. A fairer test would use benign prompts that do make the neuron fire (XSTest's safe set).
+
+**Note 9: how the residual-stream direction is made up** (`residual_share.py`; Arditi's selected layer and token, the 128/128 search prompts).
+
+| | Qwen3-8B | Llama | Qwen3-1.7B |
+|---|---|---|---|
+| Direction read at (layer, token) | 20, −1 | 12, −1 | 15, −8 |
+| A. Largest single coordinate's share / top 10 / participation ratio | 0.83% / 5.2% / 963 of 4,096 | 0.45% / 3.1% / 1,277 of 4,096 | 1.0% / 7.1% / 549 of 2,048 |
+| B. Apple's neuron's share of the direction | **0.54%** | **16.9%** | **5.3%** |
+| Its gap at that token × its write vector's cosine with the direction | −1.10 × −0.147 | +1.27 × +0.580 | −10.3 × −0.343 |
+| Its rank: in its layer / among all earlier neurons | 1st / 23rd of 245,760 | 1st / 1st of 172,032 | 1st / 1st of 92,160 |
+| Largest single-neuron share | L19:F5693, 8.4% | Apple's | Apple's (then L14:F5022 5.2%, L12:F4580 4.1%) |
+| All earlier MLP layers together / the neuron's own layer | 61% / 0.8% | 64% / 34% | 74% / 21% |
+
+- **Reading A: no single residual-stream number carries the direction.** The largest coordinate holds 0.5–1.0% (the direction is spread over 550–1,300 coordinates), against 18–23% for the top neuron of the MLP direction. This is why pinning one residual number fails (Section 3.3) while pinning one neuron works.
+- **Reading B: the neuron's share of the residual direction differs by model.** On Llama it is 17%, the largest of any neuron, and its layer's MLP writes a third of the direction. On Qwen3-1.7B it is 5%, still the largest. On Qwen3-8B it is 0.5%: the direction is read six layers later and at the last template token, where this neuron's gap is only −1.1 (its peak is earlier), and a layer-19 neuron (F5693) holds 8.4%. In no model does one neuron make up most of the direction, which fits the held-neuron result (holding it on does not undo the ablation).
+- On Llama the next-largest contributors are L10:F4789, L10:F1084 and L10:F9064, the same neurons that recur across languages in Part 2.
+
+**Note 4: the English search with one ingredient changed at a time** (rank of Apple's neuron):
+
+| Prompts | Refusal phrases | Qwen3-8B | Llama | Qwen3-1.7B |
+|---|---|---|---|---|
+| Apple's (Arditi's sample) | Apple's Table 4 | 5 | 3 | 4 |
+| Apple's | the model's own openings | 8 | (running) | 2 |
+| PolyRefuse English (same harmful prompts, other harmless) | Table 4 | 4 | (running) | 5 |
+| PolyRefuse English | own | 6 | 3 | 2 |
+| MultiJail English | Table 4 | 1 | (running) | 4 |
+| MultiJail English | own | 2 | 4 | 1 |
+
+The rank moves between 1 and 8 with the prompts and the phrases, and is first in only two of the settings finished so far. The search's job is the shortlist; the rerank picks the winner.
+
+**Part 3 in Arabic on MultiJail, both 8B models** (87 Arabic rerank prompts; Qwen3Guard; jobs `mlp_direction-460182/3`): the MLP direction's top neuron is Apple's (Qwen3-8B 24%, Llama 6%). none / pin / ablate direction / steer α = 4 / Arditi ablated / with the neuron held: Qwen3-8B 0.07 / 0.76 / 0.09 / 0.69 / 0.52 / 0.49; Llama 0.05 / 0.62 / 0.05 / 0.21 / 0.59 / 0.58. Same pattern as PolyRefuse, lower throughout. On Llama, steering at α = 4 leaves 67% of answers labelled refusals, so it does not work there.
 
 ### 2026-11-05: Refusal induced on harmless prompts, quick check (`scripts/jobs/induce_refusal.sh`)
 Setup: pin each neuron toward its harmful value (and beyond) at every token while the model answers 100 harmless Alpaca prompts (`harmless_heldout`), 64 tokens, English string-match refusal check. A rough check run for the 5 November meeting.
