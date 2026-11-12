@@ -110,7 +110,8 @@ Then **writing** (December), for 4 January. After this paper: images and audio (
 - **Weekly meeting with Nadir every Thursday.** Each meeting gets dated slides and one page of minutes: attendees, what was discussed, decisions, action items.
 - **Shared Google Drive folder** (fjoad1 account; anyone with the link can view): **[Refusal Neurons](https://drive.google.com/drive/folders/10q3hGmtRQUqM5EneyoZhL_j46phpbwy6)**
   - [Slides](https://drive.google.com/drive/folders/14CgO54B1EEDSPxSL4YIaJB80EHOnpDUB): one deck per meeting, named by date
-  - [Meeting minutes](https://drive.google.com/drive/folders/1xjEww7FKtUxB_ms_m1BfkR0aKmH9LP1x): [2026-10-22 weekly meeting](https://docs.google.com/document/d/1TnyCnlIqGuIo23iHMe7UKnCt23fyArFX/edit), [2026-10-19 kickoff](https://docs.google.com/document/d/1iISPLsnNnbcexcsJRaZbgwe34YXMlaI3/edit)
+  - [Meeting minutes](https://drive.google.com/drive/folders/1xjEww7FKtUxB_ms_m1BfkR0aKmH9LP1x): [2026-11-05 weekly meeting](https://docs.google.com/document/d/1XHGakgoGHCT23WmCpIR8pH5S4-mypLJ-/edit), [2026-10-22 weekly meeting](https://docs.google.com/document/d/1TnyCnlIqGuIo23iHMe7UKnCt23fyArFX/edit), [2026-10-19 kickoff](https://docs.google.com/document/d/1iISPLsnNnbcexcsJRaZbgwe34YXMlaI3/edit)
+- Each set of minutes ends with an appendix, "The slides explained, step by step": one section per slide of that meeting's deck, saying in plain words what was done, how every number was calculated, and what the data looks like (added 2026-11-12 for both decks, at Nadir's request).
 - Minutes live only in Drive, not in this public repo, because they contain internal discussion. A Drive-ready copy is kept locally in `drive/` (gitignored). `drive/src/` holds the HTML sources, converted to Word with `soffice --headless --convert-to docx`.
 - The slides' source (`slides/build_slides.js`) and PDF are also in this repo.
 
