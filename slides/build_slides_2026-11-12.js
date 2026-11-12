@@ -42,15 +42,15 @@ const R = {
   // Part 3, Arabic MultiJail: [top neuron (share), none, remove direction, steer a=4, pin, Nanda / held]
   part3mj: { "Qwen3-8B": ["Apple's (24%)", "7%", "9%", "69%", "76%", "52% / 49%"], "Llama-3.1-8B": ["Apple's (6%)", "5%", "5%", "21%", "62%", "59% / 58%"] },
   // K.1 judge on the per-language attacks: [PolyRefuse no pin -> pinned, MultiJail no pin -> pinned]
-  k1: { "Qwen3-8B": { text: "95–100% / 79–90% (8 + 8 languages so far)", options: { bold: true, color: TEAL } },
+  k1: { "Qwen3-8B": { text: "95–100% / 79–90% (11 + 8 languages)", options: { bold: true, color: TEAL } },
     "Llama-3.1-8B": { text: "running", options: { color: MUTED, italic: true } }, "Qwen3-1.7B": { text: "running", options: { color: MUTED, italic: true } } },
   // Restore refusal: per model, refused on harmful prompts, no pin -> strongest pin: [Yoruba, Swahili, Javanese, harmless prompts refused at that pin]
   // rows: Yoruba, Swahili, Javanese; cells: Llama harmful, Llama harmless, Qwen3-8B harmful, Qwen3-8B harmless
   restore: { rows: [
       ["11% → 20% / 18%", "5% → 14% / 27%", "62% → 86% / 90%", "34% → 65% / 66%"],
-      [{ text: "21% → 66% / 73%", options: { bold: true, color: TEAL } }, "0% → 18% / 58%", null, null],
-      [{ text: "61% → 99% / 98%", options: { bold: true, color: TEAL } }, { text: "2% → 88% / 100%", options: { bold: true, color: FIRE } }, null, null]],
-    answer: [b("On Llama, switching the neuron on brings refusal back in Swahili and Javanese, but it is a blunt switch: "), t("harmless prompts get refused too (Swahili 18–58%, Javanese 88–100%). Only a mild pin in Swahili is selective (+1: 43% of harmful, 4% of harmless). In Yoruba little changes, and the judge reads Yoruba poorly.")] },
+      [{ text: "21% → 66% / 73%", options: { bold: true, color: TEAL } }, "0% → 18% / 58%", "39% → 89% / 79%", "30% → 76% / 75%"],
+      [{ text: "61% → 99% / 98%", options: { bold: true, color: TEAL } }, { text: "2% → 88% / 100%", options: { bold: true, color: FIRE } }, { text: "27% → 96% / 92%", options: { bold: true, color: TEAL } }, null]],
+    answer: [b("The neuron can switch refusal back on (Llama: Swahili and Javanese; Qwen3-8B: Javanese), but it is a blunt switch: "), t("harmless prompts get refused too. Only a mild pin on Llama in Swahili is selective (+1: 43% of harmful, 4% of harmless). In Yoruba, and in Swahili on Qwen3-8B, harmful and harmless rise together.")] },
 };
 
 const pres = new pptxgen();
