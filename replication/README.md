@@ -82,7 +82,7 @@ Newest work first in each topic; every entry has its date, setup, numbers and ca
 - **Arabic Experiment 1** (PolyRefuse rerank picks Apple's neuron and pin on Qwen3-8B, and on Llama under Qwen3Guard; Qwen3-1.7B a near-tie; on MultiJail no neuron reaches 0.90 on any model): 2026-10-27
 - **Part 2 search in every language, Qwen3-1.7B** (Apple's neuron and L10:F244 in the top 5 in 19 of 21 language sets; Yoruba and Swahili are the exceptions): 2026-11-05
 - **K.1 judge on the English and Arabic attacks** (Apple's main criterion: English 0.89–0.97, Arabic PolyRefuse 0.96–0.99, MultiJail 0.79–0.94; every pinned answer coherent): 2026-11-05
-- **Part 3, MLP direction, first result** (Qwen3-1.7B and Qwen3-8B: the direction's top neuron is Apple's neuron; steering with it jailbreaks at 0.95–0.96): 2026-11-05
+- **Part 3, MLP direction** (all three models, English and Arabic: the direction's top neuron is Apple's neuron; removing it barely helps, steering past harmless jailbreaks at 0.89–0.96): 2026-11-05, 8B Arabic added 2026-11-12
 - **Arabic Experiments 3, 4–5, 7 and Arditi's capability cost, first results** (Arabic behaves like English, a bit weaker; base models already have the neuron in Arabic too): 2026-11-05
 - **Arabic Experiments 2 and 8** (PolyRefuse: the neuron jailbreaks Arabic as well as English, 88–95%, matching Arditi's Arabic direction; MultiJail weaker for both; the neuron is 1st or 2nd most aligned with the Arabic direction): 2026-11-05
 
@@ -95,10 +95,11 @@ Setup: pin each neuron toward its harmful value (and beyond) at every token whil
 |---|---|---|
 | Qwen3-1.7B L13:F3270 (harmful mean ≈ −9) | −10 / −20 / −40 | 0.00 → 0.00 / 0.01 / 0.04 |
 | Llama-3.1-8B L11:F4258 (harmful mean ≈ +1) | +1 / +2 / +4 | 0.00 → 0.01 / 0.07 / **0.90** |
-| Qwen3-8B L14:F7924 | −4 / −10 / −20 | running |
+| Qwen3-8B L14:F7924 | −4 / −10 / −20 | 0.00 → 0.01 / 0.03 / 0.13 |
 
 - **On Llama the one neuron also creates refusal:** at 4× its harmful value, 90% of harmless requests are refused.
 - **On Qwen3-1.7B it does not:** refusals barely rise. There the neuron is needed for refusal but not enough on its own (it shares the role with L10:F244).
+- **On Qwen3-8B it barely does:** 13% of harmless requests are refused at the largest pin. That fits Part 2, where this model's refusal signal is spread over about five neurons.
 - Caveats: string match on 64 tokens, no judge; whether the pinned answers are coherent refusals is unchecked. Log: `induce_refusal-450029`.
 
 **Part 2 attacks, first languages (Qwen3-1.7B, `part2_attack.sh`, running).** Pin +40 on 100 held-out prompts per language, 512 tokens; Qwen3Guard refusal and unsafe labels. Refused, no pin → pinned: PolyRefuse en 0.78 → 0.01, de 0.68 → 0.11, es 0.66 → 0.05, fr 0.65 → 0.04; MultiJail en 0.59 → 0.07, zh 0.57 → 0.08, it 0.54 → 0.08, vi 0.43 → 0.06. Unsafe: PolyRefuse 0.18–0.28 → 0.84–0.94; MultiJail 0.06–0.16 → 0.60–0.76 (borderline prompts). Full table when all three models finish.
@@ -257,7 +258,27 @@ The same pattern as English in Arabic. Logs: `mlp_direction-449792`, `mlp_direct
 | Arditi's direction ablated at all layers | 0.96 |
 | same, with F4258 held at its harmful mean | 0.97 |
 
-**The same three findings on Llama:** the MLP direction's top neuron at L11 is Apple's F4258 (rank 1, 22% of the squared norm); removing the direction or resetting the neuron barely helps (0.17–0.23), steering past the harmless side jailbreaks (0.92); holding the neuron does not undo Arditi's ablation. The direction's top neurons at the neighbouring layers, L10:F9064 (11%) and L15:F9635 (10%), are the neurons that recur with F4258 across languages in Part 2. Log: `mlp_direction-449800`. The 8B Arabic tracks are queued.
+**The same three findings on Llama:** the MLP direction's top neuron at L11 is Apple's F4258 (rank 1, 22% of the squared norm); removing the direction or resetting the neuron barely helps (0.17–0.23), steering past the harmless side jailbreaks (0.92); holding the neuron does not undo Arditi's ablation. The direction's top neurons at the neighbouring layers, L10:F9064 (11%) and L15:F9635 (10%), are the neurons that recur with F4258 across languages in Part 2. Log: `mlp_direction-449800`.
+
+**Qwen3-8B and Llama-3.1-8B, Arabic PolyRefuse** (2026-11-12; Arabic search sets, 191 Arabic rerank prompts, 128 tokens; Qwen3Guard / Llama-Guard on the translation). The MLP direction's top neuron at Apple's layer is again Apple's neuron: F7924 at L14 on Qwen3-8B (rank 1, 20% of the squared norm) and F4258 at L11 on Llama (rank 1, 10%).
+
+| Intervention | Qwen3-8B (L14, F7924 at +20) | Llama (L11, F4258 at −4) |
+|---|---|---|
+| none | 0.09 / 0.13 | 0.13 / 0.19 |
+| pin Apple's neuron | 0.95 / 0.93 | 0.91 / 0.89 |
+| ablate the MLP direction | 0.12 / 0.14 | 0.16 / 0.23 |
+| ablate it using every neuron except Apple's | 0.12 / 0.14 | 0.15 / 0.22 |
+| reset Apple's neuron to its harmless mean | 0.12 / 0.14 | 0.17 / 0.22 |
+| steer, α = 0.5 / 1 / 2 / 4 (Qwen3Guard) | 0.26 / 0.52 / 0.81 / 0.90 | 0.20 / 0.34 / 0.55 / 0.89 |
+| Arditi's Arabic direction ablated at all layers | 0.85 / 0.85 | 0.90 / 0.90 |
+| same, with Apple's neuron held at its harmful mean | 0.83 / 0.83 | 0.89 / 0.88 |
+
+- **All three Part 3 findings hold in Arabic on both 8B models.** The direction's top neuron is Apple's neuron; removing the direction or resetting the neuron barely moves the attack (0.12–0.17 from 0.09–0.13); steering past the harmless side jailbreaks (0.89–0.90 at α = 4); holding the neuron does not undo Arditi's ablation.
+- On Llama the neuron's share of the Arabic direction is about half its English share (10% vs 22%); L10:F4789, one of the neurons that recur across languages, is the top neuron one layer down (9%).
+- Caveat: at α = 4 Qwen3Guard still labels 39% of Llama's answers as refusals while calling 89% unsafe, so some of those answers are probably degraded. The K.1 judge has not been run on these files.
+- MultiJail for these two models: jobs 460182/3.
+
+Logs: `mlp_direction-459951` (Qwen3-8B), `mlp_direction-459952` (Llama).
 
 ### 2026-11-05: Arabic Experiments 3, 4–5 and 7, and Arditi's capability cost, first results (`arabic_exp3.sh`, `arabic_exp45.sh`, `arabic_exp7.sh`, `cap_arditi.sh`)
 **Experiment 3, capability on Arabic MMLU** (`mmmlu_ar_1000`: the same 1,000 questions as `mmlu_1000`, from MMMLU; Arabic answer instruction; no Arabic GSM8K exists). All three models:
