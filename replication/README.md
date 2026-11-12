@@ -103,7 +103,7 @@ Nine points came out of the 5 November meeting (README, "Follow-ups from the 5 N
 | MultiJail Swahili | **−1.28 / −1.12 / −0.92; 0.69** | +0.58 / +0.18 / +0.06; 0.98 | **+0.77 / +0.82 / +0.93; 0.32** |
 | PolyRefuse Yoruba | **−0.73 / −0.55 / −0.54; 0.58** | **+0.10 / +0.10 / +0.05; 0.81** | **−3.48 / −3.31 / −2.42; 0.73** |
 
-- **Everywhere the neuron works, it fires more on the prompts the model refuses than on the ones it answers** (for example Qwen3-8B English −4.08 against −1.70), and both are above harmless prompts. The neuron's value tracks whether the model refuses, prompt by prompt, in 20 of 23 language sets per model.
+- **Everywhere the neuron works, it fires more on the prompts the model refuses than on the ones it answers** (for example Qwen3-8B English −4.08 against −1.70), and both are above harmless prompts. The neuron's value tracks whether the model refuses, prompt by prompt, in every language set except the ones in bold below.
 - **Javanese, and Swahili on Llama, look like the other languages:** the neuron fires on the refused prompts (AUROC against harmless 0.96–1.00), only more weakly. There the circuit is intact and the language triggers it less.
 - **Yoruba (all three models) and Swahili (both Qwen models) are different:** the neuron sits at its harmless level even on the prompts labelled as refused. Either these models refuse there by another route, or the refusal labels are wrong: Qwen3Guard reads these languages poorly (it labels 65–78% of the Qwen models' Yoruba answers as refusals, against 30–44% on the short answers used in the search). Settling this needs a refusal reading that works in Yoruba (the `restore_refusal` jobs add Qwen3Guard on a translation).
 
