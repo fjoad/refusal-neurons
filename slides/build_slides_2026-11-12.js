@@ -19,17 +19,17 @@ const FONT = "Arial";
 // restore_refusal-*.out, part2_judge-*.out on panther.
 const R = {
   // Q1: MMLU accuracy and mean KL per intervention, per model: [none, reset, 10%, 25%, 50%, 100%, anchor, ablation]
-  q1: { "Qwen3-8B": null, "Llama-3.1-8B": null,
+  q1: { "Qwen3-8B": ["67.4", "67.8 (0.00)", "68.4 (0.02)", "67.9 (0.11)", "66.3 (0.48)", "60.4 (2.51)", "68.0 (0.12)", "66.6 (0.12)"], "Llama-3.1-8B": null,
     "Qwen3-1.7B": ["53.5", "53.7 (0.00)", "53.3 (0.01)", "53.0 (0.08)", "52.4 (0.22)", "48.3 (0.72)", "53.1 (0.12)", "51.7 (0.43)"] },
   // Q2: [questions where the neuron fires (of 1,000), anchor pin median (5th-95th pct), accuracy on fired: none / constant / anchor]
-  q2: { "Qwen3-8B": null, "Llama-3.1-8B": null,
+  q2: { "Qwen3-8B": ["0 of 1,000", "+4.7 (+4.3 to +6.7)", "none fired", "67.4 / 60.4 / 68.0"], "Llama-3.1-8B": null,
     "Qwen3-1.7B": ["0 of 1,000", "+12.3 (+11.2 to +17.7)", "none fired", "53.5 / 48.3 / 53.1"] },
   // Q4: rank of Apple's neuron, per model [Qwen3-8B, Llama, Qwen3-1.7B]
-  q4: { own_phrases: [null, null, "2"], poly_table4: [null, null, "5"], mj_table4: [null, null, "4"] },
+  q4: { own_phrases: ["8", null, "2"], poly_table4: [null, null, "5"], mj_table4: [null, null, "4"] },
   // Q9a: [largest coordinate share, top-10 share, participation ratio, MLP direction's largest share (same token)]
-  q9a: { "Qwen3-8B": null, "Llama-3.1-8B": null, "Qwen3-1.7B": ["1.0%", "7%", "549 of 2,048", "18%"] },
+  q9a: { "Qwen3-8B": ["0.8%", "5%", "963 of 4,096", "23%"], "Llama-3.1-8B": null, "Qwen3-1.7B": ["1.0%", "7%", "549 of 2,048", "18%"] },
   // Q9b: [direction's layer, neuron's share of the residual direction, rank in its layer, largest single-neuron share]
-  q9b: { "Qwen3-8B": null, "Llama-3.1-8B": null, "Qwen3-1.7B": ["15", "5.3%", "1st of 6,144", "5.3% (Apple's)"] },
+  q9b: { "Qwen3-8B": ["20", "0.5%", "1st of 12,288", "8.4% (L19:F5693)"], "Llama-3.1-8B": null, "Qwen3-1.7B": ["15", "5.3%", "1st of 6,144", "5.3% (Apple's)"] },
   // Part 3, Arabic MultiJail: [top neuron (share), none, remove direction, steer a=4, pin, Nanda / held]
   part3mj: { "Qwen3-8B": ["Apple's (24%)", "7%", "9%", "69%", "76%", "52% / 49%"], "Llama-3.1-8B": null },
   // K.1 judge on the per-language attacks: [PolyRefuse no pin -> pinned, MultiJail no pin -> pinned]
@@ -52,6 +52,7 @@ const TAGS = {
   q: { text: "QUESTIONS FROM 5 NOVEMBER", color: AMBER },
   p2: { text: "STILL RUNNING LAST TIME: EVERY LANGUAGE", color: TEAL },
   p3: { text: "STILL RUNNING LAST TIME: INSIDE THE MLP", color: SLATE },
+  ref: { text: "LAST TIME: FROM THE 5 NOVEMBER DECK", color: SLATE },
   next: { text: "NEXT", color: MUTED },
 };
 
@@ -119,6 +120,32 @@ function question(s, q, hyp, did, w = 5.4) {
   bullets(s, did, ML, 4.7, w, 1.45, 13);
 }
 const MODELS = ["Qwen3-8B", "Llama-3.1-8B", "Qwen3-1.7B"];
+
+// Figures cropped from the 5 November deck (slides/assets/2026-11-12): [old slide, x0, y0, x1, y1] in that slide's inches.
+const CROPS = {
+  s5_mmlu: [5, 0.5, 1.45, 7.0, 3.75], s6_residual: [6, 0.5, 1.45, 6.75, 3.95], s6_nanda_cost: [6, 6.9, 1.45, 12.85, 3.75],
+  s7_grid: [7, 0.5, 1.25, 12.9, 6.5], s9_exceptions: [9, 0.5, 1.5, 12.9, 3.8], s10_attacks: [10, 0.5, 1.4, 12.9, 5.85],
+  s11_mlp: [11, 0.5, 1.45, 12.9, 5.55],
+};
+// Places a crop at (X, Y) with width W, with a caption under it; mark() outlines a region given in the old slide's inches.
+function fig(s, name, X, Y, W, caption) {
+  const [pg, x0, y0, x1, y1] = CROPS[name];
+  const k = W / (x1 - x0), H = (y1 - y0) * k;
+  s.addImage({ path: path.join(__dirname, "assets", "2026-11-12", name + ".png"), x: X, y: Y, w: W, h: H });
+  s.addShape(pres.shapes.RECTANGLE, { x: X, y: Y, w: W, h: H, fill: { color: WHITE, transparency: 100 }, line: { color: LINE, width: 1 } });
+  s.addText(`5 November deck, slide ${pg}` + (caption ? ": " + caption : ""), { x: X, y: Y + H + 0.03, w: W, h: 0.28,
+    fontFace: FONT, fontSize: 11, italic: true, color: MUTED, margin: 0 });
+  return { H, mark: (x, y, w, h, color = FIRE) => s.addShape(pres.shapes.RECTANGLE, { x: X + (x - x0) * k, y: Y + (y - y0) * k,
+    w: w * k, h: h * k, fill: { color: WHITE, transparency: 100 }, line: { color, width: 2.25 } }) };
+}
+// The questions a reference slide led to.
+function raised(s, items, y, h) {
+  s.addShape(pres.shapes.RECTANGLE, { x: ML, y, w: CW, h, fill: { color: AMBER_SOFT }, line: { color: AMBER_SOFT } });
+  s.addShape(pres.shapes.RECTANGLE, { x: ML, y, w: 0.08, h, fill: { color: AMBER }, line: { color: AMBER } });
+  s.addText([{ text: "Questions it raised", options: { bold: true, color: AMBER, breakLine: true } },
+    ...items.map((it, i) => ({ text: it, options: { breakLine: i < items.length - 1 } }))],
+    { x: ML + 0.3, y, w: CW - 0.45, h, fontFace: FONT, fontSize: 14, color: INK, valign: "middle", margin: 0, paraSpaceAfter: 3 });
+}
 
 // ------------------------------------------------------------------ 1. title
 {
@@ -198,19 +225,36 @@ const MODELS = ["Qwen3-8B", "Llama-3.1-8B", "Qwen3-1.7B"];
   const A = (ok, text) => (ok ? done(text) : { text: "pending", options: { color: MUTED, italic: true, align: "left" } });
   const left = (x) => ({ text: x, options: { align: "left" } });
   table(s, [
-    ["#", "Question", "How we tested it", "Slide"],
-    ["1", left("Why does Nanda's ablation cost less ability than the constant pin?"), left("MMLU with the pin at growing strengths; how far each intervention moves the model's output"), "5"],
-    ["2", left("Does the neuron even fire on MMLU? If not, the anchor test shows little"), left("Count the questions where it fires; accuracy on those"), "6"],
-    ["3", left("Overlap of the top-5 lists across languages and datasets"), left("Each language's top 5 against the top 5 of Apple's English setup"), "7"],
-    ["4", left("Why is Apple's neuron not first in English on other datasets?"), left("The English search with one ingredient changed at a time"), "8"],
-    ["5", left("Low-resource languages: where the model does refuse, is the neuron there?"), left("The neuron's value on refused against answered prompts, per language"), "9"],
-    ["6", left("Is there a language-specific step in the smaller model?"), left("The neuron's strength per language as a share of English, per model"), "10"],
-    ["7", left("Why are Chinese and Vietnamese lower?"), left("Are the same MultiJail prompts \"answered but safe\" in every language?"), "11"],
-    ["8", left("Explain the math of the neuron's share of the direction"), left("Formula and worked example"), "12"],
-    ["9", left("Do the same breakdown in the residual stream"), left("Spread of the residual direction; the neuron's share of it"), "13"],
-  ], ML, 1.5, CW, [0.5, 5.2, 5.63, 0.8], { size: 13, rowH: 0.46 });
+    ["#", "Question", "How we tested it", "What prompted it", "Answer"],
+    ["1", left("Why does Nanda's ablation cost less ability than the constant pin?"), left("MMLU with the pin at growing strengths; how far each intervention moves the model's output"), "slide 5", "slide 6"],
+    ["2", left("Does the neuron even fire on MMLU? If not, the anchor test shows little"), left("Count the questions where it fires; accuracy on those"), "slide 5", "slide 7"],
+    ["3", left("Overlap of the top-5 lists across languages and datasets"), left("Each language's top 5 against the top 5 of Apple's English setup"), "slide 8", "slide 9"],
+    ["4", left("Why is Apple's neuron not first in English on other datasets?"), left("The English search with one ingredient changed at a time"), "slide 8", "slide 10"],
+    ["5", left("Low-resource languages: where the model does refuse, is the neuron there?"), left("The neuron's value on refused against answered prompts, per language"), "slide 11", "slide 12"],
+    ["6", left("Is there a language-specific step in the smaller model?"), left("The neuron's strength per language as a share of English, per model"), "slide 11", "slide 13"],
+    ["7", left("Why are Chinese and Vietnamese lower?"), left("Are the same MultiJail prompts 'answered but safe' in every language?"), "slide 14", "slide 15"],
+    ["8", left("Explain the math of the neuron's share of the direction"), left("Formula and worked example"), "slide 16", "slide 17"],
+    ["9", left("Do the same breakdown in the residual stream"), left("Spread of the residual direction; the neuron's share of it"), "slide 16", "slide 18"],
+  ], ML, 1.5, CW, [0.45, 4.6, 4.78, 1.3, 1.0], { size: 12, rowH: 0.46 });
   s.addText("Also in the notes: put the job logs in the repository, and write a how-to-run guide so others can run the pipeline (not done yet).",
     { x: ML, y: 6.45, w: CW, h: 0.35, fontFace: FONT, fontSize: 13, color: MUTED, margin: 0 });
+}
+
+// ------------------------------------------------------------------ ref: what the pin costs
+{
+  const s = newSlide("Last time: what each method costs the model's ability", "ref",
+    "Two tables from the 5 November deck. Left: accuracy on 1,000 Arabic MMLU exam questions with no pin, the constant pin, the anchor pin, and Nanda's ablation. Right: Nanda's ablation on English MMLU and GSM8K, before and after. The constant pin is the only one that costs much.");
+  const a = fig(s, "s5_mmlu", ML, 1.55, 6.3, "Arabic exam questions, accuracy under each method");
+  a.mark(3.55, 1.9, 1.1, 1.72);            // Constant
+  a.mark(4.65, 1.9, 1.2, 1.72, AMBER);     // Anchor
+  fig(s, "s6_nanda_cost", 7.1, 1.55, 5.63, "Nanda's ablation in English: accuracy before → after");
+  bullets(s, [
+    "Constant pin (outlined in red): the neuron is held at its attack value on every question. It costs 5 to 9 points",
+    "Anchor pin (outlined in amber): the pin is scaled by how strongly the neuron fires on each prompt. It costs about 1 point",
+    "Nanda's ablation: the refusal direction is removed from the residual stream. It costs 1 to 2 points",
+  ], ML, 4.2, CW, 1.25, 14);
+  raised(s, ["1. Why is Nanda's ablation so much cheaper than the constant pin?",
+    "2. The anchor only pushes when the neuron fires. Does the neuron fire on exam questions at all? If not, this test says little."], 5.6, 1.15);
 }
 
 // ------------------------------------------------------------------ 5. Q1
@@ -218,7 +262,7 @@ const MODELS = ["Qwen3-8B", "Llama-3.1-8B", "Qwen3-1.7B"];
   const s = newSlide("1. Why does Nanda's ablation cost less than the constant pin?", "q",
     "Setup: the 1,000 MMLU questions, answer-letter accuracy. The neuron is reset to its average value on harmless prompts, then pinned at 10%, 25%, 50% and 100% of its attack pin. KL = how far the model's next-token probabilities move from the unmodified model, averaged over the questions (0 = identical). If the cost comes from the size of the pin, accuracy falls and KL rises with the pin, and the reset costs nothing. If the neuron has other jobs, even the reset costs.");
   question(s,
-    "Last time: Nanda's ablation costs 1–2 points of ability, the constant pin 5–9. Why is Nanda's better?",
+    "Previous slide: Nanda's ablation costs 1–2 points of ability, the constant pin 5–9. Why is Nanda's better?",
     "The pin forces the neuron far outside its normal range on every prompt (Qwen3-8B: normally between −4 and 0, pinned at +20). Ablation only removes something that is near zero on harmless prompts. Alternative: the neuron has other jobs, so any overwrite hurts.",
     ["1,000 MMLU questions, one pass per setting",
       "Pin the neuron at its harmless average, then at 10%, 25%, 50%, 100% of the attack pin",
@@ -238,7 +282,7 @@ const MODELS = ["Qwen3-8B", "Llama-3.1-8B", "Qwen3-1.7B"];
   const s = newSlide("2. Does the neuron fire on MMLU at all?", "q",
     "The anchor pin reads how strongly the neuron fires on each prompt and scales the pin by it. So if the neuron is silent on exam questions, the anchor is nearly off and 'the anchor costs nothing' is not informative. Fires = the neuron's strongest value at the template tokens passes the detector cut-off chosen on XSTest (Qwen3-8B −2.80, Llama +0.46, Qwen3-1.7B −7.7). The anchor pin actually used is k × pin × (v ÷ d) − d, capped at the pin.");
   question(s,
-    "Last time: \"the anchor pin costs about 1 point\". But the anchor only pushes when the neuron fires. How often does it fire on exam questions?",
+    "Slide 5: \"the anchor pin costs about 1 point\". But the anchor only pushes when the neuron fires. How often does it fire on exam questions?",
     "The neuron fires on very few MMLU questions, so the anchor is nearly off there, and the test shows little about its real cost.",
     ["Read the neuron on each of the 1,000 questions",
       "Count the questions that pass the detector cut-off",
@@ -254,11 +298,30 @@ const MODELS = ["Qwen3-8B", "Llama-3.1-8B", "Qwen3-1.7B"];
   if (R.q2.answer) result(s, R.q2.answer, { y: 6.2, h: 0.65 }); else pendingBar(s, 6.2, 0.65);
 }
 
+// ------------------------------------------------------------------ ref: the rank grid
+{
+  const s = newSlide("Last time: the search rerun from scratch in every language", "ref",
+    "The grid from the 5 November deck. For each model and each of 22 language sets, Apple's search (score every neuron by gap times push, keep the top 5) is run from scratch on prompts in that language, and each cell is where Apple's English neuron lands, out of about 110,000 to 300,000 neurons. 1 = that language's search picked Apple's English neuron first. The two English columns are outlined.");
+  const g = fig(s, "s7_grid", ML, 1.5, 8.7, "rank of Apple's English neuron in each language's own search");
+  const cw = (CW - 1.9) / 22;
+  g.mark(2.5, 1.9, cw, 2.32);               // PolyRefuse English
+  g.mark(2.5 + 13 * cw, 1.9, cw, 2.32);     // MultiJail English
+  label(s, "HOW TO READ IT", 9.55, 1.5, 3.2, SLATE);
+  bullets(s, [
+    "One row per model, one column per language",
+    "Each cell: the rank of Apple's English neuron when the search is run in that language, with no hint",
+    "Dark green 1 = picked first. Light = top 5. Orange = the neuron stops working there",
+    "Result last time: the same neuron comes out in almost every language",
+  ], 9.55, 1.8, 3.2, 3.6, 13);
+  raised(s, ["3. This shows one neuron. How much do the whole top-5 lists overlap across languages and datasets?",
+    "4. Apple found its neuron in English. Why is it 3rd, 6th and 2nd in the English columns (outlined), not 1st?"], 5.6, 1.15);
+}
+
 // ------------------------------------------------------------------ 7. Q3
 {
   const s = newSlide("3. How much do the top-5 lists overlap across languages?", "q",
     "Reference list: the top 5 of our own run of Apple's English setup (their prompts, their refusal phrases); Apple's paper prints only the winning neuron per model. For each of 24 language sets (PolyRefuse 14, MultiJail 10) we count how many of that language's top 5 are in the reference list, and in how many of the 24 lists each reference neuron appears. Larger k needs the full rankings; not done yet.");
-  s.addText("Reference: the top 5 from our run of Apple's own English setup. Apple's paper prints only the winning neuron for each model, not its full list.",
+  s.addText("The grid on the previous slide follows one neuron. Here: each language's whole top 5, against the top 5 from our run of Apple's own English setup (Apple's paper prints only the winning neuron for each model).",
     { x: ML, y: 1.45, w: CW, h: 0.55, fontFace: FONT, fontSize: 14, color: MUTED, margin: 0 });
   table(s, [
     ["Model", "Shared with the reference top 5: PolyRefuse (14 languages)", "MultiJail (10 languages)", "Apple's neuron is in", "Most shared other neuron"],
@@ -279,7 +342,7 @@ const MODELS = ["Qwen3-8B", "Llama-3.1-8B", "Qwen3-1.7B"];
   const s = newSlide("4. Why is Apple's neuron not first in English on other datasets?", "q",
     "The search only shortlists five candidates; the rerank (trying each as a real attack) picks the winner. In our exact replication of Apple's setup their neuron ranked 5th, 3rd and 4th, and in Apple's own Figure 3 the winner is candidate 3 or 4, not candidate 1. The table changes one ingredient at a time: the prompts (Apple's, PolyRefuse English, MultiJail English) and the refusal phrases (Apple's Table 4, or the openings each model actually uses).");
   question(s,
-    "Last time's grid: Apple's neuron ranks 3rd, 6th and 2nd on PolyRefuse English. It was found in English, so why not 1st?",
+    "The outlined columns on slide 8: Apple's neuron ranks 3rd, 6th and 2nd on PolyRefuse English. It was found in English, so why not 1st?",
     "It is not first in Apple's own setup either: the search only makes a shortlist of 5, and trying each as an attack picks the winner. The exact rank moves with the prompts and the refusal phrases, because the top scores are close.",
     ["Rerun the English search, changing one ingredient at a time",
       "Prompts: Apple's, PolyRefuse English, or MultiJail English",
@@ -302,11 +365,25 @@ const MODELS = ["Qwen3-8B", "Llama-3.1-8B", "Qwen3-1.7B"];
   else result(s, [b("Already known: "), t("the neuron is in the top 6 of about 300,000 in every English setup, and never first even in Apple's own. The search shortlists; the attack test picks. The three missing rows are still running.")], { y: 6.2, h: 0.65 });
 }
 
+// ------------------------------------------------------------------ ref: the exceptions
+{
+  const s = newSlide("Last time: in Yoruba and Swahili the neuron goes quiet", "ref",
+    "The exceptions table from the 5 November deck. Model refuses = share of 128 harmful prompts in that language the unpinned model refuses. Neuron detects harm = AUROC of the neuron's value, harmful against harmless prompts in that language (1.0 perfect, 0.5 coin flip). Apple's neuron rank = its rank in that language's search, one number per model.");
+  fig(s, "s9_exceptions", ML, 1.55, CW, "the two languages where the pattern breaks");
+  bullets(s, [
+    "In about 20 of 22 language sets the models refuse most harmful prompts, and the neuron separates harmful from harmless prompts",
+    "In Yoruba (all three models) and Swahili (the two Qwen models) both fail: few refusals, and the neuron no longer tells harmful from harmless",
+    "Our reading last time: in these languages the harmful request never reaches the refusal neuron, which would explain why translating a prompt into a rare language jailbreaks a model",
+  ], ML, 4.15, CW, 1.3, 14);
+  raised(s, ["5. Separate the prompts where the model does refuse from those where it does not. Where it refuses, is the neuron there?",
+    "6. Swahili fails only on the Qwen models, worst on the small one. Is there a language-specific step in smaller models?"], 5.6, 1.15);
+}
+
 // ------------------------------------------------------------------ 9. Q5
 {
   const s = newSlide("5. Where the model does refuse, is the neuron there?", "q",
     "Setup: the 100 attack prompts per language, the model's unpinned answers, labelled refusal or not by Qwen3Guard. For each prompt, the neuron's strongest value at the template tokens. Shown: its average on the prompts the model refused, on the prompts it answered, and on harmless prompts. AUROC of refused against harmless in brackets. Caveat: Qwen3Guard's refusal label is unreliable in Yoruba and Swahili.");
-  s.addText("For each language: split the 100 harmful prompts into those the model refused and those it answered (no pin), and read the neuron on each group.",
+  s.addText("Question from the previous slide. For each language: split the 100 harmful prompts into those the model refused and those it answered (no pin), and read the neuron on each group.",
     { x: ML, y: 1.42, w: CW, h: 0.5, fontFace: FONT, fontSize: 14, color: MUTED, margin: 0 });
   label(s, "THE NEURON'S AVERAGE VALUE: ON REFUSED / ON ANSWERED / ON HARMLESS PROMPTS", ML, 1.95, CW);
   table(s, [
@@ -331,7 +408,7 @@ const MODELS = ["Qwen3-8B", "Llama-3.1-8B", "Qwen3-1.7B"];
   const s = newSlide("6. Is there a language-specific step in the smaller model?", "q",
     "Strength = the neuron's harmful-minus-harmless gap at its strongest template token, on each language's test prompts (PolyRefuse 572 harmful + 500 harmless; MultiJail 100 + 100), divided by the same gap in English. If the small model had an extra language-dependent step, its neuron should lose more strength outside English than the large model's. Still to do: the layer where harmful and harmless prompts first separate, per language.");
   question(s,
-    "Last time: on Qwen3-1.7B the neuron is second nearly everywhere and fails in Swahili. Maybe the small model has a language-specific step mixed into refusal?",
+    "Slides 8 and 11: on Qwen3-1.7B the neuron is second nearly everywhere and fails worst in Swahili. Maybe the small model has a language-specific step mixed into refusal?",
     "If so, the small model's neuron should lose more of its strength outside English than the large model's does.",
     ["For every language: the neuron's gap between harmful and harmless prompts",
       "Divide by the same gap in English",
@@ -352,12 +429,29 @@ const MODELS = ["Qwen3-8B", "Llama-3.1-8B", "Qwen3-1.7B"];
   result(s, [b("No sign of it in this measure. "), t("The small model keeps as much of its English strength as the large one in every language except Swahili. Yoruba is at 5–8% of English on all three models. Still to check: the layer where the signal first appears.")], { y: 6.2, h: 0.68, size: 14 });
 }
 
+// ------------------------------------------------------------------ ref: per-language attacks
+{
+  const s = newSlide("Last time: pinning the neuron in each language, first results", "ref",
+    "From the 5 November deck: Qwen3-1.7B only, the 8 language sets finished at the time. Apple's neuron is pinned at its English value while the model answers 100 held-out harmful prompts in each language. Refused and harmful are Qwen3Guard's labels. Chinese and Vietnamese (outlined) had the lowest harmful rates.");
+  const a = fig(s, "s10_attacks", ML, 1.5, 8.9, "Qwen3-1.7B, 100 held-out harmful prompts per language");
+  a.mark(0.6, 4.58, 12.13, 0.38);   // MultiJail Chinese
+  a.mark(0.6, 5.34, 12.13, 0.38);   // MultiJail Vietnamese
+  label(s, "WHAT IT SHOWED", 9.75, 1.5, 3.0, SLATE);
+  bullets(s, [
+    "With the pin, refusals fall to 1–11% in every language",
+    "Harmful answers rise to 84–94% on PolyRefuse, but only 60–76% on MultiJail",
+    "Chinese (63%) and Vietnamese (60%) were the lowest",
+    "Only one model and 8 language sets were finished; all three models are on slide 19",
+  ], 9.75, 1.8, 3.0, 3.3, 13);
+  raised(s, ["7. Why are Chinese and Vietnamese not as good as the other languages?"], 5.75, 0.85);
+}
+
 // ------------------------------------------------------------------ 11. Q7
 {
   const s = newSlide("7. Why are Chinese and Vietnamese lower?", "q",
     "Slide 10 last time showed MultiJail Chinese 63% and Vietnamese 60% harmful answers on Qwen3-1.7B, against 84–94% on PolyRefuse. MultiJail has the same 100 prompts in every language, so we can ask whether the same prompts are the ones whose pinned answers are 'answered but judged safe' (not a refusal, not harmful, by Qwen3Guard). If the cases were unrelated across languages, the 20 most affected prompts would hold about 20% of them.");
   question(s,
-    "Last time: with the neuron pinned, MultiJail Chinese (63%) and Vietnamese (60%) gave fewer harmful answers than other languages. Is it the language?",
+    "Previous slide: with the neuron pinned, MultiJail Chinese (63%) and Vietnamese (60%) gave fewer harmful answers than other languages. Is it the language?",
     "It is the dataset. MultiJail has borderline prompts where answering is not harmful, and they are the same prompts in every language.",
     ["MultiJail has the same 100 prompts in every language",
       "Mark each pinned answer: refused, harmful, or answered but judged safe",
@@ -376,6 +470,24 @@ const MODELS = ["Qwen3-8B", "Llama-3.1-8B", "Qwen3-1.7B"];
   s.addText("Same Chinese on the other dataset, Qwen3-1.7B: PolyRefuse Chinese 87% harmful. By chance the same 20 prompts would hold about 20%.",
     { x, y: 5.05, w, h: 0.5, fontFace: FONT, fontSize: 11, color: MUTED, margin: 0 });
   result(s, [b("It is the dataset, not the language. "), t("The pin removes refusal equally well in Chinese and Vietnamese (2–9% still refused). What differs is how many answers are judged harmless, and those fall on the same borderline prompts in every language.")], { y: 6.2, h: 0.68, size: 14 });
+}
+
+// ------------------------------------------------------------------ ref: the MLP direction
+{
+  const s = newSlide("Last time: the refusal direction inside the MLP", "ref",
+    "Left, from the 5 November deck: Nanda's refusal direction rebuilt over the MLP's neurons at Apple's layer. Row 1 is the neuron holding the biggest share of that direction. The other rows are attack success (share of 191 HarmBench answers judged harmful) under each intervention. Right: pinning the best single residual-stream number, against pinning the MLP neuron.");
+  const a = fig(s, "s11_mlp", ML, 1.5, 8.2, "the direction built over the MLP's neurons; % = harmful answers");
+  a.mark(0.6, 1.95, 12.13, 0.4);              // top neuron row
+  a.mark(0.6, 4.75, 12.13, 0.42, AMBER);      // held-on row
+  const r = fig(s, "s6_residual", 9.05, 1.5, 3.68, "one residual number");
+  r.mark(4.7, 1.9, 1.9, 1.45, AMBER);
+  bullets(s, [
+    "Red: the direction's biggest neuron is Apple's neuron, with 18–23% of the direction",
+    "Amber, left: holding that neuron \"on\" does not undo Nanda's ablation",
+    "Amber, right: pinning the best single residual-stream number jailbreaks only 16–32%",
+  ], ML, 4.6, CW, 0.95, 13);
+  raised(s, ["8. Explain the math: how is \"23% of the direction\" calculated?",
+    "9. Do the same breakdown in the residual stream. A single unit may hold very little of the direction there, which could explain both amber results."], 5.62, 1.15);
 }
 
 // ------------------------------------------------------------------ 12. Q8
@@ -410,7 +522,7 @@ const MODELS = ["Qwen3-8B", "Llama-3.1-8B", "Qwen3-1.7B"];
     { x: ML, y: 1.42, w: CW, h: 0.5, fontFace: FONT, fontSize: 14, color: MUTED, margin: 0 });
   const w = (CW - 0.4) / 2;
   label(s, "A. THE RESIDUAL DIRECTION OVER ITS OWN NUMBERS", ML, 2.0, w, AMBER);
-  const rowsA = ["Largest single number's share", "Top 10 numbers together", "Spread over about … numbers", "For comparison: largest neuron's share of the MLP direction"];
+  const rowsA = ["Largest single number's share", "Top 10 numbers together", "Spread over about … numbers", "For comparison: largest neuron's share of the MLP direction (slide 16)"];
   table(s, [["", ...MODELS], ...rowsA.map((r, i) => [r, ...MODELS.map((m) => v(R.q9a[m] && R.q9a[m][i]))])],
     ML, 2.32, w, [2.5, 1.15, 1.15, 1.07], { size: 11, rowH: 0.5 });
   const xb = ML + w + 0.4;
@@ -419,8 +531,8 @@ const MODELS = ["Qwen3-8B", "Llama-3.1-8B", "Qwen3-1.7B"];
   table(s, [["", ...MODELS], ...rowsB.map((r, i) => [r, ...MODELS.map((m) => v(R.q9b[m] && R.q9b[m][i]))])],
     xb, 2.32, w, [2.5, 1.15, 1.15, 1.07], { size: 11, rowH: 0.5 });
   bullets(s, [
-    "If A is tiny: no single residual-stream number carries the direction, which would explain why pinning one residual number jailbreaks only 16–32% (last time's slide 6)",
-    "If B is small: the residual direction is mostly made by other parts of the model, which would explain why holding the neuron \"on\" did not undo Nanda's ablation (last time's slide 11)",
+    "If A is tiny: no single residual-stream number carries the direction, which would explain why pinning one residual number jailbreaks only 16–32% (slide 16, right)",
+    "If B is small: the residual direction is mostly made by other parts of the model, which would explain why holding the neuron \"on\" did not undo Nanda's ablation (slide 16, amber row)",
   ], ML, 4.95, CW, 1.1, 13);
   if (R.q9a.answer) result(s, R.q9a.answer, { y: 6.2, h: 0.65, size: 14 }); else pendingBar(s, 6.2, 0.65);
 }
@@ -429,7 +541,7 @@ const MODELS = ["Qwen3-8B", "Llama-3.1-8B", "Qwen3-1.7B"];
 {
   const s = newSlide("Pinning the neuron switches refusal off in every language but three", "p2",
     "The causal test from last time, now for all three models: Apple's neuron pinned at its English value on 100 held-out harmful prompts per language, 512 tokens. Harmful answers and refusals by Qwen3Guard, reading each language directly. Ranges over the languages judged so far (PolyRefuse: 13 languages incl. Arabic, without Yoruba; MultiJail: 7–8 languages without Swahili and Javanese). K.1 = not a refusal and coherent, judged by gemma-2-9b-it; still running for Llama and Qwen3-1.7B.");
-  label(s, "100 HELD-OUT HARMFUL PROMPTS PER LANGUAGE, APPLE'S NEURON AT ITS ENGLISH PIN", ML, 1.5, CW);
+  label(s, "100 HELD-OUT HARMFUL PROMPTS PER LANGUAGE, APPLE'S NEURON AT ITS ENGLISH PIN (LAST TIME: ONE MODEL, 8 LANGUAGE SETS, SLIDE 14)", ML, 1.5, CW);
   table(s, [
     ["Model", "PolyRefuse, 12–13 languages: harmful answers, no pin → pinned", "Refused after the pin", "MultiJail, 7–8 languages: harmful answers", "K.1 criterion, pinned (PolyRefuse / MultiJail)"],
     ["Qwen3-8B", hl("2–25% → 90–99%"), "0–7%", "2–9% → 66–86%", v(R.k1["Qwen3-8B"])],
@@ -462,7 +574,7 @@ const MODELS = ["Qwen3-8B", "Llama-3.1-8B", "Qwen3-1.7B"];
     ["Pin Apple's neuron", hl("95%"), mj("Qwen3-8B", 4), hl("91%"), mj("Llama-3.1-8B", 4)],
     ["Nanda's ablation / with the neuron held on", "85% / 83%", mj("Qwen3-8B", 5), "90% / 89%", mj("Llama-3.1-8B", 5)],
   ], ML, 1.55, CW, [4.1, 2.05, 2.0, 2.0, 1.98], { size: 13, rowH: 0.44 });
-  s.addText("% = Arabic answers judged harmful (Qwen3Guard). Row 1: the neuron with the biggest share of the Arabic MLP direction.",
+  s.addText("% = Arabic answers judged harmful (Qwen3Guard). Row 1: the neuron with the biggest share of the Arabic MLP direction. The same table in English is on slide 16.",
     { x: ML, y: 4.75, w: CW, h: 0.3, fontFace: FONT, fontSize: 12, color: MUTED, margin: 0 });
   bullets(s, [
     "Built from Arabic prompts, the direction's biggest neuron is again Apple's neuron",
@@ -477,7 +589,7 @@ const MODELS = ["Qwen3-8B", "Llama-3.1-8B", "Qwen3-1.7B"];
   const s = newSlide("Can the neuron bring refusal back in low-resource languages?", "p2",
     "The defense idea from last time's slide 9. In Yoruba, Swahili and Javanese the neuron stays quiet and the models refuse less. Here it is pinned toward its harmful value (and beyond) while the model answers 100 harmful prompts in that language, and 100 harmless prompts in the same language to see the cost. Refusal by Qwen3Guard on the original text and on an English translation. Also the English check from last time, completed: pinning toward harmful on 100 harmless English prompts makes Llama refuse 90%, Qwen3-8B 13%, Qwen3-1.7B 4%.");
   question(s,
-    "Last time: in Yoruba and Swahili the neuron goes quiet and the models refuse less. If we switch the neuron on by hand, does refusal come back?",
+    "Slide 11: in Yoruba and Swahili the neuron goes quiet and the models refuse less. If we switch the neuron on by hand, does refusal come back?",
     "On Llama, yes: its one neuron also creates refusal in English. On the Qwen models probably not, because there the job is shared among several neurons.",
     ["100 harmful prompts each in Yoruba, Swahili and Javanese",
       "Pin the neuron toward its harmful value, at 1×, 2× and 4×",
