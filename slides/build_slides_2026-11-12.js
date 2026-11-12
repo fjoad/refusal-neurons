@@ -32,7 +32,8 @@ const R = {
     answer: [b("The neuron fires on none of the 1,000 questions, on any model. But the anchor is not off: "), t("it still holds the neuron at about a quarter to a third of the full pin on every question. So Experiment 3 shows that a weak pin is cheap, not that the anchor leaves normal prompts alone.")],
     "Qwen3-1.7B": ["0 of 1,000", "+12.3 (+11.2 to +17.7)", "none fired", "53.5 / 48.3 / 53.1"] },
   // Q4: rank of Apple's neuron, per model [Qwen3-8B, Llama, Qwen3-1.7B]
-  q4: { own_phrases: ["8", null, "2"], poly_table4: ["4", null, "5"], mj_table4: ["1", null, "4"] },
+  q4: { own_phrases: ["8", "3", "2"], poly_table4: ["4", "3", "5"], mj_table4: ["1", "4", "4"],
+    answer: [b("The rank moves with the prompts and the phrases, and first place is rare. "), t("Across 18 settings Apple's neuron ranks between 1st and 8th of about 300,000, and is first in only 2 (Llama: always 3rd or 4th). It is not first in Apple's own setup either. The search makes the shortlist; trying each candidate as an attack picks the winner.")] },
   // Q9a: [largest coordinate share, top-10 share, participation ratio, MLP direction's largest share (same token)]
   q9a: { "Qwen3-8B": ["0.8%", "5%", "963 of 4,096", "23%"], "Llama-3.1-8B": ["0.5%", "3%", "1,277 of 4,096", "22%"],
     answer: [b("A: yes, no single number matters. "), t("The largest holds 0.5–1.0% of the residual direction, against 18–23% for the top neuron inside the MLP. "), b("B: it depends on the model. "), t("Apple's neuron is 17% of the direction on Llama and 5% on Qwen3-1.7B (the largest of any neuron in both), but 0.5% on Qwen3-8B.")], "Qwen3-1.7B": ["1.0%", "7%", "549 of 2,048", "18%"] },
@@ -367,7 +368,7 @@ function raised(s, items, y, h) {
   ], x, 1.85, w, [2.1, 1.5, 1.15, 1.15, 1.13], { size: 12, rowH: 0.44 });
   s.addText("Out of about 295,000 (Qwen3-8B), 301,000 (Llama) and 111,000 (Qwen3-1.7B) neurons. Row 1 is our replication of Apple's exact setup.",
     { x, y: 5.05, w, h: 0.5, fontFace: FONT, fontSize: 11, color: MUTED, margin: 0 });
-  if (R.q4.answer) result(s, R.q4.answer, { y: 6.2, h: 0.65 });
+  if (R.q4.answer) result(s, R.q4.answer, { y: 6.08, h: 0.82, size: 14 });
   else result(s, [b("Already known: "), t("the neuron is in the top 6 of about 300,000 in every English setup, and never first even in Apple's own. The search shortlists; the attack test picks. The three missing rows are still running.")], { y: 6.2, h: 0.65 });
 }
 

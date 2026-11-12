@@ -186,13 +186,13 @@ Nine points came out of the 5 November meeting (README, "Follow-ups from the 5 N
 | Prompts | Refusal phrases | Qwen3-8B | Llama | Qwen3-1.7B |
 |---|---|---|---|---|
 | Apple's (Arditi's sample) | Apple's Table 4 | 5 | 3 | 4 |
-| Apple's | the model's own openings | 8 | (running) | 2 |
-| PolyRefuse English (same harmful prompts, other harmless) | Table 4 | 4 | (running) | 5 |
+| Apple's | the model's own openings | 8 | 3 | 2 |
+| PolyRefuse English (same harmful prompts, other harmless) | Table 4 | 4 | 3 | 5 |
 | PolyRefuse English | own | 6 | 3 | 2 |
-| MultiJail English | Table 4 | 1 | (running) | 4 |
+| MultiJail English | Table 4 | 1 | 4 | 4 |
 | MultiJail English | own | 2 | 4 | 1 |
 
-The rank moves between 1 and 8 with the prompts and the phrases, and is first in only two of the settings finished so far. The search's job is the shortlist; the rerank picks the winner.
+The rank moves between 1 and 8 with the prompts and the phrases (Llama: always 3rd or 4th), and is first in only 2 of the 18 settings. The search's job is the shortlist; the rerank picks the winner.
 
 **Part 3 in Arabic on MultiJail, both 8B models** (87 Arabic rerank prompts; Qwen3Guard; jobs `mlp_direction-460182/3`): the MLP direction's top neuron is Apple's (Qwen3-8B 24%, Llama 6%). none / pin / ablate direction / steer α = 4 / Arditi ablated / with the neuron held: Qwen3-8B 0.07 / 0.76 / 0.09 / 0.69 / 0.52 / 0.49; Llama 0.05 / 0.62 / 0.05 / 0.21 / 0.59 / 0.58. Same pattern as PolyRefuse, lower throughout. On Llama, steering at α = 4 leaves 67% of answers labelled refusals, so it does not work there.
 
