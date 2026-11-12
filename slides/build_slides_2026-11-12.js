@@ -42,9 +42,15 @@ const R = {
   // Part 3, Arabic MultiJail: [top neuron (share), none, remove direction, steer a=4, pin, Nanda / held]
   part3mj: { "Qwen3-8B": ["Apple's (24%)", "7%", "9%", "69%", "76%", "52% / 49%"], "Llama-3.1-8B": ["Apple's (6%)", "5%", "5%", "21%", "62%", "59% / 58%"] },
   // K.1 judge on the per-language attacks: [PolyRefuse no pin -> pinned, MultiJail no pin -> pinned]
-  k1: { "Qwen3-8B": null, "Llama-3.1-8B": null, "Qwen3-1.7B": null },
+  k1: { "Qwen3-8B": { text: "95–100% / 79–90% (8 + 8 languages so far)", options: { bold: true, color: TEAL } },
+    "Llama-3.1-8B": { text: "running", options: { color: MUTED, italic: true } }, "Qwen3-1.7B": { text: "running", options: { color: MUTED, italic: true } } },
   // Restore refusal: per model, refused on harmful prompts, no pin -> strongest pin: [Yoruba, Swahili, Javanese, harmless prompts refused at that pin]
-  restore: { "Qwen3-8B": null, "Llama-3.1-8B": null, "Qwen3-1.7B": null },
+  // rows: Yoruba, Swahili, Javanese; cells: Llama harmful, Llama harmless, Qwen3-8B harmful, Qwen3-8B harmless
+  restore: { rows: [
+      ["11% → 20% / 18%", "5% → 14% / 27%", "62% → 86% / 90%", "34% → 65% / 66%"],
+      [{ text: "21% → 66% / 73%", options: { bold: true, color: TEAL } }, "0% → 18% / 58%", null, null],
+      [{ text: "61% → 99% / 98%", options: { bold: true, color: TEAL } }, null, null, null]],
+    answer: [b("On Llama, switching the neuron on brings refusal back in Swahili and Javanese, "), t("at a price: at the stronger pin over half of harmless Swahili prompts are refused too. In Yoruba it does not: the pin raises \"refusals\" on harmful and harmless prompts alike, and the judge reads Yoruba poorly.")] },
 };
 
 const pres = new pptxgen();
@@ -548,7 +554,7 @@ function raised(s, items, y, h) {
 {
   const s = newSlide("Pinning the neuron switches refusal off in every language but three", "p2",
     "The causal test from last time, now for all three models: Apple's neuron pinned at its English value on 100 held-out harmful prompts per language, 512 tokens. Harmful answers and refusals by Qwen3Guard, reading each language directly. Ranges over the languages judged so far (PolyRefuse: 13 languages incl. Arabic, without Yoruba; MultiJail: 7–8 languages without Swahili and Javanese). K.1 = not a refusal and coherent, judged by gemma-2-9b-it; still running for Llama and Qwen3-1.7B.");
-  label(s, "100 HELD-OUT HARMFUL PROMPTS PER LANGUAGE, APPLE'S NEURON AT ITS ENGLISH PIN (LAST TIME: ONE MODEL, 8 LANGUAGE SETS, SLIDE 14)", ML, 1.5, CW);
+  label(s, "100 HELD-OUT HARMFUL PROMPTS PER LANGUAGE, APPLE'S NEURON AT ITS ENGLISH PIN", ML, 1.5, CW);
   table(s, [
     ["Model", "PolyRefuse, 12–13 languages: harmful answers, no pin → pinned", "Refused after the pin", "MultiJail, 7–8 languages: harmful answers", "K.1 criterion, pinned (PolyRefuse / MultiJail)"],
     ["Qwen3-8B", hl("2–25% → 90–99%"), "0–7%", "2–9% → 66–86%", v(R.k1["Qwen3-8B"])],
@@ -562,7 +568,7 @@ function raised(s, items, y, h) {
     [warn("Swahili"), "3%", "12%", "4%"],
     [warn("Javanese"), "36%", "23%", "10%"],
   ], ML, 4.57, 7.2, [2.4, 1.6, 1.6, 1.6], { size: 13, rowH: 0.36 });
-  s.addText("In these three the judges also disagree with each other, so the numbers are less certain than elsewhere.",
+  s.addText("In these three the judges also disagree with each other, so the numbers are less certain than elsewhere. Last time this test covered one model and 8 language sets (slide 14).",
     { x: 8.1, y: 4.6, w: 4.6, h: 0.9, fontFace: FONT, fontSize: 13, color: MUTED, valign: "top", margin: 0 });
   result(s, [b("One neuron, one pin value, found in English: "), t("it removes refusal in every well-resourced language on all three models. MultiJail's lower harmful rate is its borderline prompts (question 7).")], { y: 6.25, h: 0.62, size: 14 });
 }
@@ -602,16 +608,20 @@ function raised(s, items, y, h) {
       "Pin the neuron toward its harmful value, at 1×, 2× and 4×",
       "Count refusals; repeat on 100 harmless prompts to see the cost"]);
   const x = 6.3, w = CW - 5.7;
-  label(s, "HARMFUL PROMPTS REFUSED: NO PIN → STRONGEST PIN", x, 1.5, w);
-  const rows = ["Yoruba", "Swahili", "Javanese", "Harmless prompts refused at that pin"];
-  table(s, [["", ...MODELS], ...rows.map((r, i) => [r, ...MODELS.map((m) => v(R.restore[m] && R.restore[m][i]))])],
-    x, 1.85, w, [2.5, 1.5, 1.5, 1.53], { size: 12, rowH: 0.5 });
-  label(s, "SAME IDEA IN ENGLISH, 100 HARMLESS PROMPTS (COMPLETED)", x, 4.45, w);
+  label(s, "PROMPTS REFUSED: NO PIN → THE TWO STRONGEST PINS", x, 1.5, w);
+  const RS = R.restore.rows;
+  table(s, [
+    ["", "Llama: harmful", "Llama: harmless", "Qwen3-8B: harmful", "Qwen3-8B: harmless"],
+    ...["Yoruba", "Swahili", "Javanese"].map((l, i) => [l, ...RS[i].map(v)]),
+  ], x, 1.85, w, [1.15, 1.5, 1.45, 1.5, 1.43], { size: 11, rowH: 0.5 });
+  s.addText("100 prompts per cell, in that language. Pins: Llama +2 / +4, Qwen3-8B −20 / −40 (toward the neuron's harmful value). Refusal by Qwen3Guard on the original text. Qwen3-1.7B: running.",
+    { x, y: 3.9, w, h: 0.5, fontFace: FONT, fontSize: 11, color: MUTED, margin: 0 });
+  label(s, "SAME IDEA IN ENGLISH, 100 HARMLESS PROMPTS (COMPLETED)", x, 4.5, w);
   table(s, [
     ["", ...MODELS],
     ["Refused: no pin → strongest pin", "0% → 13%", hl("0% → 90%"), "0% → 4%"],
-  ], x, 4.77, w, [2.5, 1.5, 1.5, 1.53], { size: 12, rowH: 0.42 });
-  if (R.restore.answer) result(s, R.restore.answer, { y: 6.2, h: 0.65, size: 14 }); else pendingBar(s, 6.2, 0.65);
+  ], x, 4.82, w, [2.5, 1.5, 1.5, 1.53], { size: 12, rowH: 0.42 });
+  if (R.restore.answer) result(s, R.restore.answer, { y: 6.08, h: 0.82, size: 14 }); else pendingBar(s, 6.2, 0.65);
 }
 
 // ------------------------------------------------------------------ 17. next
