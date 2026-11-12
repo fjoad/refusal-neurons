@@ -84,9 +84,66 @@ Newest work first in each topic; every entry has its date, setup, numbers and ca
 - **K.1 judge on the English and Arabic attacks** (Apple's main criterion: English 0.89–0.97, Arabic PolyRefuse 0.96–0.99, MultiJail 0.79–0.94; every pinned answer coherent): 2026-11-05
 - **Part 3, MLP direction** (all three models, English and Arabic: the direction's top neuron is Apple's neuron; removing it barely helps, steering past harmless jailbreaks at 0.89–0.96): 2026-11-05, 8B Arabic added 2026-11-12
 - **Arabic Experiments 3, 4–5, 7 and Arditi's capability cost, first results** (Arabic behaves like English, a bit weaker; base models already have the neuron in Arabic too): 2026-11-05
+- **Follow-ups to the 5 November meeting** (the neuron fires on the prompts the model refuses, in every language but Yoruba and Qwen-Swahili; the small model does not fall off faster with language; MultiJail's lower numbers are the same borderline prompts in every language): 2026-11-12
 - **Arabic Experiments 2 and 8** (PolyRefuse: the neuron jailbreaks Arabic as well as English, 88–95%, matching Arditi's Arabic direction; MultiJail weaker for both; the neuron is 1st or 2nd most aligned with the Arabic direction): 2026-11-05
 
 Job scripts that produced these are in `scripts/jobs/` (each says which entry it belongs to).
+
+### 2026-11-12: Follow-ups to the 5 November meeting (`why_tables.py`, `why_capability.py`, `residual_share.py`, `scripts/jobs/why_quick.sh`)
+Nine points came out of the 5 November meeting (README, "Follow-ups from the 5 November meeting"). This entry holds their results as they come in. The first four tables need no GPU: they are computed from files already in `outputs/` (`why_tables.py`, log `cpu-460362`).
+
+**Note 5: in each language, does the neuron fire on the harmful prompts the model refuses?** Setup: the 100 attack prompts per language, unpinned answers, split by Qwen3Guard's refusal label; the neuron's score is its strongest value over Table 3's tokens. Mean value on refused / on answered / on harmless prompts; AUROC of refused against harmless.
+
+| Set | Qwen3-8B L14:F7924 | Llama L11:F4258 | Qwen3-1.7B L13:F3270 |
+|---|---|---|---|
+| PolyRefuse English | −4.08 / −1.70 / −0.23; 1.00 | +1.33 / +0.48 / +0.04; 1.00 | −10.5 / −9.9 / −1.3; 0.99 |
+| PolyRefuse, 11 other languages except Yoruba | −2.9 to −4.4 / −1.2 to −2.1 / about −0.3; 0.97–0.99 | +0.80 to +1.27 / +0.29 to +0.78 / about +0.05; 1.00 | −7.8 to −10.7 / −4.7 to −9.3 / about −1; 0.95–0.99 |
+| MultiJail, 7 languages (en ar zh it vi ko th; + bn on Qwen3-8B) | −2.8 to −4.7 / −1.6 to −3.0 / −0.3 to −0.8; 0.97–1.00 | +0.60 to +0.96 / +0.19 to +0.43 / about +0.05; 0.98–1.00 | −7.1 to −10.0 / −3.9 to −6.4 / −0.8 to −2.0; 0.95–1.00 |
+| MultiJail Javanese | −2.59 / −1.63 / −0.19; 1.00 | +0.22 / +0.09 / +0.04; 0.96 | −5.14 / −4.02 / −0.48; 1.00 |
+| MultiJail Swahili | **−1.28 / −1.12 / −0.92; 0.69** | +0.58 / +0.18 / +0.06; 0.98 | **+0.77 / +0.82 / +0.93; 0.32** |
+| PolyRefuse Yoruba | **−0.73 / −0.55 / −0.54; 0.58** | **+0.10 / +0.10 / +0.05; 0.81** | **−3.48 / −3.31 / −2.42; 0.73** |
+
+- **Everywhere the neuron works, it fires more on the prompts the model refuses than on the ones it answers** (for example Qwen3-8B English −4.08 against −1.70), and both are above harmless prompts. The neuron's value tracks whether the model refuses, prompt by prompt, in 20 of 23 language sets per model.
+- **Javanese, and Swahili on Llama, look like the other languages:** the neuron fires on the refused prompts (AUROC against harmless 0.96–1.00), only more weakly. There the circuit is intact and the language triggers it less.
+- **Yoruba (all three models) and Swahili (both Qwen models) are different:** the neuron sits at its harmless level even on the prompts labelled as refused. Either these models refuse there by another route, or the refusal labels are wrong: Qwen3Guard reads these languages poorly (it labels 65–78% of the Qwen models' Yoruba answers as refusals, against 30–44% on the short answers used in the search). Settling this needs a refusal reading that works in Yoruba (the `restore_refusal` jobs add Qwen3Guard on a translation).
+
+**Note 6: the neuron's strength in each language as a share of English** (harmful-minus-harmless gap at its strongest Table 3 token, from each language's test sets):
+
+| Model | PolyRefuse, 12 languages other than Yoruba | Yoruba | MultiJail, 7 languages | Swahili | Javanese |
+|---|---|---|---|---|---|
+| Qwen3-8B | 64–104% | 7% | 64–113% | 13% | 58% |
+| Llama-3.1-8B | 53–84% | 5% | 53–76% | 19% | 15% |
+| Qwen3-1.7B | 68–102% | 8% | 57–90% | 2% | 74% |
+
+- **The small model does not fall off faster with language than the large one.** Qwen3-1.7B keeps as much of its English strength as Qwen3-8B in every language (often more: Spanish 98% against 86%, French 102% against 82%), except Swahili (2% against 13%). So this measure gives no sign of an extra language-dependent step in the small model. Still to do for note 6: the layer at which harmful and harmless prompts first separate, per language.
+- In all three models the neuron's strength in Yoruba is 5–8% of English; this is the size of the effect on slide 9.
+
+**Note 7: why are Chinese and Vietnamese lower on slide 10? It is the dataset.** MultiJail has the same 100 prompts in every language. With the neuron pinned, an answer can be a refusal, harmful, or "answered but judged safe" (Qwen3Guard):
+
+| Model | Answered-but-safe, per language (en ar zh it vi ko th) | Share of those cases on the 20 most affected prompts | Prompt-by-prompt correlation with English |
+|---|---|---|---|
+| Qwen3-8B | 13–17% | 61% | +0.44 to +0.72 |
+| Llama-3.1-8B | 19–31% | 49% | +0.41 to +0.66 |
+| Qwen3-1.7B | 22–39% | 49% | +0.47 to +0.69 |
+
+- **The same prompts are "answered but judged safe" in every language.** If the cases were unrelated across languages, the 20 most affected prompts would hold about 20% of them; they hold 49–61%. These are MultiJail's borderline prompts, where answering is not harmful.
+- **Chinese and Vietnamese are not weaker.** On Qwen3-8B they give 77% and 86% harmful answers (English 72%), with refusals at 9% and 2%. On Qwen3-1.7B (the model on slide 10) refusals fall to 6–8% in both, as in English; what is lower is the harmful share (63%, 60% against 76%), because more of the small model's non-English answers are judged safe (32–37% against 22%).
+- **Under the K.1 judge** (not refusing and coherent) Qwen3-8B on MultiJail reaches 0.81 English, 0.84 Chinese, 0.90 Italian.
+- Swahili and Javanese do not follow the pattern (correlation with English about 0): there the pin does not remove refusal (Swahili: 72–81% still refused on the Qwen models).
+
+**Note 3: top-5 overlap with our run of Apple's own English setup** (`*_arditi.json`). Apple's paper prints only the winning neuron per model, so the reference list is our replication's. Number of each language's top 5 that are also in that list:
+
+| Model | Apple-setup top 5 | PolyRefuse (14 languages) | MultiJail (10 languages) | Lists each reference neuron is in (of 24) |
+|---|---|---|---|---|
+| Qwen3-8B | L16:F227, L18:F7664, L15:F11168, L17:F11229, **L14:F7924** | 2–5, Yoruba 0 | 1–3 | 8, 13, 10, 18, **18** |
+| Llama-3.1-8B | L20:F9928, L20:F9424, **L11:F4258**, L15:F9635, L17:F13532 | 2–5, Yoruba 0 | 1–2, English 5 | 5, 3, **23**, 20, 2 |
+| Qwen3-1.7B | L10:F244, L12:F4580, L15:F1109, **L13:F3270**, L12:F3582 | 3–5, Yoruba 0 | 3–4, Swahili 0 | 21, 19, 16, **21**, 9 |
+
+- **No neuron is in every language's top 5** (Yoruba shares none). Apple's neuron is the most widely shared of the reference list on Llama (23 of 24) and joint first on the Qwen models.
+- On Llama the English-specific candidates (L20:F9928, L20:F9424, L17:F13532) drop out in other languages; what survives across languages is Apple's neuron and L15:F9635.
+- Larger k (10, 20, 50) needs the full rankings from the saved means; not done yet.
+
+Results for notes 1, 2, 4 and 9 (jobs `why_quick-460347/8/9`) are added below when they finish.
 
 ### 2026-11-05: Refusal induced on harmless prompts, quick check (`scripts/jobs/induce_refusal.sh`)
 Setup: pin each neuron toward its harmful value (and beyond) at every token while the model answers 100 harmless Alpaca prompts (`harmless_heldout`), 64 tokens, English string-match refusal check. A rough check run for the 5 November meeting.
