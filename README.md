@@ -69,6 +69,28 @@ Nine points came out of the meeting (Faaiz's notes; readings agreed 2026-11-12).
 | 9a | Do slide 11's breakdown in the residual stream: does any single residual number hold much of the direction? | No: the direction is spread thinly over the 4,096 numbers, which is why pinning one residual number fails | Share of the largest coordinate, top 10, participation ratio | `residual_share.py` | 🟡 |
 | 9b | How much of the residual direction does the refusal neuron account for? | Little, which is why holding the neuron "on" does not undo the ablation | The neuron's direct contribution to the direction (its gap × its write vector's projection) as a share; then the "held on" test at 1×, 2×, 4× with the ablation leaving the neuron's own write alone | `residual_share.py`; dose test ⬜ | 🟡 |
 
+### Follow-ups from the 12 November meeting (the experiments for the next deck)
+
+The 12 November meeting (Nadir, Taha, Majd) went through the first deck up to the base-model slide and raised these points (Faaiz's notes; readings agreed 2026-11-16). They are exploratory: run as many as possible and see what happens. Order: the cheap ones first, the fine-tuning ones last. ✅ done, 🟡 running or partly, ⬜ not started.
+
+| # | Point from the meeting (first-deck slide) | What we test | Code | State |
+|---|---|---|---|---|
+| 10 | Does it work with CoCoNot? (data slide) | The neuron on CoCoNot's five refusal categories, four of them not about harm: does it separate "should refuse" from "should answer", and does the pin remove those refusals? | `data/prepare_coconot.py`, `scripts/jobs/coconot.sh` | 🟡 running |
+| 11 | Are the answers gibberish when pinned at a high value? (judge and pin slides) | One neuron, pins from small to 10× the attack pin, 191 HarmBench prompts; share of answers the K.1 judge calls coherent at each pin. Example answers for the slides are picked by Faaiz with `show_responses.py` | `scripts/jobs/pin_sweep.sh` (`rerank.py --only`) | 🟡 queued |
+| 12 | Is "this is harmful" a different thing from "how the model will respond"? Which is the neuron? | A 2×2: harmful or not × refused or not, using CoCoNot's non-harm refusals and XSTest's harmless-but-scary prompts, read off the neuron | from 10's files | ⬜ |
+| 13 | −4.4 is the average; what is the range? (score slide) | Minimum, percentiles, maximum and a histogram of the neuron's value on harmful and harmless prompts | `followup_tables.py` | ✅ |
+| 14 | Pin the neuron, then add the direction back; recompute the direction with the neuron pinned; remove the next neuron | (a) pinned neuron + refusal direction added: does refusal return? (b) the direction recomputed with the neuron off: what is left, and what is its top neuron? (c) switch that one off too and repeat | to write (`direction_variants.py`) | ⬜ |
+| 15 | Set the top 5 neurons to off | All five search candidates held at their harmless values at once | to write | ⬜ |
+| 16 | Arditi's direction without that neuron | Split the direction into the part along the neuron's write vector v and the rest; remove each part alone | to write | ⬜ |
+| 17 | What if v is the direction? | Remove v from the residual stream at every layer, as Nanda's method does with its direction | to write | ⬜ |
+| 18 | Experiment 4 with benign words that lead to something harmful (per-token slide) | (a) in our prompts: how often the neuron fires at the decision point with no single word firing; (b) a small hand-built set, to be approved by Faaiz | `followup_tables.py`; (b) ⬜ | 🟡 (a) done |
+| 19 | Does the neuron always fire in the base model when it fires in the chat model? (base-model slide) | Prompt by prompt, the same 100 prompts in both models | `followup_tables.py` | ✅ |
+| 20 | How strong is the gap in the base model against the trained one? | The harmful-minus-harmless gap on the words and at each template token, base against chat | `followup_tables.py` | ✅ |
+| 21 | Break safety with a few dozen fine-tuning examples (Taha: papers show this works); then pin or freeze the neuron and see whether safety survives | Fine-tune the chat model on a few dozen harmful examples; measure refusal and the neuron before and after; repeat with the neuron frozen. Qwen3-1.7B first, then an 8B model | to write; needs a training setup | ⬜ last |
+| 22 | Freeze the safety neurons in the base model, then safety-train | Needs a safety-training recipe we do not have; only after 21 | — | ⬜ stretch |
+
+**Multimodal (speech and images):** to be discussed; no plan yet.
+
 ### Part 1 checklist: every Apple experiment, in English and in Arabic
 
 Each experiment is run the same way as the paper. In Arabic the point is to see whether the model behaves the same, not to match Apple's numbers. ✅ done, 🟡 partly or running, ⬜ not started. Arabic runs on both tracks (PolyRefuse and MultiJail) unless noted.

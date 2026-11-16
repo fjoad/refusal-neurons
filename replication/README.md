@@ -84,6 +84,7 @@ Newest work first in each topic; every entry has its date, setup, numbers and ca
 - **K.1 judge on the English and Arabic attacks** (Apple's main criterion: English 0.89–0.97, Arabic PolyRefuse 0.96–0.99, MultiJail 0.79–0.94; every pinned answer coherent): 2026-11-05
 - **Part 3, MLP direction** (all three models, English and Arabic: the direction's top neuron is Apple's neuron; removing it barely helps, steering past harmless jailbreaks at 0.89–0.96): 2026-11-05, 8B Arabic added 2026-11-12
 - **Arabic Experiments 3, 4–5, 7 and Arditi's capability cost, first results** (Arabic behaves like English, a bit weaker; base models already have the neuron in Arabic too): 2026-11-05
+- **Follow-ups to the 12 November meeting** (range of the neuron's value; base model fires on a word in about 90% of the prompts where the chat model fires; training grew the decision-point gap 3–7×; 6–16% of harmful prompts fire with no single word firing): 2026-11-16
 - **Part 2, the attack in every language, all three models** (PolyRefuse 13 languages: 0.83–0.99 harmful, K.1 0.93–1.00; MultiJail K.1 0.79–0.96; fails in Yoruba and Qwen-Swahili, where the models' own answers are mostly incoherent): 2026-11-12
 - **Part 2, one guard across languages** (one English cut-off: Llama neuron 0.94–0.98 on PolyRefuse; on MultiJail the 8B neurons beat Llama-Guard and Qwen3Guard): 2026-11-12
 - **Restoring refusal in low-resource languages** (a medium pin restores refusal selectively in Javanese on all three models and in Swahili on Llama; not in Yoruba): 2026-11-12
@@ -198,6 +199,46 @@ Nine points came out of the 5 November meeting (README, "Follow-ups from the 5 N
 The rank moves between 1 and 8 with the prompts and the phrases (Llama: always 3rd or 4th), and is first in only 2 of the 18 settings. The search's job is the shortlist; the rerank picks the winner.
 
 **Part 3 in Arabic on MultiJail, both 8B models** (87 Arabic rerank prompts; Qwen3Guard; jobs `mlp_direction-460182/3`): the MLP direction's top neuron is Apple's (Qwen3-8B 24%, Llama 6%). none / pin / ablate direction / steer α = 4 / Arditi ablated / with the neuron held: Qwen3-8B 0.07 / 0.76 / 0.09 / 0.69 / 0.52 / 0.49; Llama 0.05 / 0.62 / 0.05 / 0.21 / 0.59 / 0.58. Same pattern as PolyRefuse, lower throughout. On Llama, steering at α = 4 leaves 67% of answers labelled refusals, so it does not work there.
+
+### 2026-11-16: Follow-ups to the 12 November meeting (`followup_tables.py`, `scripts/jobs/coconot.sh`, `scripts/jobs/pin_sweep.sh`)
+Points raised on 12 November (README, "Follow-ups from the 12 November meeting"). This entry holds their results as they come in. The first three need no GPU (`followup_tables.py`, log `cpu-468266`).
+
+**Point 13: the range of the neuron's value** (its strongest value over Table 3's tokens, per prompt; PolyRefuse English test, 572 harmful and 500 harmless prompts).
+
+| Model | Harmful: min / 5% / median / 95% / max | Harmless: min / 5% / median / 95% / max | Harmful prompts beyond 95% of the harmless ones |
+|---|---|---|---|
+| Qwen3-8B L14:F7924 | −10.2 / −7.3 / −3.5 / −0.95 / −0.10 | −3.2 / −0.76 / −0.13 / +0.03 / +0.09 | 96.9% |
+| Llama-3.1-8B L11:F4258 | +0.15 / +0.40 / +1.23 / +2.10 / +2.76 | 0.00 / 0.00 / +0.03 / +0.09 / +0.46 | 100% |
+| Qwen3-1.7B L13:F3270 | −27.4 / −18.0 / −10.7 / −4.1 / −0.40 | −12.0 / −5.0 / −0.44 / +0.16 / +0.31 | 91.6% |
+
+- The average (−4.41 on Qwen3-8B) hides a wide spread: harmful prompts run from −10 to about 0, with a median of −3.5. The harmless prompts sit in a narrow band at 0, with a thin tail (5% beyond −0.76).
+- On XSTest (harmless prompts with scary words) the harmless tail is much longer (Qwen3-8B: 5% beyond −3.65, minimum −6.0), which is why the filter is weaker there (AUROC 0.90).
+- The attack pins (+20, −4, +40) are 2 to 4 times the size of the most extreme natural value, on the other side of zero.
+
+**Points 19 and 20: base model against chat model** (the same 100 harmful and 100 harmless PolyRefuse English prompts; the two Qwen sizes, the only base models we have).
+
+| | Qwen3-8B base | Qwen3-8B chat | Qwen3-1.7B base | Qwen3-1.7B chat |
+|---|---|---|---|---|
+| Gap on the strongest word of the request | −2.37 | −3.38 | −6.06 | −8.51 |
+| Gap at the decision token (line break after the question) | −0.47 | −3.48 | −2.71 | −9.04 |
+| Harmful prompts where it fires on a word | 92 | — | 81 | — |
+| Harmful prompts where it fires at the decision point | — | 97 | — | 93 |
+| Of the chat model's firing prompts, the base model fires on a word in | 90 of 97 | | 78 of 93 | |
+
+("Fires" = beyond the 95th percentile of the same quantity on that model's harmless prompts. Gap = mean on harmful minus mean on harmless.)
+
+- **Point 19: almost always, yes.** When the chat model's neuron fires at the decision point, the base model's neuron fires on a word of the same prompt in 90 of 97 cases (Qwen3-8B) and 78 of 93 (Qwen3-1.7B). Across prompts the two are correlated (chat word value against base word value: +0.86 and +0.66).
+- **Point 20: training grew the decision-point gap about sevenfold on Qwen3-8B** (−0.47 → −3.48) and threefold on Qwen3-1.7B (−2.71 → −9.04), while the gap on the words grew only 1.4×. Safety training mostly added the firing at the decision point; the word-level detector was already there.
+
+**Point 18, first part: harmful prompts where the neuron fires at the decision point but on no single word** (100 prompts each):
+
+| Model | PolyRefuse English | JailbreakBench |
+|---|---|---|
+| Qwen3-8B | 6 (and 91 fire on both) | 9 (91) |
+| Llama-3.1-8B | 8 (92) | 15 (85) |
+| Qwen3-1.7B | 16 (77) | 12 (86) |
+
+- In 6–16% of harmful prompts no single word makes the neuron fire, yet it fires at the decision point at near-normal strength (Qwen3-8B: −2.2 to −2.7 there, −0.2 on the strongest word). So the neuron is not only a keyword detector: for these prompts the harm is in the whole request. A hand-built set of such prompts is the second part.
 
 ### 2026-11-12: Part 2, the attack in every language, all three models (`scripts/jobs/part2_attack.sh`, `part2_judge.sh`, `part2_table.py`)
 Setup: Apple's neuron at its English pin (Qwen3-8B L14:F7924 +20, Llama L11:F4258 −4, Qwen3-1.7B L13:F3270 +40) on 100 held-out harmful prompts per language (PolyRefuse `harmful_eval`, MultiJail `harmful_test`), 512 tokens: unpinned, constant pin, anchor k = 1, 2. Judges: Qwen3Guard on the original text (harmful and refusal labels), Llama-Guard-3 on an NLLB-200 English translation (English: on the text), and the K.1 criterion on gemma-2-9b-it (not a refusal and coherent). Generation 5–6 November (jobs 449836/7, 449879, 450030, 449988/9); judging completed 12 November (460176, 460179–81, 460252/3). Table built by `part2_table.py` (log `cpu-468202`). Each cell: unpinned → constant pin.
