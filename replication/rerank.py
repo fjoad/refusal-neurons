@@ -59,6 +59,8 @@ def main():
     ap.add_argument("--bs", type=int, default=32)
     ap.add_argument("--dtype", default="float16", choices=["float16", "bfloat16", "float32"])
     ap.add_argument("--tag", default="")
+    ap.add_argument("--only", default=None, metavar="L:F",
+                    help="sweep just this neuron (from the search file's candidates or watched neurons), e.g. for a long pin sweep")
     ap.add_argument("--add_watched", action="store_true",
                     help="also sweep the search file's watched neurons (e.g. Apple's) when they are not in its top 5")
     args = ap.parse_args()
@@ -77,6 +79,12 @@ def main():
         have = {(c["layer"], c["neuron"]) for c in candidates}
         candidates += [w for w in search.get("watched", [])
                        if (w["layer"], w["neuron"]) not in have and w.get("mean_act_harmful") is not None]
+    if args.only:
+        layer, neuron = (int(x) for x in args.only.split(":"))
+        pool = candidates + [w for w in search.get("watched", []) if w.get("mean_act_harmful") is not None]
+        candidates = [c for c in pool if (c["layer"], c["neuron"]) == (layer, neuron)][:1]
+        if not candidates:
+            ap.error(f"--only {args.only} is not among the search file's candidates or watched neurons")
     prompts_raw = load(args.split)
     prompts_raw = prompts_raw[:args.n_prompts] if args.n_prompts else prompts_raw
     tok = AutoTokenizer.from_pretrained(model_name, padding_side="left", local_files_only=True)
