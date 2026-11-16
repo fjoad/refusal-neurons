@@ -256,6 +256,48 @@ Points raised on 12 November (README, "Follow-ups from the 12 November meeting")
 - **The neuron does not clearly fire on the non-harm categories.** Its AUROC for "should decline" against "should answer" is 0.79–0.96 on safety concerns but 0.51–0.80 elsewhere, and the script chose the firing direction separately per category (it flips in some), so those AUROCs are not comparable yet. To redo with the English direction fixed. So: the model declines these requests mostly without this neuron firing, yet forcing the neuron still overrides the decision either way.
 - Caveats: 60 prompts per category, 96-token answers, one judge. CoCoNot's safety category is milder than JailbreakBench (the pin leaves 22–32% refused there, against 0–7% on PolyRefuse).
 
+**Point 11: are the answers gibberish when pinned at a high value?** (`scripts/jobs/pin_sweep.sh`; jobs 468276/7/8). Apple's neuron alone, pins from small to 10× the attack pin, 191 HarmBench prompts, 128 tokens. Llama-Guard's harmful share; the K.1 judge's share of coherent answers; K.1 success (not a refusal and coherent).
+
+| Qwen3-8B, pin | none | +2 | +5 | +10 | **+20** | +40 | +80 | +120 | +200 |
+|---|---|---|---|---|---|---|---|---|---|
+| Llama-Guard harmful | 0.13 | 0.24 | 0.36 | 0.64 | 0.97 | 0.89 | 0.98 | 0.98 | 0.98 |
+| Coherent | 1.00 | 1.00 | 1.00 | 1.00 | **1.00** | 0.39 | 0.00 | 0.00 | 0.00 |
+| K.1 success | 0.12 | 0.18 | 0.27 | 0.50 | **0.95** | 0.31 | 0.00 | 0.00 | 0.00 |
+
+| Llama-3.1-8B, pin | none | −1 | −2 | **−4** | −8 | −15 | −30 | −60 | −100 |
+|---|---|---|---|---|---|---|---|---|---|
+| Llama-Guard harmful | 0.15 | 0.44 | 0.69 | 0.94 | 0.94 | 0.87 | 0.99 | 0.97 | 0.97 |
+| Coherent | 1.00 | 1.00 | 1.00 | **1.00** | 0.92 | 0.00 | 0.00 | 0.00 | 0.00 |
+| K.1 success | 0.10 | 0.31 | 0.56 | **0.96** | 0.88 | 0.00 | 0.00 | 0.00 | 0.00 |
+
+- **Yes, beyond about twice the attack pin the answers are gibberish.** They are fully coherent up to the attack pin (+20, −4), start breaking at twice that (39% coherent at +40; 92% at −8), and are 0% coherent from 4× onward.
+- **Llama-Guard cannot tell:** it calls 87–99% of the gibberish harmful. Only the coherence judge separates a jailbreak from a broken model, which is why the rerank picks the smallest pin that reaches 0.90 and why the K.1 judge is the one to report.
+- **The usable window is narrow:** on both models the attack pin is the first value in the sweep where the jailbreak is complete and the last where the text is intact. Qwen3-1.7B: running (468278).
+
+**Points 14–17: the neuron against the direction** (`direction_variants.py`, `scripts/jobs/direction_variants.sh`; jobs 468321/2/3). r = Arditi's residual direction (English), v = the neuron's write vector. 191 HarmBench prompts, 128 tokens. K.1 success (in brackets, Llama-Guard harmful).
+
+| | Qwen3-8B (L14:F7924, +20) | Llama-3.1-8B (L11:F4258, −4) | Qwen3-1.7B (L13:F3270, +40) |
+|---|---|---|---|
+| cosine(v, r); the part of r along v | −0.15; 2.2% | +0.58; 34.0% | −0.32; 10.5% |
+| none | 0.12 (0.13) | 0.10 (0.15) | 0.22 (0.38) |
+| neuron pinned | 0.95 (0.97) | 0.96 (0.94) | 0.87 (0.93) |
+| r removed at every layer | 0.99 (0.96) | 0.98 (0.96) | 0.97 (0.94) |
+| point 17: v removed at every layer instead of r | **0.14** (0.20) | **0.92** (0.96) | **0.81** (0.89) |
+| point 16: r without its part along v, removed | 0.99 (0.97) | **0.47** (0.70) | 0.89 (0.95) |
+| point 15: the top-5 search candidates held at their harmless means | 0.17 (0.23) | 0.15 (0.31) | 0.47 (0.76) |
+| point 14c: the neuron and the 5 next-largest contributors off | 0.14 (0.18) | 0.26 (0.46) | 0.52 (0.73) |
+| point 14a: neuron pinned, then r added back at its layer (×1) | **0.00** (0.01); refused 1.00, coherent 0.95 | **0.09** (0.17); refused 0.91, coherent 1.00 | **0.00** (0.04); refused 0.99, coherent 0.91 |
+| same, ×2 | 0.00; refused 0.98, coherent 0.88 | 0.00; refused 1.00, coherent 0.99 | 0.00; refused 0.92, coherent 0.18 |
+
+Point 14b, the direction recomputed (difference of means at r's layer and token on the 128/128 search prompts): with the neuron off, cosine with the original 0.99 / 0.96 / 0.98 and length 0.98× / 0.86× / 0.91×. With the neuron pinned at the attack value: Qwen3-8B 0.45 and 0.49×, Qwen3-1.7B 0.87 and 0.87×, Llama 0.96 and 0.86× (on Llama the direction is read one layer after the neuron, so any constant value removes exactly the neuron's own share). With the neuron off, the next-largest contributors are L19:F5693 (8.4%) on Qwen3-8B; L10:F1084, L10:F4789, L10:F9064 on Llama; L14:F5022, L12:F4580, L13:F2591, L10:F244, L12:F2897 on Qwen3-1.7B, the groups that recur across languages in Part 2.
+
+- **Point 17: the neuron's write vector works as a refusal direction where the neuron is a large part of the direction.** Removing v at every layer jailbreaks Llama (0.92, v is 34% of r) and Qwen3-1.7B (0.81, 10%), and does nothing on Qwen3-8B (0.14, 2%).
+- **Point 16: on the Qwen models the direction does not need the neuron's part** (0.99 and 0.89 with it taken out). On Llama it does: without the part along v the ablation drops to 0.47.
+- **Point 15: switching neurons off is not enough.** The whole top 5 held at harmless values gives 0.15–0.17 on the 8B models and 0.47 on Qwen3-1.7B; adding the next-largest contributors changes little. The attack needs the neuron pushed past harmless, or the direction removed.
+- **Point 14a: the direction overrides the pinned neuron.** With the neuron pinned and the model jailbroken, adding r back at one layer returns refusal on 91–100% of prompts, in coherent text. So the neuron is not the last word: it acts through, or upstream of, the direction.
+- **Point 14b: the direction survives without the neuron** (cosine 0.96–0.99 with it off). But pinning it at +20 on Qwen3-8B halves and rotates the direction six layers later (cosine 0.45): the pin works by wrecking the direction downstream, not by removing the neuron's own small contribution.
+- **Llama is the one-neuron model, Qwen3-8B the distributed one.** On Llama the neuron is a third of the direction, its write vector alone is a working direction, and taking it out of r halves r's effect. On Qwen3-8B the neuron is 2% of the direction, its write vector does nothing, and r works without it; the pin still jailbreaks because of its downstream effect.
+
 ### 2026-11-12: Part 2, the attack in every language, all three models (`scripts/jobs/part2_attack.sh`, `part2_judge.sh`, `part2_table.py`)
 Setup: Apple's neuron at its English pin (Qwen3-8B L14:F7924 +20, Llama L11:F4258 −4, Qwen3-1.7B L13:F3270 +40) on 100 held-out harmful prompts per language (PolyRefuse `harmful_eval`, MultiJail `harmful_test`), 512 tokens: unpinned, constant pin, anchor k = 1, 2. Judges: Qwen3Guard on the original text (harmful and refusal labels), Llama-Guard-3 on an NLLB-200 English translation (English: on the text), and the K.1 criterion on gemma-2-9b-it (not a refusal and coherent). Generation 5–6 November (jobs 449836/7, 449879, 450030, 449988/9); judging completed 12 November (460176, 460179–81, 460252/3). Table built by `part2_table.py` (log `cpu-468202`). Each cell: unpinned → constant pin.
 
