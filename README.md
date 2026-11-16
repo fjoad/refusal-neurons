@@ -248,7 +248,7 @@ Everything heavy runs on **panther** (QCRI SLURM). The repo is a plain git clone
 | `refusal_phrases.py` | multilingual | Each model's most common refusal openings per language, from short unpinned answers; feeds `neuron_search.py --phrases_json/--phrases_key` |
 | `mlp_direction.py` | Part 3 | Arditi-style refusal direction inside the MLP (before `down_proj`), its decomposition over neurons at every layer, and attack runs: ablate it, ablate it without the refusal neuron, steer, reset the neuron, Arditi's ablation with the neuron held |
 | `summarize.py` | any | Per-run metrics of an output JSON (refusal, ASR, response lengths), never the text |
-| `show_responses.py` | any | Writes a few generated answers to a file, for a human to read |
+| `show_responses.py` | any | Writes a few generated answers to a file, for a human to read. Reads neuron_check, rerank, evaluate and direction_variants files; `--pins 20,40,80 --by_prompt` puts the same prompt's answers at several pins side by side (for the example slide) |
 
 **SLURM wrappers** (`scripts/`)
 
@@ -321,6 +321,8 @@ docs/glossary.md          plain-language definitions
 docs/roadmap.html         older visual roadmap page (standalone HTML)
 docs/how_it_works.html    older visual explainer of the method (standalone HTML)
 slides/                   meeting deck: build_slides.js -> refusal_neurons_update.pptx (+ .pdf)
+                          later decks: build_slides_<date>.js -> refusal_neurons_<date>.pptx (5, 12 and 17 November);
+                          the 17 November deck answers the 12 November points and leaves its example-answer slide to fill by hand
 reading/                  reading list (README.md), sources.tsv, download.sh; pdfs/ and web/ are gitignored
 env/                      conda env job and requirements
 data/                     split builders and the splits (data/splits/*.json)
