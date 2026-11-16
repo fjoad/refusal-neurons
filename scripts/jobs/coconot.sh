@@ -2,7 +2,7 @@
 # 12 November follow-up: does the refusal neuron also handle refusals that are not about harm? CoCoNot's five
 # categories (data/prepare_coconot.py). Per category: the neuron's value on prompts the model should refuse against
 # matched prompts it should answer (AUROC, per-token means), then the model's answers to 60 "refuse" prompts with no
-# pin and with the attack pin (96 tokens), with Qwen3Guard's refusal label. Results log: 'Follow-ups to the 12 November meeting'.
+# pin, with the attack pin, and with the same pin toward the harmful side (96 tokens), with Qwen3Guard's refusal label. Results log: 'Follow-ups to the 12 November meeting'.
 #SBATCH -J coconot
 #SBATCH -t 06:00:00
 #SBATCH -p gpu-all
