@@ -649,7 +649,7 @@ ref("Last time: is the neuron there before safety training?", 17,
   const s = newSlide("Next", "next",
     "Fine-tuning is the main new piece of work. Multimodal (images and speech) needs a discussion on which models share a backbone with these and what the neuron would even be read on.");
   const cols = [
-    { h: "Finishing this week's questions", c: AMBER, body: ["Point 3: one table of harmful or not against refused or not", "Point 9: hand-built requests made of benign words", "Point 1: whether the neuron itself fires on non-harm refusals", "Reranks in Russian, Polish, Swahili"] },
+    { h: "Finishing this week's questions", c: AMBER, body: ["Point 3: one table of harmful or not against refused or not", "Point 9: hand-built requests made of benign words", "Point 1: whether the neuron itself fires on non-harm refusals", "The rerank in Polish"] },
     { h: "New work", c: TEAL, body: ["Point 12: break safety with a few dozen examples, with and without the neuron protected (Qwen3-1.7B, then 8B)", "Arabic residual-stream baseline", "Job logs in the repository and a how-to-run guide"] },
     { h: "To discuss", c: SLATE, body: ["Images and speech: which models, and what would count as the same neuron", "The rest of the first deck and the two later decks", "Writing for ARR, 4 January"] },
   ];
