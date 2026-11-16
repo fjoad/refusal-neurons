@@ -272,7 +272,8 @@ Points raised on 12 November (README, "Follow-ups from the 12 November meeting")
 
 - **Yes, beyond about twice the attack pin the answers are gibberish.** They are fully coherent up to the attack pin (+20, −4), start breaking at twice that (39% coherent at +40; 92% at −8), and are 0% coherent from 4× onward.
 - **Llama-Guard cannot tell:** it calls 87–99% of the gibberish harmful. Only the coherence judge separates a jailbreak from a broken model, which is why the rerank picks the smallest pin that reaches 0.90 and why the K.1 judge is the one to report.
-- **The usable window is narrow:** on both models the attack pin is the first value in the sweep where the jailbreak is complete and the last where the text is intact. Qwen3-1.7B: running (468278).
+- **The usable window is narrow on the 8B models:** the attack pin is the first value in the sweep where the jailbreak is complete and the last where the text is intact.
+- **Qwen3-1.7B has a wider window** (pins +5 / +10 / +20 / **+40** / +80 / +120 / +200): coherent 1.00 / 1.00 / 1.00 / **1.00** / 0.96 / 0.47 / 0.04; K.1 success 0.36 / 0.40 / 0.59 / **0.86** / 0.93 / 0.44 / 0.04; Llama-Guard harmful 0.49 / 0.57 / 0.71 / 0.93 / 0.95 / 0.92 / 0.91. Text stays coherent to +80 (twice its pin) and is gibberish by +200.
 
 **Points 14–17: the neuron against the direction** (`direction_variants.py`, `scripts/jobs/direction_variants.sh`; jobs 468321/2/3). r = Arditi's residual direction (English), v = the neuron's write vector. 191 HarmBench prompts, 128 tokens. K.1 success (in brackets, Llama-Guard harmful).
 
