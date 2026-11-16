@@ -18,7 +18,7 @@ export HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 PYTHONUNBUFFERED=1
 short=$(basename "$1")
 for c in safety humanizing incomplete indeterminate unsupported; do
   echo "##### $c"
-  python -u replication/neuron_check.py --model "$1" --layer $2 --neuron $3 --m 0 $4 --n_gen 60 --max_new 96 \
+  python -u replication/neuron_check.py --model "$1" --layer $2 --neuron $3 --m 0 $4 -$4 --n_gen 60 --max_new 96 \
     --harmful coconot_${c}_refuse --harmless coconot_${c}_comply --tag coconot_$c || continue
   python -u replication/judge.py outputs/neuron_check/${short}_L$2_F$3_float16_coconot_$c.json --judge qwen3guard --bs 8
 done
