@@ -258,6 +258,7 @@ Everything heavy runs on **panther** (QCRI SLURM). The repo is a plain git clone
 | `scripts/jobs/*.sh` | The exact job scripts behind each results-log entry (rerank + judge, Arditi, residual baseline, Arabic searches, detection, per-token runs). Each has a header saying what it produced |
 | `scripts/cpu.sh` | Runs one repo script on a CPU node (analyses of `outputs/`) |
 | `scripts/pssh.sh` | Runs a command on panther, retrying when the VPN drops the connection |
+| `scripts/wait_job.sh <jobid> ...` | Run locally in the background: returns when any of the given panther jobs leaves the queue (polls every 5 minutes through `pssh.sh`) |
 
 Examples (on panther, from `~/refusal-neurons`):
 ```bash
