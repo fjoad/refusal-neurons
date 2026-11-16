@@ -613,7 +613,7 @@ ref("Last time: is the neuron there before safety training?", 17,
 // ------------------------------------------------------------------ 25. finished: restore refusal and reranks
 {
   const s = newSlide("Low-resource languages: bringing refusal back, and the rerank", "fin",
-    "Left: the neuron pinned toward the value it takes on harmful prompts, at a medium strength, on 100 harmful and 100 harmless prompts in Javanese (MultiJail). Share refused, Qwen3Guard. Right: in languages where the search ranked Apple's neuron outside the top 5, each of that language's own top 5 and Apple's neuron were tried as attacks over the 9-value pin grid on 191 prompts; the winner is the neuron reaching 90% at the smallest pin.");
+    "Left: the neuron pinned toward the value it takes on harmful prompts, at a medium strength, on 100 harmful and 100 harmless prompts in Javanese (MultiJail). Share refused, Qwen3Guard. Right: in languages where the search ranked Apple's neuron outside the top 5, each of that language's own top 5 and Apple's neuron were tried as attacks over the 9-value pin grid on 191 prompts; the winner is the neuron reaching 90% at the smallest pin, under Qwen3Guard and under Llama-Guard. In English Qwen3Guard picks Apple's neuron (96% at +20) and Llama-Guard picks L16:F5318 (90% at +15; Apple's neuron 95% at +20).");
   const w = (CW - 0.5) / 2;
   label(s, "JAVANESE: PIN TOWARD \"HARMFUL\", MEDIUM STRENGTH", ML, 1.5, w, TEAL);
   table(s, [
@@ -632,13 +632,15 @@ ref("Last time: is the neuron there before safety training?", 17,
     ["Language (search rank)", "Winner of the attack test"],
     ["Chinese (7th)", hl("Apple's neuron at +20")],
     ["Japanese (18th)", hl("Apple's neuron at +15")],
-    ["PolyRefuse English (6th)", hl("Apple's neuron at +20")],
-    ["Russian, Polish", "running"],
-  ], ML + w + 0.5, 1.82, w, [2.6, 3.22], { size: 13, rowH: 0.48 });
+    ["Russian (15th)", hl("Apple's neuron at +15; no other reaches 90%")],
+    ["PolyRefuse English (6th)", "near-tie: Apple's neuron at +20, a neighbour (L16:F5318) at +15 to +20"],
+    ["Polish (11th)", "running"],
+  ], ML + w + 0.5, 1.82, w, [2.3, 3.52], { size: 12, rowH: 0.44 });
   bullets(s, [
-    "Even where the search put it 7th or 18th, the neuron that actually jailbreaks best is Apple's, at its English pin",
+    "Even where the search put it 7th to 18th, the neuron that jailbreaks best is Apple's, at its English pin",
+    "In English one neuron from the same group ties with it; which wins depends on the judge",
     "A lower search rank is not a different refusal neuron",
-  ], ML + w + 0.5, 4.45, w, 1.5, 13);
+  ], ML + w + 0.5, 4.75, w, 1.3, 13);
   result(s, [b("Both point the same way: "), t("it is one neuron across languages, and where a language fails to trigger it, switching it on by hand can restore refusal.")], { y: 6.15, h: 0.7, size: 14 });
 }
 

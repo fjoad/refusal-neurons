@@ -202,21 +202,25 @@ The rank moves between 1 and 8 with the prompts and the phrases (Llama: always 3
 
 **Part 3 in Arabic on MultiJail, both 8B models** (87 Arabic rerank prompts; Qwen3Guard; jobs `mlp_direction-460182/3`): the MLP direction's top neuron is Apple's (Qwen3-8B 24%, Llama 6%). none / pin / ablate direction / steer α = 4 / Arditi ablated / with the neuron held: Qwen3-8B 0.07 / 0.76 / 0.09 / 0.69 / 0.52 / 0.49; Llama 0.05 / 0.62 / 0.05 / 0.21 / 0.59 / 0.58. Same pattern as PolyRefuse, lower throughout. On Llama, steering at α = 4 leaves 67% of answers labelled refusals, so it does not work there.
 
-### 2026-11-16: Part 2, the rerank where the search does not put Apple's neuron in its top 5 (`scripts/jobs/part2_rerank.sh`), partial
+### 2026-11-16: Part 2, the rerank where the search does not put Apple's neuron in its top 5 (`scripts/jobs/part2_rerank.sh`), Polish and Swahili still running
 Setup: for each language set where the search ranks Apple's neuron outside the top 5, pin each of that language's own top-5 candidates plus Apple's neuron over the 9-value grid (2–60) on that language's rerank prompts (PolyRefuse 191; 128 tokens), judged by Qwen3Guard on the original text and Llama-Guard on an NLLB translation (English: on the text). Selection rule: the candidate reaching 0.90 at the smallest pin. Jobs 468279/80 (Qwen3-8B), 460190 (Llama), 460623 (Qwen3-1.7B); held 12–16 November, so this entry is filled in as languages finish.
 
 | Model, language (search rank of Apple's neuron) | Winner by the rule, Qwen3Guard | Winner, Llama-Guard | Best other candidate |
 |---|---|---|---|
 | Qwen3-8B, Chinese (7th) | **L14:F7924 at +20** (0.94); no other reaches 0.90 | **L14:F7924 at +20** (0.92) | L17:F4925 at −60 (0.91, Llama-Guard only) |
 | Qwen3-8B, Japanese (18th) | **L14:F7924 at +15** (0.90; 0.97 at +30) | none reaches 0.90; L14:F7924 best at +20 (0.895) | L16:F2064 at −30 (0.91 / 0.82) |
-| Qwen3-8B, PolyRefuse English (6th) | **L14:F7924 at +20** (0.96), then L16:F5318 at +20 (0.94) | being judged | L16:F5318 |
+| Qwen3-8B, Russian (15th) | **L14:F7924 at +15** (0.91); no other reaches 0.90 | **L14:F7924 at +20** (0.91); no other reaches 0.90 | L17:F11229 and L16:F227 (0.89 at ∓30 under Qwen3Guard; 0.84–0.86 under Llama-Guard) |
+| Qwen3-8B, PolyRefuse English (6th) | **L14:F7924 at +20** (0.96), then L16:F5318 at +20 (0.94) | L16:F5318 at +15 (0.90), then **L14:F7924 at +20** (0.95) | L16:F5318: a near-tie, the winner depends on the judge |
+| Qwen3-8B, Yoruba (4423rd) | no candidate above 0.03 | L10:F11445 at −30 (0.97), but 0.82 with no pin | not judgeable |
 | Llama, Yoruba (13th) | no candidate above 0.05 | every candidate 0.87–0.98, and 0.81 with no pin | not judgeable |
 | Qwen3-1.7B, Yoruba (175th) | no candidate above 0.01 | 0.79–0.92, and 0.76 with no pin | not judgeable |
 
-- **Where the search ranks Apple's neuron low, the rerank still picks it, at its English pin.** In Chinese (search rank 7) and Japanese (rank 18) on Qwen3-8B, none of the language's own top-5 candidates beats Apple's neuron; in Chinese no other candidate reaches 0.90 at all under Qwen3Guard. So the per-language search shortlist differs, but the neuron that actually jailbreaks is the same one. A lower search rank is not a different refusal neuron.
+- **Where the search ranks Apple's neuron low, the rerank still picks it, at its English pin.** In Chinese (search rank 7), Japanese (rank 18) and Russian (rank 15) on Qwen3-8B, none of the language's own top-5 candidates beats Apple's neuron; in Russian no other candidate reaches 0.90 under either judge, and in Chinese none under Qwen3Guard. So the per-language search shortlist differs, but the neuron that actually jailbreaks is the same one. A lower search rank is not a different refusal neuron.
+- **PolyRefuse English is a near-tie between Apple's neuron and L16:F5318** (a member of the same layer 14–18 group, in 12 of the 22 top-5 lists). Qwen3Guard picks Apple's neuron (0.96 at +20, against 0.94); Llama-Guard picks L16:F5318 because it crosses 0.90 one grid step earlier (0.90 at +15; Apple's neuron is at 0.84 at +15 and 0.95 at +20). Both jailbreak at about the same pin.
 - **Yoruba cannot be judged.** Qwen3Guard on the Yoruba text calls nothing harmful (at most 0.05, for any candidate at any pin), while the translated judges call 76–85% harmful with no pin at all. Neither reading moves with the pin in a usable way; this matches the per-language attack entry (the models' Yoruba answers are mostly incoherent).
 - Llama, Yoruba is final (job 460190, ended 16 November 20:45): over all 10,505 answers Qwen3Guard on the text calls 1.2% harmful and Llama-Guard on the translation 82.6%; the two agree no better than chance (kappa 0.003). The job's last step, Qwen3Guard on the translation, stopped on a GPU error after 4 of the 6 neurons; it is not rerun, because that reading is not reported for Yoruba (it gave 0.80–0.91 harmful at the smallest pins, the same as with no pin).
-- Still running: Russian and Polish on Qwen3-8B (job 468856, after a node failure killed 468279 at 18:28), Yoruba on Qwen3-8B, MultiJail Swahili on Qwen3-1.7B.
+- Qwen3-8B, Yoruba (job 468280, ended 16 November 22:28): Qwen3Guard on the text calls 1.1% of all answers harmful, the translated judges 78–79%, with 0.79–0.82 already at no pin; the same picture as on the other two models.
+- Still running: Polish on Qwen3-8B (job 468856, after a node failure killed 468279 at 18:28) and MultiJail Swahili on Qwen3-1.7B (460623).
 
 ### 2026-11-16: Follow-ups to the 12 November meeting (`followup_tables.py`, `scripts/jobs/coconot.sh`, `scripts/jobs/pin_sweep.sh`)
 Points raised on 12 November (README, "Follow-ups from the 12 November meeting"). This entry holds their results as they come in. The first three need no GPU (`followup_tables.py`, log `cpu-468266`).
