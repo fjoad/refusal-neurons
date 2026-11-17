@@ -17,6 +17,7 @@ Part B tests, at every token during prefill and greedy generation:
   mlp_ablate_without_neuron: remove that component using the other neurons only.
   neuron_mean_ablate: reset just the neuron to its harmless training mean.
   mlp_steer: subtract alpha times the raw gap, moving away from harmful examples.
+    (--steer_only with a long --alphas list is the alpha grid search, 17 November point 25.)
   arditi_ablate: remove Arditi's residual direction at every layer.
   arditi_ablate_neuron_held: do the same while holding the neuron at its harmful
     mean. Restored refusal would support a role for this neuron in that effect.
@@ -288,7 +289,7 @@ def mlp_intervention(model, layer, neuron, pin=None, vector=None, mode="ablate",
 
 
 def evaluate(model, tok, raw, tensors, layer, neuron, pin, alphas, out_path, metadata,
-             bs=4, max_new=128, arditi=None):
+             bs=4, max_new=128, arditi=None, steer_only=False):
     """Part B: save evaluate.py-compatible JSON after each run; return its result."""
     from neuron_check import build_prompts, is_refusal
 
@@ -309,7 +310,9 @@ def evaluate(model, tok, raw, tensors, layer, neuron, pin, alphas, out_path, met
             ("mlp_ablate_without_neuron", None, tensors["unit_without_neuron"], "ablate", None, False),
             ("neuron_mean_ablate", harmless_mean, None, "ablate", None, False)]
     runs += [("mlp_steer", None, tensors["direction"], "steer", alpha, False) for alpha in alphas]
-    if arditi is not None:
+    if steer_only:  # the alpha grid: the unpinned reference and the steering runs only
+        runs = [r for r in runs if r[0] in ("none", "mlp_steer")]
+    elif arditi is not None:
         runs += [("arditi_ablate", None, None, "ablate", None, True),
                  ("arditi_ablate_neuron_held", harmful_mean, None, "ablate", None, True)]
     else:
@@ -392,6 +395,7 @@ def main():
     ap.add_argument("--n", type=int, default=0, help="first n evaluation prompts (0 = all); training is unchanged")
     ap.add_argument("--max_new", type=int, default=128)
     ap.add_argument("--alphas", type=float, nargs="*", default=[0.5, 1, 2, 4])
+    ap.add_argument("--steer_only", action="store_true", help="run only 'none' and the steering runs (the alpha grid)")
     ap.add_argument("--no_eval", action="store_true")
     ap.add_argument("--tag", default="train")
     args = ap.parse_args()
@@ -432,6 +436,7 @@ def main():
         print(f"L{row['layer']}: top F{top['neuron']} rank={top['rank']} share={top['squared_norm_share']}", flush=True)
         if watched is not None:
             print(f"  F{args.neuron}: rank={watched['rank']} share={watched['squared_norm_share']}", flush=True)
+            print(f"  direction length (alpha = 1 moves the layer's neuron values this far): {row['raw']['norm']:.4g}", flush=True)
     print(f"saved outputs/mlp_direction/{stem}.json / .pt ({(time.time() - started) / 60:.1f} min)", flush=True)
     if args.no_eval:
         if arditi is None:
@@ -441,7 +446,8 @@ def main():
     raw = raw[:args.n] if args.n else raw
     eval_path = ROOT / "outputs" / "evaluate" / f"{short}_L{args.layer}_mlpdir_{args.tag}.json"
     evaluate(model, tok, raw, tensors, args.layer, args.neuron, args.pin, args.alphas, eval_path,
-             {**metadata, "direction_file": str(out_dir / (stem + ".pt"))}, args.bs, args.max_new, arditi)
+             {**metadata, "direction_file": str(out_dir / (stem + ".pt"))}, args.bs, args.max_new, arditi,
+             args.steer_only)
 
 
 if __name__ == "__main__":
