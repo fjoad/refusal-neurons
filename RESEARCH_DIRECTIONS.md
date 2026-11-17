@@ -56,6 +56,10 @@ Kazemi et al. test only *safety* refusals.
 - **The full method in Arabic.** Find the neuron in Arabic with the same algorithm (search, rerank, attack) and compare its effectiveness with the English neuron.
 - **A language-agnostic refusal neuron as one guard across languages** (directions 1 and 3). Search in every language of PolyRefuse and MultiJail, intersect the top-5 neurons, and test the most-shared neuron as a detector everywhere. If no single neuron works, look for one per language family or script, then one per language.
 
+## Ideas added at the 17 November meeting (for a later paper)
+- **Single neurons for other behaviours.** Apple's search finds one neuron that gates refusal. Run the same search with a different target behaviour and see whether one neuron controls it.
+- **A culture neuron.** With a culture dataset as the contrast, look for a neuron that shifts the model's cultural alignment when pinned (the meeting's example: a Muslim-aligned Qwen from one neuron). Needs a dataset choice first.
+
 ## Shared resource worth building early
 One **parallel benchmark** with the same harmful and benign prompts in N languages × {text, image-of-text, speech (TTS)}. Papers A and B both use it, and it could be released on its own.
 

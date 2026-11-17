@@ -89,6 +89,23 @@ The 12 November meeting (Nadir, Taha, Majd) went through the first deck up to th
 | 21 | Break safety with a few dozen fine-tuning examples (Taha: papers show this works); then pin or freeze the neuron and see whether safety survives | Fine-tune the chat model on a few dozen harmful examples; measure refusal and the neuron before and after; repeat with the neuron frozen. Qwen3-1.7B first, then an 8B model | to write; needs a training setup | ⬜ last |
 | 22 | Freeze the safety neurons in the base model, then safety-train | Needs a safety-training recipe we do not have; only after 21 | — | ⬜ stretch |
 
+### Follow-ups from the 17 November meeting
+
+The 17 November group meeting went mainly through the first (5 November) deck again, with most questions on the MLP-direction slide (Faaiz's notes; readings agreed 2026-11-18). These are hypotheses to test, whatever the intuition says. ✅ done, 🟡 running or partly, ⬜ not started.
+
+| # | Point from the meeting | What we test | Code | State |
+|---|---|---|---|---|
+| 23 | The MLP direction was removed in one layer only; Nanda's ablation acts at every layer | In order: (a) the one MLP direction we have (from the refusal neuron's layer) removed inside every MLP; (b) each MLP's own direction removed inside its own MLP, all layers at once; (c) Nanda's residual direction removed only from what the MLPs write, and only from what attention writes | `mlp_every_layer.py`, `scripts/jobs/mlp_every_layer.sh` | 🟡 jobs 470288/89/90 submitted 2026-11-18 |
+| 24 | Is the reverse method finding the same neuron as Apple's method, independently? | The 5 November run chose the layer and token with Apple's neuron. Blind version: the direction at every layer, averaged over the template tokens; every neuron ranked by its share of its layer's direction and by the size of what it writes | `mlp_every_layer.py` (same jobs) | 🟡 |
+| 25 | The α = 4 was never searched for; Apple grid-searched its pin | A finer α grid with Apple's rule (smallest value reaching 0.90) and the K.1 judge; the pin grid on whichever neuron the blind reverse route finds | to write | ⬜ after 24 |
+| 26 | What do the other top candidates do? Does pinning more neurons raise the rate (how many to reach 100%)? Is the whole more than the sum of its parts? | (a) from the existing rerank files: each candidate alone, and whether they fail on the same prompts; (b) the top 1, 2, 3, 4, 5 pinned together, where one neuron leaves room (Qwen3-1.7B, MultiJail, transfer between datasets) | to write | ⬜ |
+| 27 | If one of the top neurons is on, are they all on? One on at a high pin with the rest pushed the other way: does it cancel? | Prompt-by-prompt co-firing of the top 5; one pinned to the attack side with the others held on the harmful side | to write | ⬜ |
+| 28 | Do the top 5 residual-stream numbers together work where one does not (32%)? | The five best residual numbers pinned together | to write | ⬜ |
+| 29 | Does changing the refusal phrases (the "starter statement") change the result? | Standard: the model's most common refusal openings per language (Apple's fixed list for the English replication). Try other lists (a single phrase, an unrelated phrase as a control) and track the top 5 and the rerank winner. So far only the rank of Apple's neuron under two lists (5 November follow-up, note 4) | `refusal_phrases.py`, `neuron_search.py --phrases_json` | 🟡 |
+| 30 | Justify dropping the languages where the model fails (Yoruba, Swahili, Javanese) | MMLU per language; drop a language below a set accuracy, or with no MMLU translation. Not dropped yet; the justification is for the paper | to write; needs a multilingual MMLU | ⬜ |
+
+Answered in discussion, no experiment: how Apple's neuron can be "6th" when the rerank picks from a top 5 (the rank is its place in a different search's list, PolyRefuse English prompts with the model's own phrases; in Apple's setup it is 5th). Single neurons for other behaviours, and a culture neuron, are in [RESEARCH_DIRECTIONS.md](RESEARCH_DIRECTIONS.md) as ideas for a later paper.
+
 **Multimodal (speech and images):** to be discussed; no plan yet.
 
 ### Part 1 checklist: every Apple experiment, in English and in Arabic
@@ -249,6 +266,7 @@ Everything heavy runs on **panther** (QCRI SLURM). The repo is a plain git clone
 | `mlp_direction.py` | Part 3 | Arditi-style refusal direction inside the MLP (before `down_proj`), its decomposition over neurons at every layer, and attack runs: ablate it, ablate it without the refusal neuron, steer, reset the neuron, Arditi's ablation with the neuron held |
 | `summarize.py` | any | Per-run metrics of an output JSON (refusal, ASR, response lengths), never the text |
 | `harm_vs_refusal.py` | 12 Nov follow-up, point 12 | CPU. The 2×2 harmful or not × refused or not: the neuron's fixed-sign value on CoCoNot and XSTest prompts, split by whether the model itself refused (Qwen3Guard). Reads the files `scripts/jobs/harm_vs_refusal.sh` makes |
+| `mlp_every_layer.py` (+ `scripts/jobs/mlp_every_layer.sh`) | 17 Nov follow-up, points 23–24 | The MLP direction removed at every layer (one direction in every MLP; each MLP's own), Nanda's direction removed from MLP outputs only or attention outputs only, and every neuron ranked blind from the per-layer directions. Writes `outputs/evaluate/*_mlpall_en.json` |
 | `first_layer.py` (+ `scripts/jobs/first_layer.sh`) | 5 Nov follow-up, note 6 | Per language set and layer: how well a difference-of-means direction separates harmful from harmless prompts in the residual stream, with the direction fitted in the same language and with the English one. Forward passes only |
 | `topk_overlap.py` | 5 Nov follow-up, note 3 | CPU. Rebuilds each language's full search ranking from the saved `*_means.pt` and prints the top-k overlap with the English reference for k = 5 to 100, the neurons every language shares, and Apple's neuron's rank per language |
 | `show_responses.py` | any | Writes a few generated answers to a file, for a human to read. Reads neuron_check, rerank, evaluate and direction_variants files; `--pins 20,40,80 --by_prompt` puts the same prompt's answers at several pins side by side (for the example slide) |
