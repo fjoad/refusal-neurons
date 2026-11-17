@@ -7,7 +7,12 @@ For every language set (PolyRefuse 14, MultiJail 10): the first --n harmful and 
 residual stream at the input of every layer (index = number of layers already applied; the last index is the
 final layer's output) at Table 3's template tokens. Per layer and token: a difference-of-means direction fitted on half the prompts and
 scored (AUROC) on the other half, both ways, averaged; the layer's score is its best token. Reported per set: the
-first layer reaching 0.90 and 0.95, and the best layer. No generation; logs show numbers only.
+first layer reaching 0.90 and 0.95, and the best layer ("own").
+That first measure saturates after one layer (the two prompt groups differ in wording and topic, which a direction
+fitted in the same language picks up at once), so the script also reports "English": the direction fitted on the
+English prompts of the same dataset, scored on each other language. The datasets are parallel (the same prompts
+translated), so this asks at which layer the harmful/harmless signal becomes one the languages share.
+No generation; logs show numbers only.
 Usage: python replication/first_layer.py --model Qwen/Qwen3-8B     (job: scripts/jobs/first_layer.sh)
 """
 import argparse
@@ -52,6 +57,15 @@ def separation(harm, safe):
     return scores.max(-1).values
 
 
+def transfer(harm, safe, direction):
+    """[layers + 1]: AUROC of another language's direction on these prompts, best token per layer; and the cosine
+    between that direction and this language's own, averaged over tokens."""
+    ph = (harm * direction).sum(-1).permute(1, 2, 0)
+    ps = (safe * direction).sum(-1).permute(1, 2, 0)
+    own = harm.mean(0) - safe.mean(0)
+    return auroc(ph, ps).max(-1).values, torch.nn.functional.cosine_similarity(own, direction, dim=-1).mean(-1)
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--model", required=True)
@@ -68,8 +82,10 @@ def main():
     short = args.model.split("/")[-1]
     result = {"args": vars(args), "n_layers": n_layers, "sets": {}}
     print(f"{args.model}: {n_layers} layers; first layer whose input separates harmful from harmless (held-out AUROC of a difference-of-means direction)")
-    print("set: first layer >= 0.90 / first layer >= 0.95 (as a share of depth) / best AUROC and its layer")
+    print("set: own direction: first layer >= 0.90 / first layer >= 0.95 (as a share of depth) / best AUROC and its layer"
+          " || English direction: the same three, then the cosine with the set's own direction at 25%, 50%, 75% of depth")
     for track, langs in LANGS.items():
+        english = None  # the English direction of this dataset; English is first in each list
         for lang in langs:
             try:
                 harmful, harmless = load(f"{track}_{lang}_harmful_test")[:args.n], load(f"{track}_{lang}_harmless_test")[:args.n]
@@ -78,14 +94,23 @@ def main():
             p_harm, n_post, post_tokens = build_prompts(tok, harmful)
             p_safe = build_prompts(tok, harmless)[0]
             n_paper = paper_score_tokens(args.model, post_tokens)
-            sep = separation(states(model, tok, p_harm, n_post, n_paper, args.bs), states(model, tok, p_safe, n_post, n_paper, args.bs))
-            first = lambda thr: next((l for l, s in enumerate(sep.tolist()) if s >= thr), None)
-            f90, f95, best = first(0.90), first(0.95), int(sep.argmax())
+            harm, safe = states(model, tok, p_harm, n_post, n_paper, args.bs), states(model, tok, p_safe, n_post, n_paper, args.bs)
+            sep = separation(harm, safe)
+            first = lambda s, thr: next((l for l, x in enumerate(s.tolist()) if x >= thr), None)
             share = lambda l: "never" if l is None else f"{l} ({l / n_layers:.0%})"
-            print(f"  {track}_{lang} ({len(harmful)}/{len(harmless)}): {share(f90)} / {share(f95)} / {float(sep.max()):.3f} at layer {best}"
-                  f"  ({(time.time() - t0) / 60:.1f} min)", flush=True)
-            result["sets"][f"{track}_{lang}"] = {"auroc_per_layer": sep.tolist(), "first_090": f90, "first_095": f95,
-                                                 "best_layer": best, "n_harmful": len(harmful), "n_harmless": len(harmless)}
+            line = lambda s: f"{share(first(s, 0.90))} / {share(first(s, 0.95))} / {float(s.max()):.3f} at layer {int(s.argmax())}"
+            entry = {"auroc_per_layer": sep.tolist(), "first_090": first(sep, 0.90), "first_095": first(sep, 0.95),
+                     "best_layer": int(sep.argmax()), "n_harmful": len(harmful), "n_harmless": len(harmless)}
+            text = f"  {track}_{lang} ({len(harmful)}/{len(harmless)}): own {line(sep)}"
+            if english is None:
+                english = harm.mean(0) - safe.mean(0)
+            else:
+                tr, cos = transfer(harm, safe, english)
+                entry.update({"english_auroc_per_layer": tr.tolist(), "english_first_090": first(tr, 0.90),
+                              "english_first_095": first(tr, 0.95), "cosine_with_english_per_layer": cos.tolist()})
+                text += f" || English {line(tr)}; cosine " + " ".join(f"{float(cos[round(n_layers * f)]):+.2f}" for f in (0.25, 0.5, 0.75))
+            print(text + f"  ({(time.time() - t0) / 60:.1f} min)", flush=True)
+            result["sets"][f"{track}_{lang}"] = entry
     out = ROOT / "outputs" / "first_layer"
     out.mkdir(parents=True, exist_ok=True)
     (out / f"{short}.json").write_text(json.dumps(result, indent=1))
