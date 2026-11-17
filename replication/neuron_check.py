@@ -133,6 +133,9 @@ def main():
     ap.add_argument("--gen_split", default=None,
                     help="generate on this split instead of --harmful (e.g. harmless prompts; with negative --m the "
                          "neuron is pinned toward its harmful value, to test whether it induces refusal)")
+    ap.add_argument("--sign", type=float, default=None, choices=[1.0, -1.0],
+                    help="the neuron's harmful sign, fixed (+1 Llama L11:F4258, -1 the Qwen neurons). Default: taken from "
+                         "this file's two splits, which can flip on splits that are not harmful against harmless")
     args = ap.parse_args()
 
     t0 = time.time()
@@ -150,7 +153,7 @@ def main():
     # A) separation
     a_harm = post_instruction_acts(model, tok, hook, p_harm, n_post, args.bs)
     a_safe = post_instruction_acts(model, tok, hook, p_safe, n_post, args.bs)
-    sign = 1.0 if a_harm.mean() - a_safe.mean() > 0 else -1.0
+    sign = args.sign or (1.0 if a_harm.mean() - a_safe.mean() > 0 else -1.0)
     agg = (lambda a: a.max(1)) if sign > 0 else (lambda a: a.min(1))
     scores = np.concatenate([agg(a_harm), agg(a_safe)]) * sign
     labels = np.r_[np.ones(len(a_harm)), np.zeros(len(a_safe))]

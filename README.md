@@ -75,9 +75,9 @@ The 12 November meeting (Nadir, Taha, Majd) went through the first deck up to th
 
 | # | Point from the meeting (first-deck slide) | What we test | Code | State |
 |---|---|---|---|---|
-| 10 | Does it work with CoCoNot? (data slide) | The neuron on CoCoNot's five refusal categories, four of them not about harm: does it separate "should refuse" from "should answer", and does the pin remove those refusals? | `data/prepare_coconot.py`, `scripts/jobs/coconot.sh` | ✅ (whether the neuron fires on them: to redo with a fixed direction) |
+| 10 | Does it work with CoCoNot? (data slide) | The neuron on CoCoNot's five refusal categories, four of them not about harm: does it separate "should refuse" from "should answer", and does the pin remove those refusals? | `data/prepare_coconot.py`, `scripts/jobs/coconot.sh` | ✅ (whether the neuron fires on them: being redone with a fixed direction by point 12's job) |
 | 11 | Are the answers gibberish when pinned at a high value? (judge and pin slides) | One neuron, pins from small to 10× the attack pin, 191 HarmBench prompts; share of answers the K.1 judge calls coherent at each pin. Example answers for the slides are picked by Faaiz with `show_responses.py` | `scripts/jobs/pin_sweep.sh` (`rerank.py --only`) | ✅ |
-| 12 | Is "this is harmful" a different thing from "how the model will respond"? Which is the neuron? | A 2×2: harmful or not × refused or not, using CoCoNot's non-harm refusals and XSTest's harmless-but-scary prompts, read off the neuron | from 10's files | ⬜ |
+| 12 | Is "this is harmful" a different thing from "how the model will respond"? Which is the neuron? | A 2×2: harmful or not × refused or not, using CoCoNot's non-harm refusals and XSTest's harmless-but-scary prompts, read off the neuron | `scripts/jobs/harm_vs_refusal.sh`, `harm_vs_refusal.py` | 🟡 submitted 2026-11-17 |
 | 13 | −4.4 is the average; what is the range? (score slide) | Minimum, percentiles, maximum and a histogram of the neuron's value on harmful and harmless prompts | `followup_tables.py` | ✅ |
 | 14 | Pin the neuron, then add the direction back; recompute the direction with the neuron pinned; remove the next neuron | (a) pinned neuron + refusal direction added: does refusal return? (b) the direction recomputed with the neuron off: what is left, and what is its top neuron? (c) switch that one off too and repeat | `direction_variants.py`, `scripts/jobs/direction_variants.sh` | ✅ |
 | 15 | Set the top 5 neurons to off | All five search candidates held at their harmless values at once | `direction_variants.py` | ✅ |
@@ -229,7 +229,7 @@ Everything heavy runs on **panther** (QCRI SLURM). The repo is a plain git clone
 
 | Script | Experiment | What it does |
 |---|---|---|
-| `neuron_check.py` (+ `.sh`) | M1, detection, Arabic A | For a known neuron: AUROC (harmful vs harmless), per-token means, and refusal rate when pinned. Saves per-prompt detection scores |
+| `neuron_check.py` (+ `.sh`) | M1, detection, Arabic A | For a known neuron: AUROC (harmful vs harmless), per-token means, and refusal rate when pinned. Saves per-prompt detection scores. `--sign` fixes the neuron's harmful sign (otherwise it is taken from the two splits and can flip on splits that are not harmful against harmless) |
 | `neuron_search.py` (+ `.sh`) | Exp. 1 part 1, Arabic B, Exp. 8 | Apple's gradient × activation search over the first 2/3 of layers; top 5. `--watch L:F` reports any neuron's rank; `--space residual` searches residual-stream numbers; saves `*_means.pt`. Paper settings are the defaults |
 | `rescore.py` | Exp. 1 | Re-ranks from a saved `*_means.pt` with a different token subset, on CPU |
 | `rerank.py` | Exp. 1 part 2, Exp. 8 | Pins each top-5 candidate over a grid of pin values on HarmBench and saves the answers. `--add_watched` also sweeps the search's watched neuron (Apple's) when it is outside the top 5 |
@@ -248,6 +248,7 @@ Everything heavy runs on **panther** (QCRI SLURM). The repo is a plain git clone
 | `refusal_phrases.py` | multilingual | Each model's most common refusal openings per language, from short unpinned answers; feeds `neuron_search.py --phrases_json/--phrases_key` |
 | `mlp_direction.py` | Part 3 | Arditi-style refusal direction inside the MLP (before `down_proj`), its decomposition over neurons at every layer, and attack runs: ablate it, ablate it without the refusal neuron, steer, reset the neuron, Arditi's ablation with the neuron held |
 | `summarize.py` | any | Per-run metrics of an output JSON (refusal, ASR, response lengths), never the text |
+| `harm_vs_refusal.py` | 12 Nov follow-up, point 12 | CPU. The 2×2 harmful or not × refused or not: the neuron's fixed-sign value on CoCoNot and XSTest prompts, split by whether the model itself refused (Qwen3Guard). Reads the files `scripts/jobs/harm_vs_refusal.sh` makes |
 | `show_responses.py` | any | Writes a few generated answers to a file, for a human to read. Reads neuron_check, rerank, evaluate and direction_variants files; `--pins 20,40,80 --by_prompt` puts the same prompt's answers at several pins side by side (for the example slide) |
 
 **SLURM wrappers** (`scripts/`)
