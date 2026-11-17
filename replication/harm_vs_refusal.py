@@ -6,8 +6,8 @@ answer, labelled refused or not by Qwen3Guard) and prints, per model:
   - the 2x2 (harmful or not x refused or not): prompts, mean neuron value, share where the neuron "fires";
   - AUROC of the neuron for refused-vs-answered among non-harmful prompts, and for harmful-vs-not among refused ones;
   - CoCoNot firing scores with the fixed sign ("should refuse" against "should answer"; redoes point 10).
-"Fires" = beyond the 95th percentile of the neuron's value on harmless Alpaca prompts (the JailbreakBench / Alpaca
-file of Milestone 1), one cut-off per model. Values are the neuron's strongest value over Table 3's tokens.
+"Fires" = beyond the 95th percentile of the neuron's value on the 500 harmless prompts of the PolyRefuse English
+test set (the *_poly_en_detect file, as in followup_tables.py's range table), one cut-off per model. Values are the neuron's strongest value over Table 3's tokens.
 Reads activations and labels only; prompts and answers are never printed.
 Usage: sbatch scripts/cpu.sh replication/harm_vs_refusal.py
 """
@@ -48,15 +48,15 @@ def cell(s, sign, cut):
 def main():
     for short, layer, neuron in MODELS:
         stem = f"{short}_L{layer}_F{neuron}_float16"
-        ref = read(OUT / f"{stem}.json")
-        if ref is None:
+        ref = read(OUT / f"{stem}_poly_en_detect.json")
+        if ref is None or "detection_scores" not in ref:
             print(f"\n{short}: reference file missing")
             continue
         sign = ref["harmful_sign"]
         s, lab = np.array(ref["detection_scores"]), np.array(ref["detection_labels"])  # already x sign: larger = more harmful
         cut = np.percentile(s[lab == 0], 95)
         print(f"\n===== {short} L{layer}:F{neuron}; harmful sign {sign:+.0f}; fires = value beyond {cut * sign:+.2f} "
-              f"(95% of {int((lab == 0).sum())} harmless Alpaca prompts are below it; {np.mean(s[lab == 1] > cut):.0%} of JailbreakBench fire)")
+              f"(95% of the {int((lab == 0).sum())} harmless PolyRefuse English prompts are below it; {np.mean(s[lab == 1] > cut):.0%} of its {int((lab == 1).sum())} harmful prompts fire)")
         pooled = {(h, r): [] for h in (True, False) for r in (True, False)}
         for label, tag, harmful in SETS:
             d = read(OUT / f"{stem}_{tag}.json")
