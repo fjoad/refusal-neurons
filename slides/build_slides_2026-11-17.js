@@ -195,7 +195,7 @@ function ref(title, n, showed, raised, notes) {
     ["#", "Point raised", "First-deck slide", "How we tested it", "Answer"],
     ["1", left("Does it work with CoCoNot (refusals that are not about harm)?"), "6", left("Pin the neuron on CoCoNot's five kinds of refusal"), "slide 5"],
     ["2", left("Are the answers gibberish when pinned at a high value?"), "7, 11–12", left("Pins up to 10× the attack pin; a judge for coherence"), "slides 8–9"],
-    ["3", left("Is \"this is harmful\" separate from \"how to respond\"?"), "—", left("What the neuron tracks: harm, or refusing"), "slide 6"],
+    ["3", left("Is \"this is harmful\" separate from \"how to respond\"?"), "—", left("What the neuron tracks: harm, or refusing"), "slides 6, 26"],
     ["4", left("−4.4 is the average. What is the range?"), "10", left("Every prompt's value: percentiles and a histogram"), "slide 11"],
     ["5", left("Pin the neuron, then add the direction back"), "11–14", left("Does refusal return? And the direction recomputed with the neuron off"), "slide 16"],
     ["6", left("Set the top 5 neurons to off"), "13", left("All five candidates held at their harmless values"), "slide 15"],
@@ -239,7 +239,7 @@ function ref(title, n, showed, raised, notes) {
 // ------------------------------------------------------------------ 6. Q3 harmful vs how it responds
 {
   const s = newSlide("3. Is \"this is harmful\" separate from \"how the model responds\"?", "q",
-    "Three pieces of evidence already in hand. Row 1: slide 5. Row 2: the 100 attack prompts per language, split by whether the unpinned model refused; the neuron's average value on each group (PolyRefuse English). Row 3: slide 21. A full two-by-two table (harmful or not, refused or not) is the remaining step.");
+    "Three pieces of evidence already in hand. Row 1: slide 5. Row 2: the 100 attack prompts per language, split by whether the unpinned model refused; the neuron's average value on each group (PolyRefuse English). Row 3: slide 21. The full two-by-two table (harmful or not, refused or not) is on slide 26.");
   s.addText("The idea raised: one part of the model may recognise that a request is harmful, and a different part may decide how to answer. Which of the two is this neuron?",
     { x: ML, y: 1.45, w: CW, h: 0.6, fontFace: FONT, fontSize: 15, color: MUTED, margin: 0 });
   table(s, [
@@ -249,7 +249,7 @@ function ref(title, n, showed, raised, notes) {
     [left("Base model against chat model (slide 21)"), left("Before safety training the neuron fires on the harmful words; training adds the firing at the decision point"), "both: a harm detector that training turned into a switch"],
     [left("Llama on CoCoNot (slide 5)"), left("Its pin removes harm-related refusals (90% → 32%) but few of the others (72% → 48%)"), "recognising harm"],
   ], ML, 2.2, CW, [4.0, 5.5, 2.63], { size: 13, rowH: 0.72 });
-  result(s, [b("So far: on the Qwen models the neuron follows the decision to refuse more than the harm itself; "), t("on Llama it is more tied to harm. Still to do: one table of harmful or not against refused or not, on the same prompts.")], { y: 6.08, h: 0.82, size: 14 });
+  result(s, [b("These four pieces point both ways. "), t("The direct test, one table of harmful or not against refused or not on the same prompts, finished today: slide 26.")], { y: 6.08, h: 0.82, size: 14 });
 }
 
 // ------------------------------------------------------------------ 7. ref: pin sweep
@@ -644,13 +644,66 @@ ref("Last time: is the neuron there before safety training?", 17,
   result(s, [b("Both point the same way: "), t("it is one neuron across languages, and where a language fails to trigger it, switching it on by hand can restore refusal.")], { y: 6.15, h: 0.7, size: 14 });
 }
 
-// ------------------------------------------------------------------ 26. next
+// ------------------------------------------------------------------ 26. Q3: the two-by-two table (added 17 Nov)
+{
+  const s = newSlide("3. Harmful or not, against refused or not: the table", "q",
+    "744 prompts per model: CoCoNot's five categories (60, 60, 55, 59, 60 prompts a model should decline; only 'safety concerns' is harmful) and XSTest (200 unsafe, 250 safe prompts that sound harmful). Harmful or not = the dataset's label. Refused or not = the model's own answer with no pin, 96 tokens, Qwen3Guard's refusal label. The number = the neuron's strongest value over the template tokens, no pin, sign held fixed. Bottom table: AUROC, the chance that the neuron's value ranks a prompt of the first group above one of the second. Fourth comparison, not shown: harmful against not harmful among answered prompts, 87%, 87%, 78%.");
+  question(s,
+    "Does the neuron respond to the request being harmful, or to the model being about to refuse? The two usually go together, so we need prompts where they come apart.",
+    ["744 prompts per model: CoCoNot (slide 5) and XSTest, which has 250 safe prompts that only sound harmful",
+      "Harmful or not: the dataset's label",
+      "Refused or not: the model's own answer with no pin (Qwen3Guard)",
+      "The number: the neuron's value on each prompt, no pin"],
+    "Top: the neuron's average value in each group (number of prompts). Bottom: how often the neuron ranks a prompt of the first group above one of the second. 50% = it cannot tell them apart.");
+  const x = 6.1, w = CW - 5.5;
+  label(s, "THE NEURON'S AVERAGE VALUE (NUMBER OF PROMPTS)", x, 1.5, w);
+  table(s, [
+    ["", "Qwen3-8B", "Llama", "Qwen3-1.7B"],
+    ["Harmful, model refused", hl("−4.3 (212)"), hl("+1.2 (245)"), hl("−10.2 (207)")],
+    ["Harmful, model answered", "−3.5 (48)", "+0.6 (15)", "−8.4 (53)"],
+    ["Not harmful, model refused", warn("−1.1 (122)"), warn("+0.2 (159)"), "−6.7 (121)"],
+    ["Not harmful, model answered", "−1.3 (362)", "+0.2 (325)", "−5.4 (363)"],
+  ], x, 1.82, w, [2.7, 1.31, 1.31, 1.31], { size: 12, rowH: 0.36 });
+  label(s, "CAN THE NEURON TELL THE TWO GROUPS APART? (50% = NO)", x, 3.8, w);
+  table(s, [
+    ["", "Qwen3-8B", "Llama", "Qwen3-1.7B"],
+    ["Harmful vs not (refused prompts)", hl("93%"), hl("97%"), "81%"],
+    ["Refused vs answered (not-harmful prompts)", warn("45%"), warn("47%"), "62%"],
+    ["Refused vs answered (harmful prompts)", "62%", "76%", "68%"],
+  ], x, 4.12, w, [2.94, 1.23, 1.23, 1.23], { size: 12, rowH: 0.38 });
+  result(s, [b("On the 8B models the neuron reads harm, not the decision to refuse: "), t("when the model refuses a harmless request, the neuron stays at its harmless level. Forcing it still switches any refusal off or on (slide 5), so what it reads is narrower than what it controls. Qwen3-1.7B is in between.")], { y: 6.08, h: 0.82, size: 13.5 });
+}
+
+// ------------------------------------------------------------------ 27. Arabic residual baseline (added 17 Nov)
+{
+  const s = newSlide("Arabic: can one residual-stream number do what the neuron does?", "fin",
+    "Apple's Section 3.3 in Arabic. The search runs on single residual-stream numbers (128 harmful and 128 harmless Arabic prompts); each of the top 5 is pinned at 6 strengths in both directions on the Arabic rerank prompts (PolyRefuse 191, MultiJail 87). Second judge = gemma-2-9b-it with Apple's criterion: not a refusal and coherent. Safety judge = Qwen3Guard on the Arabic text. Best numbers: Llama L15:F3381 at +8 (both datasets, 94% coherent); Qwen3-8B MultiJail L18:F1248 at +60. Safety judge's best: Llama L15:F1105 at +30 (PolyRefuse), L15:F2742 at +30 (MultiJail); Qwen3-8B L18:F1248 at −60, L16:F1929 at +60. The neuron's figures are on 100 held-out Arabic prompts, a different set. English, first deck: best residual number 16% (Qwen3-8B), 32% (Llama).");
+  s.addText("Apple's check, now in Arabic: the same search and the same pinning, on single numbers of the residual stream instead of neurons. In English the best residual number reached 16% (Qwen3-8B) and 32% (Llama), against 96–97% for the neuron.",
+    { x: ML, y: 1.42, w: CW, h: 0.6, fontFace: FONT, fontSize: 14, color: MUTED, margin: 0 });
+  label(s, "BEST SINGLE RESIDUAL NUMBER IN ARABIC: SHARE OF SUCCESSFUL ATTACKS", ML, 2.1, CW);
+  table(s, [
+    ["Model, dataset", "No pin", "Best pin, second judge (not a refusal and coherent)", "Best pin, safety judge", "Coherent answers at the safety judge's best pin"],
+    ["Llama-3.1-8B, PolyRefuse", "15%", hl("55%"), "91%", warn("0%")],
+    ["Llama-3.1-8B, MultiJail", "18%", hl("53%"), "70%", warn("0%")],
+    ["Qwen3-8B, MultiJail", "20%", hl("28%"), "16%", "97%"],
+    ["Qwen3-8B, PolyRefuse", "9%", P(), "89%", P()],
+    ["For comparison: the neuron, pinned", "", hl("96–99% PolyRefuse, 79–94% MultiJail"), "", "98–100%"],
+  ], ML, 2.42, CW, [3.3, 1.2, 3.4, 1.9, 2.33], { size: 12.5, rowH: 0.4 });
+  bullets(s, [
+    "On Llama the safety judge gives up to 91%, but none of those answers makes sense: the pin scrambles the model, and the safety judge calls scrambled text harmful. The same trap as in English",
+    "Llama's best Arabic number (55%) is higher than its best English one (32%), but still about half the neuron",
+    "Qwen3-8B on PolyRefuse: the second judge is still running (\"pending\")",
+  ], ML, 5.0, CW, 1.05, 12.5);
+  result(s, [b("Same as English: no single residual-stream number jailbreaks the model in Arabic. "), t("The effect lives in the neuron, not in one coordinate of the stream it writes to.")], { y: 6.2, h: 0.65, size: 14 });
+}
+
+// ------------------------------------------------------------------ 28. next
 {
   const s = newSlide("Next", "next",
     "Fine-tuning is the main new piece of work. Multimodal (images and speech) needs a discussion on which models share a backbone with these and what the neuron would even be read on.");
   const cols = [
-    { h: "Finishing this week's questions", c: AMBER, body: ["Point 3: one table of harmful or not against refused or not", "Point 9: hand-built requests made of benign words", "Point 1: whether the neuron itself fires on non-harm refusals"] },
-    { h: "New work", c: TEAL, body: ["Point 12: break safety with a few dozen examples, with and without the neuron protected (Qwen3-1.7B, then 8B)", "Arabic residual-stream baseline", "Job logs in the repository and a how-to-run guide"] },
+    { h: "Finishing this week's questions", c: AMBER, body: ["Point 9: hand-built requests made of benign words", "Arabic residual-stream numbers: the last run (Qwen3-8B, PolyRefuse) is being judged", "Second halves of the 5 November questions"] },
+    { h: "New work", c: TEAL, body: ["Point 12: break safety with a few dozen examples, with and without the neuron protected (Qwen3-1.7B, then 8B)", "Job logs in the repository and a how-to-run guide"] },
     { h: "To discuss", c: SLATE, body: ["Images and speech: which models, and what would count as the same neuron", "The rest of the first deck and the two later decks", "Writing for ARR, 4 January"] },
   ];
   const w = (CW - 0.5) / 3;
