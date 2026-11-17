@@ -91,7 +91,7 @@ Newest work first in each topic; every entry has its date, setup, numbers and ca
 - **Part 2, the attack in every language, all three models** (PolyRefuse 13 languages: 0.83–0.99 harmful, K.1 0.93–1.00; MultiJail K.1 0.79–0.96; fails in Yoruba and Qwen-Swahili, where the models' own answers are mostly incoherent): 2026-11-12
 - **Part 2, one guard across languages** (one English cut-off: Llama neuron 0.94–0.98 on PolyRefuse; on MultiJail the 8B neurons beat Llama-Guard and Qwen3Guard): 2026-11-12
 - **Restoring refusal in low-resource languages** (a medium pin restores refusal selectively in Javanese on all three models and in Swahili on Llama; not in Yoruba): 2026-11-12
-- **Follow-ups to the 5 November meeting** (note 3 for larger k, added 2026-11-17: longer lists do not overlap more, but four neurons per model, Apple's among them, are in every language's top 20 outside Yoruba and Swahili; the neuron fires on the prompts the model refuses, in every language but Yoruba and Qwen-Swahili; the small model does not fall off faster with language; MultiJail's lower numbers are the same borderline prompts in every language): 2026-11-12
+- **Follow-ups to the 5 November meeting** (note 6's layers, added 2026-11-17: the harmful/harmless signal is shared across languages by layer 10–13 in both Qwen sizes, so no extra language step in the small model; note 3 for larger k, added 2026-11-17: longer lists do not overlap more, but four neurons per model, Apple's among them, are in every language's top 20 outside Yoruba and Swahili; the neuron fires on the prompts the model refuses, in every language but Yoruba and Qwen-Swahili; the small model does not fall off faster with language; MultiJail's lower numbers are the same borderline prompts in every language): 2026-11-12
 - **Arabic Experiments 2 and 8** (PolyRefuse: the neuron jailbreaks Arabic as well as English, 88–95%, matching Arditi's Arabic direction; MultiJail weaker for both; the neuron is 1st or 2nd most aligned with the Arabic direction): 2026-11-05
 
 Job scripts that produced these are in `scripts/jobs/` (each says which entry it belongs to).
@@ -124,6 +124,33 @@ Nine points came out of the 5 November meeting (README, "Follow-ups from the 5 N
 
 - **The small model does not fall off faster with language than the large one.** Qwen3-1.7B keeps as much of its English strength as Qwen3-8B in every language (often more: Spanish 98% against 86%, French 102% against 82%), except Swahili (2% against 13%). So this measure gives no sign of an extra language-dependent step in the small model. Still to do for note 6: the layer at which harmful and harmless prompts first separate, per language.
 - In all three models the neuron's strength in Yoruba is 5–8% of English; this is the size of the effect on slide 9.
+
+**Note 6, second half: at which layer do harmful and harmless prompts separate, per language?** (17 November; `first_layer.py`, `scripts/jobs/first_layer.sh`; jobs 469622, 469623, 469641). Per language set: the first 100 harmful and 100 harmless test prompts, the residual stream entering each layer at Table 3's template tokens. A difference-of-means direction separates the two groups; its AUROC is taken per layer (best of the template tokens). Two versions: the direction fitted in the same language (on half the prompts, scored on the other half), and the direction fitted on the **English** prompts of the same dataset, scored on the other language. The datasets are parallel translations, so the English direction asks where the signal becomes one the languages share.
+
+- **The same-language direction says nothing: it separates the groups after 1–8 layers almost everywhere** (first layer reaching 0.95: 1–14 across all sets). The two groups differ in wording and topic, and a direction fitted in the same language picks that up at once.
+
+The English direction on the other languages, first layer reaching AUROC 0.95 (range and median; in brackets the median as a share of the model's depth):
+
+| | Qwen3-1.7B (28 layers) | Qwen3-8B (36 layers) | Llama-3.1-8B (32 layers) |
+|---|---|---|---|
+| PolyRefuse, 13 languages | 1–10, median 7 (25%) | 1–10, median 5 (14%) | 1–4, median 4 (12%) |
+| MultiJail, 8 languages without Swahili | 1–13, median 10 (36%) | 1–11, median 10 (28%) | 2–6, median 5 (16%) |
+| MultiJail Swahili | never (best 0.68) | never (best 0.81) | never 0.95 (0.90 at layer 11, best 0.93) |
+
+Cosine between a language's own direction and the English one, at half depth:
+
+| | Qwen3-1.7B | Qwen3-8B | Llama-3.1-8B |
+|---|---|---|---|
+| PolyRefuse, 12 languages without Yoruba | 0.69–0.92 | 0.82–0.92 | 0.80–0.89 |
+| MultiJail: Arabic, Chinese, Italian, Vietnamese, Korean, Thai, Bengali | 0.41–0.84 | 0.64–0.86 | 0.63–0.77 |
+| Yoruba / Swahili / Javanese | 0.54 / −0.09 / 0.52 | 0.32 / +0.04 / 0.48 | 0.40 / 0.53 / 0.35 |
+
+- **The harmful/harmless signal is shared across languages early in every model:** by layer 10–13 at the latest on the Qwen models and by layer 6 on Llama, well before the refusal neurons' layers (13, 14, 11).
+- **No sign of an extra language step in the small model.** Qwen3-1.7B reaches the shared signal at the same layers as Qwen3-8B (medians 7 against 5 on PolyRefuse, 10 against 10 on MultiJail), and the languages come in the same order in both (Arabic, Chinese, Russian, Dutch first; Polish, Japanese, Italian, Thai last). As a share of depth the small model is later only because it has fewer layers.
+- **What is weaker in the small model is the agreement with English on the harder set:** on MultiJail its directions line up with the English one less (Thai 0.41 against 0.64, Vietnamese 0.49 against 0.67, Bengali 0.53 against 0.64).
+- **Swahili: the Qwen models do not recognise the harmful prompts at all** (no separation, the English direction does not carry over, cosine about 0). Llama does partly (0.93, cosine 0.53). This matches the attack: Swahili is the language where the pin works on Llama and fails on the Qwen models.
+- **Yoruba and Javanese separate at layer 1–2 with a low cosine (0.3–0.5).** That is a surface difference between the two prompt groups in those sets (wording that survives translation), not understanding; their AUROCs should not be read as "the model recognises harm".
+- Caveats: 100 + 100 prompts per set (72 harmless in PolyRefuse Chinese, 91 in MultiJail Javanese); the AUROC is the best of 4–5 tokens; harmful and harmless prompts differ in topic, so this measures "harmful topic", not the decision to refuse. The first Llama run ran out of memory on T4 cards at batch 16 and was rerun at batch 4.
 
 **Note 7: why are Chinese and Vietnamese lower on slide 10? It is the dataset.** MultiJail has the same 100 prompts in every language. With the neuron pinned, an answer can be a refusal, harmful, or "answered but judged safe" (Qwen3Guard):
 
