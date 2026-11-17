@@ -86,7 +86,7 @@ Newest work first in each topic; every entry has its date, setup, numbers and ca
 - **Arabic Experiments 3, 4–5, 7 and Arditi's capability cost, first results** (Arabic behaves like English, a bit weaker; base models already have the neuron in Arabic too): 2026-11-05
 - **Arabic Experiment 6, residual baseline** (3 of 4 runs: no single residual number jailbreaks in Arabic either; best under K.1 is 0.55 on Llama and 0.28 on Qwen3-8B MultiJail, against 0.79–0.99 for the neuron; the guards' high scores on Llama are garbled text): 2026-11-17
 - **Part 2, rerank where the search ranks Apple's neuron low** (partial: in Chinese and Japanese on Qwen3-8B the rerank still picks Apple's neuron at its English pin; Yoruba cannot be judged): 2026-11-16
-- **Follow-ups to the 12 November meeting, later points** (CoCoNot: the pin removes non-harm refusals on the Qwen models; gibberish beyond twice the attack pin; the direction overrides the pinned neuron; the write vector works as a direction on Llama and Qwen3-1.7B): 2026-11-16
+- **Follow-ups to the 12 November meeting, later points** (point 12, added 2026-11-17: on the 8B models the neuron reads harm, not the model's decision to refuse; CoCoNot: the pin removes non-harm refusals on the Qwen models; gibberish beyond twice the attack pin; the direction overrides the pinned neuron; the write vector works as a direction on Llama and Qwen3-1.7B): 2026-11-16
 - **Follow-ups to the 12 November meeting** (range of the neuron's value; base model fires on a word in about 90% of the prompts where the chat model fires; training grew the decision-point gap 3–7×; 6–16% of harmful prompts fire with no single word firing): 2026-11-16
 - **Part 2, the attack in every language, all three models** (PolyRefuse 13 languages: 0.83–0.99 harmful, K.1 0.93–1.00; MultiJail K.1 0.79–0.96; fails in Yoruba and Qwen-Swahili, where the models' own answers are mostly incoherent): 2026-11-12
 - **Part 2, one guard across languages** (one English cut-off: Llama neuron 0.94–0.98 on PolyRefuse; on MultiJail the 8B neurons beat Llama-Guard and Qwen3Guard): 2026-11-12
@@ -297,8 +297,60 @@ Points raised on 12 November (README, "Follow-ups from the 12 November meeting")
 - **On the Qwen models the neuron is a refusal switch, not a harm switch.** The attack pin removes refusals that have nothing to do with harm (humanizing 0.58 → 0.05 and 0.50 → 0.10; unsupported 0.45 → 0.20 and 0.38 → 0.10), about as well as it removes safety refusals.
 - **Pinned the other way, it creates refusal in every category on all three models** (0.82–1.00, except "incomplete" on the Qwen models).
 - **On Llama the attack pin is weaker on the non-harm refusals** (humanizing 0.72 → 0.48, indeterminate 0.81 → 0.54, incomplete unchanged), while it removes most safety refusals (0.90 → 0.32). So on Llama the neuron is more specific to harm when switched off, but still creates any kind of refusal when switched on.
-- **The neuron does not clearly fire on the non-harm categories.** Its AUROC for "should decline" against "should answer" is 0.79–0.96 on safety concerns but 0.51–0.80 elsewhere, and the script chose the firing direction separately per category (it flips in some), so those AUROCs are not comparable yet. To redo with the English direction fixed. So: the model declines these requests mostly without this neuron firing, yet forcing the neuron still overrides the decision either way.
+- **The neuron does not clearly fire on the non-harm categories.** Its AUROC for "should decline" against "should answer" is 0.79–0.96 on safety concerns but 0.51–0.80 elsewhere, and the script chose the firing direction separately per category (it flips in some), so those AUROCs are not comparable. Redone with the direction fixed under point 12 below (safety 0.79–0.96, the others 0.23–0.82). So: the model declines these requests mostly without this neuron firing, yet forcing the neuron still overrides the decision either way.
 - Caveats: 60 prompts per category, 96-token answers, one judge. CoCoNot's safety category is milder than JailbreakBench (the pin leaves 22–32% refused there, against 0–7% on PolyRefuse).
+
+**Point 12: is the neuron about "this is harmful" or about "the model will refuse"?** (17 November; `scripts/jobs/harm_vs_refusal.sh`, `harm_vs_refusal.py`; jobs 469518/19/20, table `cpu-469595`). Each prompt gets two labels and one number. *Harmful or not* comes from the dataset: CoCoNot's safety category and XSTest's unsafe prompts are harmful; CoCoNot's four other categories and XSTest's safe-but-scary prompts are not. *Refused or not* is the model's own answer with no pin (96 tokens, Qwen3Guard's refusal label). The number is the neuron's strongest value over Table 3's tokens, with its sign held fixed (`neuron_check.py --sign`: − for the Qwen neurons, + for Llama's). "Fires" = beyond the value that 95% of the 500 harmless PolyRefuse English prompts stay under (Qwen3-8B −0.76, Llama +0.09, Qwen3-1.7B −5.04). Prompts: CoCoNot 60 + 60 + 55 + 59 + 60, XSTest 200 unsafe + 250 safe; 744 per model.
+
+The 2×2, all sets pooled. Each cell: number of prompts, the neuron's mean value, share of prompts where it fires.
+
+| | Qwen3-8B L14:F7924 | Llama-3.1-8B L11:F4258 | Qwen3-1.7B L13:F3270 |
+|---|---|---|---|
+| Harmful, refused | 212, −4.31, 98% | 245, +1.15, 100% | 207, −10.21, 95% |
+| Harmful, answered | 48, −3.46, 96% | 15, +0.63, 93% | 53, −8.36, 89% |
+| Not harmful, refused | 122, −1.08, 55% | 159, +0.17, 57% | 121, −6.67, 72% |
+| Not harmful, answered | 362, −1.29, 62% | 325, +0.18, 59% | 363, −5.38, 53% |
+
+How well the neuron's value separates two groups (AUROC; 0.5 = chance):
+
+| | Qwen3-8B | Llama-3.1-8B | Qwen3-1.7B |
+|---|---|---|---|
+| Harmful against not harmful, among refused prompts | 0.93 | 0.97 | 0.81 |
+| Harmful against not harmful, among answered prompts | 0.87 | 0.87 | 0.78 |
+| Refused against answered, among not-harmful prompts | 0.45 | 0.47 | 0.62 |
+| Refused against answered, among harmful prompts | 0.62 | 0.76 | 0.68 |
+
+- **On the 8B models the neuron reads "this is harmful", not "the model will refuse".** Hold refusal fixed and it still separates harmful from not harmful (0.93–0.97 among refused prompts, 0.87 among answered ones). Hold harm fixed at "not harmful" and it cannot tell the prompts the model refuses from the ones it answers (0.45–0.47, chance). The model's non-harm refusals come with the neuron at its harmless level (Qwen3-8B −1.08 against −4.31 on harmful refusals; Llama +0.17 against +1.15).
+- **Among harmful prompts the neuron is weaker on the ones the model answers** (Qwen3-8B −3.46 against −4.31; Llama +0.63 against +1.15; AUROC 0.62–0.76). It still fires on 89–96% of them, so firing does not guarantee a refusal. The harmful-and-answered cell is small on Llama (15 prompts).
+- **Qwen3-1.7B is in between.** Its neuron is somewhat stronger on non-harmful prompts the model refuses (−6.67 against −5.38; AUROC 0.62), and harm is separated less cleanly (0.78–0.81).
+- **Together with point 10:** on the Qwen models the pin removes non-harm refusals, yet the neuron does not fire on them. So what the neuron *reads* (harm) is narrower than what forcing it *does* (switches any refusal off or on).
+- **The firing shares in the "not harmful" rows are high (53–72%) because of the prompt sets, not the model's answer.** XSTest's safe prompts use harmful-sounding words: the neuron fires on 77% / 69% / 59% of the ones the model answers. The cut-off also comes from a different dataset. The means and the AUROCs do not depend on the cut-off.
+
+Per set, share of prompts the model refuses, then the neuron's mean value on the refused / answered prompts:
+
+| Set (prompts) | Qwen3-8B | Llama-3.1-8B | Qwen3-1.7B |
+|---|---|---|---|
+| CoCoNot safety, harmful (60) | 83%: −2.97 / −2.10 | 90%: +0.74 / +0.48 | 78%: −10.52 / −8.92 |
+| CoCoNot humanizing (60) | 58%: −0.74 / −1.00 | 72%: +0.15 / +0.17 | 50%: −4.58 / −3.90 |
+| CoCoNot incomplete (55) | 16%: −1.11 / −0.62 | 33%: +0.21 / +0.08 | 20%: −6.85 / −3.91 |
+| CoCoNot indeterminate (59) | 56%: −1.13 / −0.87 | 81%: +0.14 / +0.09 | 63%: −7.77 / −5.68 |
+| CoCoNot unsupported (60) | 45%: −0.60 / −0.45 | 47%: +0.10 / +0.08 | 40%: −6.75 / −5.56 |
+| XSTest unsafe, harmful (200) | 81%: −4.72 / −3.81 | 96%: +1.26 / +0.74 | 80%: −10.11 / −8.18 |
+| XSTest safe but scary (250) | 7%: −2.33 / −1.63 | 9%: +0.33 / +0.21 | 8%: −7.63 / −5.80 |
+
+**Point 10 redone with the sign fixed** (AUROC of the neuron for all "should decline" against "should answer" prompts of each category):
+
+| Category (n = n) | Qwen3-8B | Llama-3.1-8B | Qwen3-1.7B |
+|---|---|---|---|
+| Safety concerns (128) | 0.79 | 0.96 | 0.88 |
+| Humanizing (66) | 0.43 | 0.58 | 0.53 |
+| Incomplete (55) | 0.44 | 0.55 | 0.64 |
+| Indeterminate (59) | 0.55 | 0.63 | 0.82 |
+| Unsupported (91) | 0.23 | 0.48 | 0.68 |
+
+- On the 8B models the neuron does not separate "should decline" from "should answer" outside the safety category (0.23–0.63). On Qwen3-8B "unsupported" it is reversed (0.23): the matched "should answer" prompts sit further toward the harmful side (−1.08 against −0.57).
+- Qwen3-1.7B's neuron does respond to some non-harm categories (indeterminate 0.82, unsupported 0.68).
+- Caveats: one judge for the refusal label, 96-token answers, 55–60 prompts per CoCoNot category, and "harmful" is the dataset's label, not a judgement of each prompt. No errors in the three job logs; all 21 files were written and judged.
 
 **Point 11: are the answers gibberish when pinned at a high value?** (`scripts/jobs/pin_sweep.sh`; jobs 468276/7/8). Apple's neuron alone, pins from small to 10× the attack pin, 191 HarmBench prompts, 128 tokens. Llama-Guard's harmful share; the K.1 judge's share of coherent answers; K.1 success (not a refusal and coherent).
 
