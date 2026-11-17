@@ -13,4 +13,4 @@
 # Usage: sbatch scripts/jobs/first_layer.sh <model>     (Qwen/Qwen3-8B | meta-llama/Llama-3.1-8B-Instruct | Qwen/Qwen3-1.7B)
 source ~/anaconda3/bin/activate refneu
 export HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 PYTHONUNBUFFERED=1
-python -u replication/first_layer.py --model "$1"
+python -u replication/first_layer.py --model "$1" "${@:2}"   # extra arguments, e.g. --bs 4 on 16 GB cards
