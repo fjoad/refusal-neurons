@@ -91,7 +91,7 @@ Newest work first in each topic; every entry has its date, setup, numbers and ca
 - **Part 2, the attack in every language, all three models** (PolyRefuse 13 languages: 0.83–0.99 harmful, K.1 0.93–1.00; MultiJail K.1 0.79–0.96; fails in Yoruba and Qwen-Swahili, where the models' own answers are mostly incoherent): 2026-11-12
 - **Part 2, one guard across languages** (one English cut-off: Llama neuron 0.94–0.98 on PolyRefuse; on MultiJail the 8B neurons beat Llama-Guard and Qwen3Guard): 2026-11-12
 - **Restoring refusal in low-resource languages** (a medium pin restores refusal selectively in Javanese on all three models and in Swahili on Llama; not in Yoruba): 2026-11-12
-- **Follow-ups to the 5 November meeting** (the neuron fires on the prompts the model refuses, in every language but Yoruba and Qwen-Swahili; the small model does not fall off faster with language; MultiJail's lower numbers are the same borderline prompts in every language): 2026-11-12
+- **Follow-ups to the 5 November meeting** (note 3 for larger k, added 2026-11-17: longer lists do not overlap more, but four neurons per model, Apple's among them, are in every language's top 20 outside Yoruba and Swahili; the neuron fires on the prompts the model refuses, in every language but Yoruba and Qwen-Swahili; the small model does not fall off faster with language; MultiJail's lower numbers are the same borderline prompts in every language): 2026-11-12
 - **Arabic Experiments 2 and 8** (PolyRefuse: the neuron jailbreaks Arabic as well as English, 88–95%, matching Arditi's Arabic direction; MultiJail weaker for both; the neuron is 1st or 2nd most aligned with the Arabic direction): 2026-11-05
 
 Job scripts that produced these are in `scripts/jobs/` (each says which entry it belongs to).
@@ -148,7 +148,22 @@ Nine points came out of the 5 November meeting (README, "Follow-ups from the 5 N
 
 - **No neuron is in every language's top 5** (Yoruba shares none). Apple's neuron is the most widely shared of the reference list on Llama (23 of 24) and joint first on the Qwen models.
 - On Llama the English-specific candidates (L20:F9928, L20:F9424, L17:F13532) drop out in other languages; what survives across languages is Apple's neuron and L15:F9635.
-- Larger k (10, 20, 50) needs the full rankings from the saved means; not done yet.
+
+**Note 3, second half: larger k** (17 November; `topk_overlap.py`, log `cpu-469621`). The search saves every neuron's mean activation and gradient, so each language set's full ranking is rebuilt without a GPU (the rebuilt top 5 equals the saved top 5 in all 75 searches). 24 language sets per model (PolyRefuse 14, MultiJail 10).
+
+| | Qwen3-8B | Llama-3.1-8B | Qwen3-1.7B |
+|---|---|---|---|
+| Share of a language's top k also in the reference top k, averaged over the 24 sets: k = 5 / 10 / 20 / 50 / 100 | 56 / 64 / 61 / 58 / 56% | 44 / 47 / 50 / 50 / 47% | 72 / 72 / 59 / 61 / 55% |
+| Lists containing Apple's neuron (of 24): k = 5 / 10 / 20 / 100 | 18 / 20 / 23 / 23 | 23 / 23 / 24 / 24 | 21 / 22 / 22 / 22 |
+| In every set's top 20 except PolyRefuse Yoruba and MultiJail Swahili | **L14:F7924**, L16:F5318, L17:F11229, L18:F7664 | **L11:F4258**, L10:F1084, L10:F9064, L15:F9635 | **L13:F3270**, L10:F244, L12:F4580, L15:F1109 |
+| The same, at k = 50 / 100 | 12 / 17 neurons | 7 / 11 neurons | 5 / 8 neurons |
+| In every set's top k, Yoruba and Swahili included | none at any k | L11:F4258 and L10:F9064 from k = 20; 6 neurons at k = 100 | none at any k |
+
+- **A longer list does not raise the overlap.** About half to two-thirds of each language's top k is shared with the English reference at every k. The lists do not converge as they get longer.
+- **What the languages share is a small core, and Apple's neuron is in it.** By k = 20, four neurons per model are in every language's list outside Yoruba and Swahili, Apple's among them. On Llama, Apple's neuron alone is in every such list already at k = 5. On Qwen3-8B the core includes L16:F5318, the neuron that ties with Apple's in the PolyRefuse English rerank.
+- **Apple's neuron is in 22–24 of the 24 top-20 lists.** The misses are Yoruba on the Qwen models (rank 4423 on Qwen3-8B, 175 on Qwen3-1.7B) and MultiJail Swahili on Qwen3-1.7B (rank 354). On Llama it is 13th in Yoruba, so it is in all 24.
+- **Overlap is lowest in the low-resource MultiJail sets.** At k = 100: Swahili 4–23, Javanese 18–27, Bengali 25–43 shared, against 54–90 for the two English sets. On Llama, Japanese and Korean are also low (39, 36).
+- Caveat: the reference is our run of Apple's English setup, since Apple prints only the winning neuron. The magnitude filter is applied as in the search.
 
 **Notes 1 and 2: the ability cost, looked at closely** (`why_capability.py`; 1,000 MMLU questions, answer-letter accuracy; in brackets the mean KL of the next-token distribution from the unmodified model; jobs `why_quick-460347/8/9`).
 
