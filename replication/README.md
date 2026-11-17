@@ -145,7 +145,7 @@ Cosine between a language's own direction and the English one, at half depth:
 | MultiJail: Arabic, Chinese, Italian, Vietnamese, Korean, Thai, Bengali | 0.41–0.84 | 0.64–0.86 | 0.63–0.77 |
 | Yoruba / Swahili / Javanese | 0.54 / −0.09 / 0.52 | 0.32 / +0.04 / 0.48 | 0.40 / 0.53 / 0.35 |
 
-- **The harmful/harmless signal is shared across languages early in every model:** by layer 10–13 at the latest on the Qwen models and by layer 6 on Llama, well before the refusal neurons' layers (13, 14, 11).
+- **The harmful/harmless signal is shared across languages early in every model:** by layer 10–13 at the latest on the Qwen models and by layer 6 on Llama, at or before the refusal neurons' layers (13, 14, 11).
 - **No sign of an extra language step in the small model.** Qwen3-1.7B reaches the shared signal at the same layers as Qwen3-8B (medians 7 against 5 on PolyRefuse, 10 against 10 on MultiJail), and the languages come in the same order in both (Arabic, Chinese, Russian, Dutch first; Polish, Japanese, Italian, Thai last). As a share of depth the small model is later only because it has fewer layers.
 - **What is weaker in the small model is the agreement with English on the harder set:** on MultiJail its directions line up with the English one less (Thai 0.41 against 0.64, Vietnamese 0.49 against 0.67, Bengali 0.53 against 0.64).
 - **Swahili: the Qwen models do not recognise the harmful prompts at all** (no separation, the English direction does not carry over, cosine about 0). Llama does partly (0.93, cosine 0.53). This matches the attack: Swahili is the language where the pin works on Llama and fails on the Qwen models.
