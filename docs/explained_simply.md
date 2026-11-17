@@ -358,7 +358,10 @@ The steps above checked pieces in Arabic. Now we redo *all* of Apple's experimen
   - **MultiJail:** 58–76% pinned. Refusals still drop to about 10%, but more answers are judged safe, as in the rerank. Arditi's method does no better (49–60%) and finds no direction at all for Qwen3-1.7B.
   - The small Qwen3-1.7B already answers 40% of the PolyRefuse Arabic prompts harmfully with no pin.
 - **Alignment (Experiment 8):** Arditi's Arabic direction sits in the same or the next layer as the English one, and Apple's neuron is the 1st or 2nd neuron in its layer most lined up with it, on every track that has a direction.
-- **Running now:** capability on Arabic MMLU (the same 1,000 questions, professionally translated), per-token firing and base models, the detector on PolyRefuse, the residual baseline, and Apple's coherence-aware judge.
+- **Does pinning break the model in Arabic?** Same as English: on 1,000 Arabic MMLU questions the constant pin costs 5–10 points, the anchored pin 0–2, Arditi's method 1–3.
+- **Where it fires in the prompt, base models, and the safety filter:** Arabic behaves like English, a bit weaker, and the base models already have the neuron in Arabic too.
+- **Apple's own judge (not a refusal and coherent):** the pinned neuron scores 96–99% on Arabic PolyRefuse and 79–94% on MultiJail.
+- **Residual numbers in Arabic (Apple Section 3.3, our Experiment 8 above; 3 of 4 runs done on 17 November):** the same search and pinning on single residual numbers. Under Apple's judge the best one reaches 55% on Llama and 28% on Qwen3-8B (MultiJail), about half the neuron or less. On Llama the two safety judges give some pins 90%+, but those answers are scrambled text (0% judged coherent), the same trap as in English. Qwen3-8B on PolyRefuse is still being judged.
 
 ## 9. Caveats
 - English answers have one judge (Llama-Guard-3), which doesn't check that answers make sense. Arabic answers have two that agree (Qwen3Guard, and Llama-Guard on a translation).
