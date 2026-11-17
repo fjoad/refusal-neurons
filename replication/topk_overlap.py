@@ -14,8 +14,6 @@ from pathlib import Path
 
 import torch
 
-from neuron_search import top_candidates
-
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "outputs" / "neuron_search"
 MODELS = [("Qwen3-8B", 14, 7924), ("Llama-3.1-8B-Instruct", 11, 4258), ("Qwen3-1.7B", 13, 3270)]
@@ -25,24 +23,33 @@ WEAK = {"poly_yo", "mj_sw"}
 
 
 def ranking(stem, kmax):
-    """The top kmax (layer, neuron) pairs of one search, rebuilt from its saved means; None if the files are missing."""
+    """(top kmax (layer, neuron) pairs, {(layer, neuron): rank} lookup function) of one search, rebuilt from its saved
+    means with the search's own rule: best token per neuron, magnitude filter at that token, global sort by score."""
     js, pt = OUT / f"{stem}.json", OUT / f"{stem}_means.pt"
     if not js.exists() or not pt.exists():
         return None
     d = json.loads(js.read_text())
     m = torch.load(pt, map_location="cpu", weights_only=True)
     n = d["args"].get("score_tokens") or len(m["post_tokens"])
-    head = lambda split: ([t[:n].float() for t in split[0]], [t[:n].float() for t in split[1]])
-    cands = top_candidates(head(m["harmful"]), head(m["harmless"]), m["post_tokens"][:n], k=kmax)
-    top = [(c["layer"], c["neuron"]) for c in cands]
+    (act_h, grad_h), (act_s, grad_s) = m["harmful"], m["harmless"]
+    scores, layers, neurons = [], [], []
+    for layer, (ah, gh, ash, gs) in enumerate(zip(act_h, grad_h, act_s, grad_s)):
+        ah, gh, ash, gs = (x[:n].float() for x in (ah, gh, ash, gs))
+        best, tok = ((gh + gs) * (ah - ash)).min(dim=0)
+        idx = torch.arange(best.shape[0])
+        valid = ah[tok, idx].abs() > ash[tok, idx].abs()
+        scores.append(best[valid]); neurons.append(idx[valid]); layers.append(torch.full((int(valid.sum()),), layer))
+    scores, layers, neurons = torch.cat(scores), torch.cat(layers), torch.cat(neurons)
+    order = torch.argsort(scores, stable=True)  # ties keep (layer, neuron) order, as in the search
+    ranked = list(zip(layers[order].tolist(), neurons[order].tolist()))
     saved = [(c["layer"], c["neuron"]) for c in d["candidates"]]
-    if top[:len(saved)] != saved:
+    if ranked[:len(saved)] != saved:
         print(f"  WARNING {stem}: rebuilt top {len(saved)} differs from the saved one")
-    return top
+    return ranked
 
 
 def main():
-    kmax = 20000  # deep enough to give Apple's neuron a rank in every set
+    kmax = None  # the full ranking of the neurons that pass the filter
     for short, layer, neuron in MODELS:
         ref = ranking(f"{short}_float16_arditi", kmax)
         if ref is None:
@@ -61,6 +68,8 @@ def main():
         print(f"\n===== {short}, Apple's neuron L{layer}:F{neuron}; {len(sets)} language sets; reference = our run of Apple's English setup "
               f"(Apple's neuron is rank {rank(ref)} there)")
         print("  rank of Apple's neuron in each set: " + "  ".join(f"{name} {rank(r)}" for name, r in sets.items()))
+        sets = {name: r[:max(KS)] for name, r in sets.items()}
+        ref = ref[:max(KS)]
         for k in KS:
             refk = set(ref[:k])
             shared = {name: len(set(r[:k]) & refk) for name, r in sets.items()}
