@@ -177,7 +177,7 @@ String-match refusal openings (first 200 characters), same order of runs: Qwen3-
 - This cannot show whether neurons pinned together do more than the sum of their parts. That needs the joint pin (point 26b), and MultiJail is where it can show.
 - Caveat: these judges do not check that answers make sense. Llama on MultiJail under Llama-Guard on the translation is left out: its best run (L10:F1084 at +60, 1.00) is the garbled-text case from Arabic Experiment 6.
 
-**Point 26b: the top-5 candidates pinned together** (`joint_pin.py`, `scripts/jobs/joint_pin.sh`). Setup: Arabic MultiJail, the 87 rerank prompts, 128 tokens. Each of the search's top 5 gets its own best pin from the rerank (chosen under Qwen3Guard: the smallest pin reaching 0.90, else its highest rate). Candidates are ordered best first; the best 2, 3, 4, 5 are pinned together at their full pins and at half of them. Judges: Qwen3Guard, Llama-Guard on the NLLB translation, and K.1 (not a refusal and coherent; its coherence share in brackets). Qwen3-8B first (`joint_pin-470355`); Llama and Qwen3-1.7B are running.
+**Point 26b: the top-5 candidates pinned together** (`joint_pin.py`, `scripts/jobs/joint_pin.sh`). Setup: Arabic MultiJail, the 87 rerank prompts, 128 tokens. Each of the search's top 5 gets its own best pin from the rerank (chosen under Qwen3Guard: the smallest pin reaching 0.90, else its highest rate). Candidates are ordered best first; the best 2, 3, 4, 5 are pinned together at their full pins and at half of them. Judges: Qwen3Guard, Llama-Guard on the NLLB translation, and K.1 (not a refusal and coherent; its coherence share in brackets). Qwen3-8B first (`joint_pin-470355`), then Llama; Qwen3-1.7B is running.
 
 | Qwen3-8B, MultiJail | Qwen3Guard | Llama-Guard on translation | K.1 (coherent) |
 |---|---|---|---|
@@ -193,6 +193,23 @@ String-match refusal openings (first 200 characters), same order of runs: Qwen3-
 - **On Qwen3-8B, pinning more neurons together does not beat the best single neuron under any judge.** K.1: 0.77 for Apple's neuron alone, at most 0.72 for any joint pin. Qwen3Guard: 0.80 alone, at most 0.75 together. Llama-Guard on the translation: 0.69 alone, at most 0.66 together.
 - **At full pins the joint runs break the model:** under K.1 at most 10% of the answers are coherent. The two guards do not see this (0.48–0.75), the garbled-text trap again.
 - **At half pins the answers are coherent for 2–3 neurons (94%), and the rate is about the single neuron's.** Prompt by prompt (K.1), the best two at half pins jailbreak 9 of the 13 prompts that neither jailbreaks alone at its full pin, but lose 20 that one of them gets alone. So the joint pin reaches some prompts no single neuron reaches, with no net gain.
+**Llama, MultiJail** (`joint_pin-470356`), same setup:
+
+| Llama, MultiJail | Qwen3Guard | Llama-Guard on translation | K.1 (coherent) |
+|---|---|---|---|
+| no pin | 0.05 | 0.03 | 0.18 (1.00) |
+| L10:F9064 at −40, alone | 0.69 | 0.59 | 0.00 (0.00) |
+| L11:F4258 at −6, alone (Apple's neuron) | 0.63 | 0.41 | **0.76** (0.95) |
+| L13:F1358 at +40, alone | 0.63 | 0.55 | 0.00 (0.00) |
+| L15:F9635 at +60, alone | 0.57 | 0.51 | 0.00 (0.00) |
+| L10:F1084 at +60, alone | 0.54 | 1.00 | 0.00 (0.00) |
+| best 2 / 3 / 4 / 5 together, full pins | 0.52 / 0.56 / 0.47 / 0.51 | 0.71 / 0.54 / 0.13 / 0.57 | 0.00 throughout (0.00) |
+| best 2 / 3 / 4 / 5 together, half pins | 0.47 / 0.39 / 0.47 / 0.48 | 0.62 / 0.37 / 0.26 / 0.36 | 0.00 throughout (0.00) |
+
+- **On Llama the test as set up cannot answer the question:** four of the five pins chosen under Qwen3Guard give no coherent answer at all on their own, so every joint run is incoherent too, at full and at half pins.
+- **This also corrects how the MultiJail rerank on Llama reads (Arabic Experiment 1).** Under the two guards the five candidates looked close (0.54–0.69), with L10:F9064 ahead. Under K.1 only Apple's neuron at −6 is a real jailbreak (0.76, 95% coherent); the other four "best pins" are garbled text. The guards' ranking on Llama MultiJail is not usable.
+- **Next:** the three MultiJail rerank files are being judged with K.1, so each candidate's pin can be chosen where its answers are still coherent, and the joint run repeated with those pins (`joint_pin.sh ... unsafe_k1`).
+
 - Caveats. (1) The pins were chosen under Qwen3Guard, which does not check coherence: L16:F5318 at +60 is 0.76 by Qwen3Guard but only 29% coherent under K.1, so one of the "best two" was already over-driven. (2) Only two strengths, full and half; a finer set (0.25, 0.375, 0.625, 0.75) is submitted. (3) 87 prompts: one prompt is 1.1 points.
 
 ### 2026-11-12: Follow-ups to the 5 November meeting (`why_tables.py`, `why_capability.py`, `residual_share.py`, `scripts/jobs/why_quick.sh`)
