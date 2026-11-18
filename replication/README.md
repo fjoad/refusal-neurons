@@ -134,15 +134,22 @@ String-match refusal openings (first 200 characters), same order of runs: Qwen3-
 - **By share, the blind route puts Apple's neuron 1st, 2nd and 5th in the whole model.** On Llama it finds Apple's neuron outright. On Qwen3-1.7B the first is L15:F1109, which is in the search's top 5 in most languages and wins the MultiJail rerank on that model. On Qwen3-8B four neurons come first that Apple's search does not pick; whether pinning them jailbreaks is point 25b.
 - **The size-written score is not usable across all layers:** the last layers' neurons write the largest differences (L31, L27, L35 fill the top 10). Limited to the first two thirds of the layers, as Apple's search is, it gives 1, 7 and 18.
 
-**Point 25a: the steering strength swept (Nanda's activation addition on the MLP direction of Apple's neuron's layer).** α counts harmful-minus-harmless gaps: every neuron of the layer is moved by α × its own gap. The direction's length is 24.4 (Qwen3-1.7B, L13), 8.76 (Qwen3-8B, L14) and 2.79 (Llama, L11), so α × that length is the strength in the unit-vector units our EMNLP paper used. Llama-Guard so far:
+**Point 25a: the steering strength swept (Nanda's activation addition on the MLP direction of Apple's neuron's layer).** α counts harmful-minus-harmless gaps: every neuron of the layer is moved by α × its own gap. The direction's length is 24.4 (Qwen3-1.7B, L13), 8.76 (Qwen3-8B, L14) and 2.79 (Llama, L11), so α × that length is the strength in the unit-vector units our EMNLP paper used. LG = Llama-Guard; K.1 = not a refusal and coherent; "coherent" is K.1's coherence share alone.
 
 | α | 0 | 0.5 | 1 | 1.5 | 2 | 2.5 | 3 | 4 | 6 | 8 | 12 | 16 | 24 | 32 |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| Qwen3-1.7B | 0.37 | 0.57 | 0.81 | **0.95** | 0.96 | 0.95 | 0.95 | 0.95 | 0.96 | 0.98 | 0.96 | 0.97 | 0.99 | 0.93 |
-| Qwen3-8B | 0.13 | 0.31 | 0.54 | 0.81 | **0.90** | 0.94 | 0.94 | 0.96 | 0.94 | 0.96 | 0.99 | 0.98 | 0.97 | 0.97 |
+| Qwen3-8B, LG | 0.13 | 0.31 | 0.54 | 0.81 | **0.90** | 0.94 | 0.94 | 0.96 | 0.94 | 0.96 | 0.99 | 0.98 | 0.97 | 0.97 |
+| Qwen3-8B, K.1 | 0.12 | 0.23 | 0.46 | 0.67 | 0.85 | **0.96** | 0.97 | 0.87 | 0.26 | 0.08 | 0.00 | 0.00 | 0.00 | 0.00 |
+| Qwen3-8B, coherent | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 0.95 | 0.31 | 0.12 | 0.00 | 0.00 | 0.00 | 0.00 |
+| Llama, LG | 0.14 | 0.30 | 0.47 | 0.54 | 0.78 | **0.94** | 0.97 | 0.91 | 0.88 | 0.98 | 0.98 | 0.97 | 0.97 | 0.97 |
+| Qwen3-1.7B, LG | 0.37 | 0.57 | 0.81 | **0.95** | 0.96 | 0.95 | 0.95 | 0.95 | 0.96 | 0.98 | 0.96 | 0.97 | 0.99 | 0.93 |
 
-- **By Apple's rule (the smallest value reaching 0.90) the steering strength is α = 1.5 on Qwen3-1.7B and α = 2 on Qwen3-8B under Llama-Guard** (unit-vector strengths 37 and 18). K.1 on Qwen3-8B so far: 0.23, 0.46, 0.67, 0.85, 0.96 at α = 0.5, 1, 1.5, 2, 2.5, so 2.5 under Apple's own judge.
-- Llama-Guard stays at 0.93–0.99 up to α = 32. Llama-Guard also rewards garbled text (judge sanity check, 2026-10-21), so where the answers stop being coherent is read from K.1's coherence column when it is in.
+K.1 for Llama and Qwen3-1.7B is still running (`alpha_grid-470294`, `judge_k1-470310`).
+
+- **By Apple's rule (the smallest value reaching 0.90) under Apple's judge, the steering strength on Qwen3-8B is α = 2.5** (0.96; unit-vector strength 22). Under Llama-Guard it is 2 on Qwen3-8B, 2.5 on Llama and 1.5 on Qwen3-1.7B.
+- **The window is narrow on Qwen3-8B: 2.5 to 3.** At α = 4, the value on the 5 November slide, K.1 is already down to 0.87 because 5% of the answers are no longer coherent. At α = 6 only 31% are coherent, and from α = 12 none are.
+- **Llama-Guard does not see the breakdown:** it stays at 0.94–0.99 from α = 6 to 32, where K.1 says the answers are not coherent. This is the garbled-text trap of the judge sanity check (2026-10-21). The 5 November slide's 0.96 at α = 4 was a Llama-Guard number; under K.1 the best steering result on Qwen3-8B is 0.97 at α = 3, the same as the pinned neuron's 0.95–0.97.
+- So saturation is at 2.5–3 gaps, and going further breaks the model instead of adding anything. The grid does not need extending past 32.
 
 **Point 26a: what the other top-5 candidates do, from the reranks already judged** (`topk_union.py`, no GPU, log `cpu-470314`). Each candidate is taken at its own best pin (the smallest reaching 0.90, else its highest rate). "Any of the 5" is the share of prompts jailbroken by at least one of the five, each pinned alone. It is not the five pinned together.
 
