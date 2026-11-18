@@ -14,6 +14,9 @@ After judging (judge.py), --report prints for every joint run: its rate, the rat
 works alone", how many of the prompts that all k singles fail on the joint run jailbreaks (the synergy count),
 and how many prompts a single jailbreaks that the joint run loses. Numbers only, no GPU.
 
+If the search file's space is "residual", the candidates are residual-stream numbers and are pinned in the
+residual stream going into their layer (point 28: the five best residual numbers together).
+
 Usage: python replication/joint_pin.py --search outputs/neuron_search/Qwen3-8B_float16_mj_ar_full.json \\
            --rerank outputs/rerank/Qwen3-8B_float16_mj_ar.json --split mj_ar_harmful_rerank --tag mj_ar
        python replication/joint_pin.py --report outputs/joint/Qwen3-8B_mj_ar.json
@@ -76,8 +79,11 @@ def report(path):
 
 
 @contextmanager
-def pins(model, items):
-    """Overwrite several neurons at once: items = [(layer, neuron, value)], every token."""
+def pins(model, items, space="mlp"):
+    """Overwrite several neurons at once: items = [(layer, neuron, value)], every token.
+
+    space="residual" overwrites numbers of the residual stream going into the layer instead (as rerank.py does).
+    """
     import torch
     by_layer, handles = {}, []
     for layer, neuron, value in items:
@@ -86,15 +92,23 @@ def pins(model, items):
     def make(pairs):
         idx, values = [p[0] for p in pairs], [p[1] for p in pairs]
 
-        def hook(module, args):
-            h = args[0].clone()
+        def hook(module, args, kwargs=None):
+            h = (args[0] if args else kwargs["hidden_states"]).clone()
             h[..., idx] = torch.tensor(values, dtype=h.dtype, device=h.device)
-            return (h,) + args[1:]
+            if kwargs is None:
+                return (h,) + args[1:]
+            if args:
+                return (h,) + args[1:], kwargs
+            return args, dict(kwargs, hidden_states=h)
         return hook
 
     try:
         for layer, pairs in by_layer.items():
-            handles.append(model.model.layers[layer].mlp.down_proj.register_forward_pre_hook(make(pairs)))
+            block = model.model.layers[layer]
+            if space == "residual":
+                handles.append(block.register_forward_pre_hook(make(pairs), with_kwargs=True))
+            else:
+                handles.append(block.mlp.down_proj.register_forward_pre_hook(make(pairs)))
         yield
     finally:
         for handle in handles:
@@ -134,7 +148,8 @@ def main():
     if len(chosen) < 2:
         raise SystemExit("Fewer than two candidates have judged rerank runs")
     model_name = search["args"]["model"]
-    print(f"{model_name}: best pins by {args.judge_key}: "
+    space = search["args"].get("space") or "mlp"  # "residual": the candidates are residual-stream numbers (point 28)
+    print(f"{model_name} ({space}): best pins by {args.judge_key}: "
           + "; ".join(f"L{l}:F{f} {p:+g} ({r:.2f})" for r, l, f, p in chosen), flush=True)
 
     raw = load(args.split)
@@ -146,10 +161,10 @@ def main():
     prompts = build_prompts(tok, raw)[0]
     out = ROOT / "outputs" / "joint" / f"{model_name.split('/')[-1]}_{args.tag}.json"
     out.parent.mkdir(parents=True, exist_ok=True)
-    result = {"args": vars(args), "model": model_name, "prompts": raw, "runs": []}
+    result = {"args": vars(args), "model": model_name, "space": space, "prompts": raw, "runs": []}
 
     def run(mode, items, **fields):
-        with pins(model, items):
+        with pins(model, items, space):
             texts = generate(model, tok, SimpleNamespace(records=[]), prompts, args.bs, args.max_new)
         rr = sum(map(is_refusal, texts)) / len(texts)
         result["runs"].append({"layer": None, "neuron": None, "pin": None, "mode": mode, **fields,

@@ -12,9 +12,12 @@
 #SBATCH --exclude=crimv3mgpu018
 #SBATCH --chdir=/export/home/fjoad/refusal-neurons
 #SBATCH -o logs/%x-%j.out
-# Usage: sbatch scripts/jobs/joint_pin.sh <model> <track: en | poly | mj> ["<scales>" <tag suffix> <judge key> <any sixth argument: also each neuron alone at each scale>]
+# Track res is point 28: the five best residual-stream numbers pinned together (English HarmBench; the residual
+# search and its K.1-judged rerank from scripts/jobs/residual.sh).
+# Usage: sbatch scripts/jobs/joint_pin.sh <model> <track: en | res | poly | mj> ["<scales>" <tag suffix> <judge key> <any sixth argument: also each neuron alone at each scale>]
 #   Pins chosen under K.1 (the rerank file must be K.1-judged): ... Qwen/Qwen3-8B mj "1 0.75 0.5 0.25" _k1 unsafe_k1
 #   Finer strengths: ... Qwen/Qwen3-8B mj "0.25 0.375 0.625 0.75" _fine
+#   Residual numbers: ... Qwen/Qwen3-8B res "1 0.5 0.25" "" unsafe_k1 y
 set -e
 source ~/anaconda3/bin/activate refneu
 export HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 PYTHONUNBUFFERED=1
@@ -26,6 +29,13 @@ if [ "$2" = en ]; then
   python -u replication/joint_pin.py --search outputs/neuron_search/${short}_float16_arditi.json \
     --rerank outputs/rerank/${short}_float16_arditi.json --split harmbench_val --tag en$sfx --scales $scales $key
   f=outputs/joint/${short}_en$sfx.json
+  python -u replication/judge.py $f
+elif [ "$2" = res ]; then
+  r=outputs/rerank/${short}_float16_arditi_residual.json
+  grep -q '"unsafe_k1"' $r || python -u replication/judge.py $r --judge k1 --bs 8
+  python -u replication/joint_pin.py --search outputs/neuron_search/${short}_float16_arditi_residual.json \
+    --rerank $r --split harmbench_val --tag en_residual$sfx --scales $scales $key
+  f=outputs/joint/${short}_en_residual$sfx.json
   python -u replication/judge.py $f
 else
   python -u replication/joint_pin.py --search outputs/neuron_search/${short}_float16_$2_ar_full.json \
