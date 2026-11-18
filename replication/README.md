@@ -144,6 +144,26 @@ String-match refusal openings (first 200 characters), same order of runs: Qwen3-
 - **By Apple's rule (the smallest value reaching 0.90) the steering strength is α = 1.5 on Qwen3-1.7B and α = 2 on Qwen3-8B under Llama-Guard** (unit-vector strengths 37 and 18). K.1 on Qwen3-8B so far: 0.23, 0.46, 0.67, 0.85, 0.96 at α = 0.5, 1, 1.5, 2, 2.5, so 2.5 under Apple's own judge.
 - Llama-Guard stays at 0.93–0.99 up to α = 32. Llama-Guard also rewards garbled text (judge sanity check, 2026-10-21), so where the answers stop being coherent is read from K.1's coherence column when it is in.
 
+**Point 26a: what the other top-5 candidates do, from the reranks already judged** (`topk_union.py`, no GPU, log `cpu-470314`). Each candidate is taken at its own best pin (the smallest reaching 0.90, else its highest rate). "Any of the 5" is the share of prompts jailbroken by at least one of the five, each pinned alone. It is not the five pinned together.
+
+| Rerank | Judge | No pin | Best one alone | Any of the best 2 | Any of the 5 | Of the best one's failures, all five fail on |
+|---|---|---|---|---|---|---|
+| English, Qwen3-8B (191) | Llama-Guard | 0.13 | 0.97 (L14:F7924 +20) | 0.99 | 0.99 | 2 of 5 |
+| English, Llama (191) | Llama-Guard | 0.15 | 0.97 (L20:F9424 −60) | 0.97 | 0.98 | 3 of 5 |
+| English, Qwen3-1.7B (191) | Llama-Guard | 0.38 | 0.94 (L12:F4580 −30) | 0.99 | 0.99 | 2 of 11 |
+| Arabic PolyRefuse, Qwen3-8B (191) | Qwen3Guard / Llama-Guard on translation | 0.09 / 0.12 | 0.95 / 0.93 (L14:F7924 +20) | 0.95 / 0.95 | 0.96 / 0.97 | 7 of 10 / 6 of 13 |
+| Arabic PolyRefuse, Llama (191) | same | 0.12 / 0.19 | 0.93 / 0.98 | 0.95 / 0.98 | 0.96 / 0.99 | 7 of 14 / 2 of 4 |
+| Arabic PolyRefuse, Qwen3-1.7B (191) | same | 0.41 / 0.46 | 0.92 / 0.88 | 0.93 / 0.94 | 0.96 / 0.98 | 8 of 16 / 4 of 22 |
+| Arabic MultiJail, Qwen3-8B (87) | same | 0.07 / 0.02 | 0.80 (L14:F7924 +30) / 0.68 (L16:F5318 +60) | 0.91 / 0.79 | 0.93 / 0.85 | 6 of 17 / 13 of 28 |
+| Arabic MultiJail, Llama (87) | Qwen3Guard | 0.05 | 0.69 (L10:F9064 −40) | 0.77 | 0.78 | 19 of 27 |
+| Arabic MultiJail, Qwen3-1.7B (87) | same | 0.16 / 0.13 | 0.66 / 0.57 (L15:F1109 +40) | 0.78 / 0.68 | 0.79 / 0.72 | 18 of 30 / 24 of 37 |
+
+- **On HarmBench and PolyRefuse one neuron leaves almost no room:** the best one alone gets 0.88–0.98 and all five between them 0.96–0.99.
+- **On MultiJail the room is real and the other candidates only fill part of it:** the best one gets 0.57–0.80, any of the five 0.72–0.93. The second candidate adds 8–12 points; the third to fifth add 1–6 between them.
+- **The candidates fail on the same prompts.** On MultiJail all five fail on 6–24 prompts where independent failures would give 1–4. So 7–28% of MultiJail prompts are not jailbroken by any single candidate.
+- This cannot show whether neurons pinned together do more than the sum of their parts. That needs the joint pin (point 26b), and MultiJail is where it can show.
+- Caveat: these judges do not check that answers make sense. Llama on MultiJail under Llama-Guard on the translation is left out: its best run (L10:F1084 at +60, 1.00) is the garbled-text case from Arabic Experiment 6.
+
 ### 2026-11-12: Follow-ups to the 5 November meeting (`why_tables.py`, `why_capability.py`, `residual_share.py`, `scripts/jobs/why_quick.sh`)
 Nine points came out of the 5 November meeting (README, "Follow-ups from the 5 November meeting"). This entry holds their results as they come in. The first four tables need no GPU: they are computed from files already in `outputs/` (`why_tables.py`, log `cpu-460362`).
 
