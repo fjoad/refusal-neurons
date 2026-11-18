@@ -363,6 +363,32 @@ The steps above checked pieces in Arabic. Now we redo *all* of Apple's experimen
 - **Apple's own judge (not a refusal and coherent):** the pinned neuron scores 96–99% on Arabic PolyRefuse and 79–94% on MultiJail.
 - **Residual numbers in Arabic (Apple Section 3.3, our Experiment 8 above; done 17 November):** the same search and pinning on single residual numbers. Under Apple's judge no residual number reaches 90%. In three of the four runs the best one gets about half the neuron or less: 55% and 53% on Llama, 28% on Qwen3-8B (MultiJail). On Llama the two safety judges give some pins 90%+, but those answers are scrambled text (0% judged coherent), the same trap as in English. The fourth run is an exception: on Qwen3-8B with PolyRefuse, one residual number (layer 16, number 1929) pinned at +60, the strongest setting tried, reaches 87% with answers that make sense, close to the neuron's 97%. So "a single residual number can't do it" holds in English and in three Arabic runs, but not cleanly in this one. Not yet tested: whether a stronger pin passes 90%, and whether that number also works in English.
 
+## 8c. The refusal direction inside one MLP, and the questions from the 17 November meeting
+
+**What "the MLP direction" is.** Nanda's direction (section 2) is built from the residual stream: average the residual stream over harmful prompts, average it over harmless prompts, subtract. We did the same subtraction on a different set of numbers: the values of all the neurons inside one MLP (12,288 of them per layer in Qwen3-8B). The result is one list of numbers, one per neuron, saying how much each neuron differs between harmful and harmless prompts. That list is the MLP direction. It is a direction vector, not a set of chosen neurons.
+
+**Three things can be done with it.** These are the three words used below.
+- **Pin (neurons only, Apple's way):** overwrite one neuron with a fixed value.
+- **Steer (directions only, Nanda's way):** move every neuron in the layer at once, each by α times its own harmful-minus-harmless gap, towards the harmless side. α = 1 moves an average harmful prompt to where an average harmless prompt sits. α = 4 goes four gaps.
+- **Ablate (remove):** take out whatever part of the neuron values lies along the direction, and leave the rest.
+
+**What the 5 November slide showed** (191 harmful English prompts, Llama-Guard as judge; Qwen3-8B numbers):
+1. The neuron with the largest entry in the MLP direction of layer 14 is Apple's neuron. So the direction leads to the same neuron as Apple's search ("the reverse route").
+2. Removing the direction in that one layer barely helps: 22% harmful answers, from 13%.
+3. Steering along it works: 96% at α = 4. Pinning Apple's neuron gives 97%.
+
+**The meeting's questions, and what the runs say so far (18 November).** Two judges score every run: Llama-Guard (is the answer harmful?) and Apple's judge (is it not a refusal, and does it make sense?).
+
+1. **"You removed it in one layer only. Nanda removes his direction at every layer."** Three versions were run.
+   - *The same list of numbers removed inside every MLP:* no change from one layer (Qwen3-8B 20% against 22%; the same on the other two models).
+   - *Each MLP's own direction removed inside its own MLP, all layers at once:* the refusal openings almost disappear on the Qwen models (8% of answers still open with a refusal phrase on Qwen3-8B, from 76%), and Llama-Guard calls 71% of the answers harmful. But Apple's judge still calls 71% of them refusals. On Llama it works only if each layer's direction is averaged over the template tokens (76% by Llama-Guard, 33% by Apple's judge).
+   - *Nanda's own residual direction, removed only from what the MLPs write, or only from what the attention layers write:* MLPs only gives 72–93% by Llama-Guard and about 50% by Apple's judge; attention only gives 30–78% and 16–24%. The full ablation gives 94–96% and 98%. So the MLPs carry more of it than attention, and neither alone is the whole thing on the 8B models.
+   - **Open:** the two judges agree on pinned answers and on the full ablation, and disagree by 20–45 points on these partial runs. Until someone reads those answers we cannot say which judge is right about them.
+2. **"Does the reverse route find the neuron without being told where to look?"** In the 5 November run we chose the layer and the token using Apple's neuron. Blind version: build the MLP direction at every layer, average over the template tokens, and rank every neuron in the whole model by how much of its own layer's direction it makes up. Apple's neuron comes 1st of 458,752 on Llama, 2nd of 172,032 on Qwen3-1.7B and 5th of 442,368 on Qwen3-8B.
+3. **"Where does α = 4 come from? Apple searched for its pin value."** We swept α from 0.5 to 32 and applied Apple's rule: the smallest value that reaches 90%. By Llama-Guard that is α = 1.5 on Qwen3-1.7B and α = 2 on Qwen3-8B; by Apple's judge on Qwen3-8B it is 2.5. The rate then stays at 93–99% up to α = 32. Llama's sweep and the check for where the answers stop making sense are still running.
+
+Still to run from that meeting: pinning the other top neurons together (is the whole more than the sum of the parts?), whether the top neurons fire together, the top 5 residual numbers together, other refusal-phrase lists, and MMLU per language to justify dropping Yoruba, Swahili and Javanese.
+
 ## 9. Caveats
 - English answers have one judge (Llama-Guard-3), which doesn't check that answers make sense. Arabic answers have two that agree (Qwen3Guard, and Llama-Guard on a translation).
 - Capability is measured on subsets of MMLU and GSM8K.

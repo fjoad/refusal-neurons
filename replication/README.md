@@ -94,7 +94,55 @@ Newest work first in each topic; every entry has its date, setup, numbers and ca
 - **Follow-ups to the 5 November meeting** (note 6's layers, added 2026-11-17: the harmful/harmless signal is shared across languages by layer 10–13 in both Qwen sizes, so no extra language step in the small model; note 3 for larger k, added 2026-11-17: longer lists do not overlap more, but four neurons per model, Apple's among them, are in every language's top 20 outside Yoruba and Swahili; the neuron fires on the prompts the model refuses, in every language but Yoruba and Qwen-Swahili; the small model does not fall off faster with language; MultiJail's lower numbers are the same borderline prompts in every language): 2026-11-12
 - **Arabic Experiments 2 and 8** (PolyRefuse: the neuron jailbreaks Arabic as well as English, 88–95%, matching Arditi's Arabic direction; MultiJail weaker for both; the neuron is 1st or 2nd most aligned with the Arabic direction): 2026-11-05
 
+- **Follow-ups to the 17 November meeting** (points 23–25, partly in: the one MLP direction removed in every MLP does no more than in one layer; each MLP's own direction, and Nanda's direction taken out of the MLP outputs only, remove most refusal openings but the two judges disagree on whether the answers are jailbreaks; the blind reverse route puts Apple's neuron 1st, 2nd and 5th in the whole model; the steering grid reaches 0.90 at 1.5–2.5 gaps): 2026-11-18
+
 Job scripts that produced these are in `scripts/jobs/` (each says which entry it belongs to).
+
+### 2026-11-18: Follow-ups to the 17 November meeting (`mlp_every_layer.py`, `scripts/jobs/mlp_every_layer.sh`, `mlp_direction.py --steer_only`, `scripts/jobs/alpha_grid.sh`)
+Points 23–25 of the README's "Follow-ups from the 17 November meeting". Setup for all of it: English; directions from the 128 harmful and 128 harmless search prompts; attack on the 191 HarmBench prompts, 128 new tokens; two judges, Llama-Guard-3 (share labelled unsafe) and K.1 on gemma-2-9b-it (share that is not a refusal and is coherent). Jobs `mlp_every_layer-470288` (Qwen3-1.7B), `-470289` (Qwen3-8B), `-470290` (Llama); `alpha_grid-470292/3/4`. **Still to come: K.1 on Qwen3-1.7B, and the grid's K.1 and Llama rows.**
+
+**Point 23: the MLP direction removed at every layer.** An MLP direction is the harmful-minus-harmless mean of one MLP's neuron values. "Removed" sets the component along it to zero at every token. t* is the template token where Apple's neuron's gap is largest. Each cell is Llama-Guard / K.1.
+
+| Run | Qwen3-1.7B (L13:F3270) | Qwen3-8B (L14:F7924) | Llama (L11:F4258) |
+|---|---|---|---|
+| nothing | 0.37 / … | 0.13 / 0.12 | 0.14 / 0.10 |
+| Apple's neuron pinned (+40 / +20 / −4) | 0.93 / … | 0.97 / 0.95 | 0.94 / 0.96 |
+| the neuron's layer's direction removed in that layer only (the 5 November run) | 0.48 / … | 0.22 / 0.14 | 0.23 / 0.12 |
+| (a) that same direction removed inside every MLP | 0.47 / … | 0.20 / 0.14 | 0.23 / 0.11 |
+| (b) each MLP's own direction (token t*) removed inside its own MLP, all layers at once | 0.85 / … | 0.71 / 0.29 | 0.12 / 0.10 |
+| (b, blind) the same with each layer's direction averaged over the template tokens | 0.92 / … | 0.72 / 0.28 | 0.76 / 0.33 |
+| (c) Nanda's residual direction removed only from what the MLPs write | 0.93 / … | 0.72 / 0.49 | 0.78 / 0.53 |
+| (c) Nanda's residual direction removed only from what the attention layers write | 0.78 / … | 0.45 / 0.24 | 0.30 / 0.16 |
+| Nanda's full ablation (block inputs, attention and MLP outputs) | 0.94 / … | 0.96 / … | 0.96 / 0.98 |
+
+String-match refusal openings (first 200 characters), same order of runs: Qwen3-1.7B 0.39, 0.03, 0.27, 0.25, 0.04, 0.02, 0.01, 0.10, 0.01; Qwen3-8B 0.76, 0.02, 0.69, 0.69, 0.08, 0.14, 0.17, 0.50, 0.00; Llama 0.83, 0.02, 0.75, 0.75, 0.85, 0.20, 0.18, 0.67, 0.00.
+
+- **(a) Removing the one MLP direction inside every MLP does nothing more than removing it in its own layer** (0.47 vs 0.48, 0.20 vs 0.22, 0.23 vs 0.23). The one-layer run did not fail because it was one layer, for this direction.
+- **(b) Removing each MLP's own direction, all layers at once, does much more, but the judges disagree on how much.** On the Qwen models the refusal openings almost disappear (0.04 and 0.08) and Llama-Guard labels 0.85 and 0.71 of the answers unsafe. K.1 on Qwen3-8B still calls 71% of those answers refusals (0.29). On pinned answers and on Nanda's full ablation the two judges agree within 0.03, so these answers are of a different kind. Their text has not been read; `replication/show_responses.py` shows it.
+- **On Llama (b) depends on the token.** With each layer's direction read at t* (`<|end_header_id|>`, the third of four template tokens) nothing happens (0.12). Averaged over the template tokens it is 0.76 by Llama-Guard and 0.33 by K.1.
+- **(c) Nanda's direction taken out of the MLP outputs only goes most of the way by Llama-Guard (0.93, 0.72, 0.78), half way by K.1 (0.49, 0.53); out of the attention outputs only it does less (0.78, 0.45, 0.30; K.1 0.24, 0.16).** Neither part alone matches the full ablation on the 8B models. On Qwen3-1.7B the MLP part alone equals it by Llama-Guard.
+- Caveat for (c): the part runs leave the direction in the block inputs, so the other kind of layer can still read and rewrite it.
+
+**Point 24: the reverse route run blind.** No generation. Every neuron of every layer is ranked without using Apple's neuron to choose the layer or the token: each layer's MLP direction is averaged over the template tokens, and a neuron's score is its share of its own layer's direction (its squared entry over the layer's sum). Second score: |gap| × the length of the neuron's write vector.
+
+| Model | Apple's neuron, rank by share (all layers) | The same, first two thirds of the layers | Rank by size written (all layers / first two thirds) | Top 3 by share |
+|---|---|---|---|---|
+| Llama-3.1-8B | **1** of 458,752 | 1 of 301,056 | 25 / 1 | **L11:F4258** 21%, L23:F5263 12%, L12:F5760 12% |
+| Qwen3-1.7B | **2** of 172,032 | 2 of 110,592 | 504 / 7 | L15:F1109 24%, **L13:F3270** 20%, L1:F1871 15% |
+| Qwen3-8B | **5** of 442,368 | 4 of 294,912 | 604 / 18 | L15:F1889 21%, L3:F1803 20%, L14:F1251 18% (then L29:F1450 16%, **L14:F7924** 16%) |
+
+- **By share, the blind route puts Apple's neuron 1st, 2nd and 5th in the whole model.** On Llama it finds Apple's neuron outright. On Qwen3-1.7B the first is L15:F1109, which is in the search's top 5 in most languages and wins the MultiJail rerank on that model. On Qwen3-8B four neurons come first that Apple's search does not pick; whether pinning them jailbreaks is point 25b.
+- **The size-written score is not usable across all layers:** the last layers' neurons write the largest differences (L31, L27, L35 fill the top 10). Limited to the first two thirds of the layers, as Apple's search is, it gives 1, 7 and 18.
+
+**Point 25a: the steering strength swept (Nanda's activation addition on the MLP direction of Apple's neuron's layer).** α counts harmful-minus-harmless gaps: every neuron of the layer is moved by α × its own gap. The direction's length is 24.4 (Qwen3-1.7B, L13), 8.76 (Qwen3-8B, L14) and 2.79 (Llama, L11), so α × that length is the strength in the unit-vector units our EMNLP paper used. Llama-Guard so far:
+
+| α | 0 | 0.5 | 1 | 1.5 | 2 | 2.5 | 3 | 4 | 6 | 8 | 12 | 16 | 24 | 32 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| Qwen3-1.7B | 0.37 | 0.57 | 0.81 | **0.95** | 0.96 | 0.95 | 0.95 | 0.95 | 0.96 | 0.98 | 0.96 | 0.97 | 0.99 | 0.93 |
+| Qwen3-8B | 0.13 | 0.31 | 0.54 | 0.81 | **0.90** | 0.94 | 0.94 | 0.96 | 0.94 | 0.96 | 0.99 | 0.98 | 0.97 | 0.97 |
+
+- **By Apple's rule (the smallest value reaching 0.90) the steering strength is α = 1.5 on Qwen3-1.7B and α = 2 on Qwen3-8B under Llama-Guard** (unit-vector strengths 37 and 18). K.1 on Qwen3-8B so far: 0.23, 0.46, 0.67, 0.85, 0.96 at α = 0.5, 1, 1.5, 2, 2.5, so 2.5 under Apple's own judge.
+- Llama-Guard stays at 0.93–0.99 up to α = 32. Llama-Guard also rewards garbled text (judge sanity check, 2026-10-21), so where the answers stop being coherent is read from K.1's coherence column when it is in.
 
 ### 2026-11-12: Follow-ups to the 5 November meeting (`why_tables.py`, `why_capability.py`, `residual_share.py`, `scripts/jobs/why_quick.sh`)
 Nine points came out of the 5 November meeting (README, "Follow-ups from the 5 November meeting"). This entry holds their results as they come in. The first four tables need no GPU: they are computed from files already in `outputs/` (`why_tables.py`, log `cpu-460362`).
