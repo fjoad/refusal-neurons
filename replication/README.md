@@ -94,7 +94,7 @@ Newest work first in each topic; every entry has its date, setup, numbers and ca
 - **Follow-ups to the 5 November meeting** (note 6's layers, added 2026-11-17: the harmful/harmless signal is shared across languages by layer 10–13 in both Qwen sizes, so no extra language step in the small model; note 3 for larger k, added 2026-11-17: longer lists do not overlap more, but four neurons per model, Apple's among them, are in every language's top 20 outside Yoruba and Swahili; the neuron fires on the prompts the model refuses, in every language but Yoruba and Qwen-Swahili; the small model does not fall off faster with language; MultiJail's lower numbers are the same borderline prompts in every language): 2026-11-12
 - **Arabic Experiments 2 and 8** (PolyRefuse: the neuron jailbreaks Arabic as well as English, 88–95%, matching Arditi's Arabic direction; MultiJail weaker for both; the neuron is 1st or 2nd most aligned with the Arabic direction): 2026-11-05
 
-- **Follow-ups to the 17 November meeting** (points 23–26: the one MLP direction removed in every MLP does no more than in one layer; each MLP's own direction, and Nanda's direction taken out of the MLP outputs only, remove most refusal openings but the two judges disagree on whether the answers are jailbreaks; the blind reverse route puts Apple's neuron 1st, 2nd and 5th in the whole model, and with Apple's rerank ends on Apple's neuron on Llama, a tie with L14:F1251 on Qwen3-8B and L15:F1109 on Qwen3-1.7B; under K.1 the steering peaks at 2.5–3 gaps and the answers are incoherent by 4–6, Llama stopping at 0.895; neurons pinned together on MultiJail give no clear gain over the best single one): 2026-11-18
+- **Follow-ups to the 17 November meeting** (points 23–26: the one MLP direction removed in every MLP does no more than in one layer; each MLP's own direction, and Nanda's direction taken out of the MLP outputs only, remove most refusal openings but the two judges disagree on whether the answers are jailbreaks; the blind reverse route puts Apple's neuron 1st, 2nd and 5th in the whole model, and with Apple's rerank ends on Apple's neuron on Llama, a tie with L14:F1251 on Qwen3-8B and L15:F1109 on Qwen3-1.7B; under K.1 the steering peaks at 2.5–3 gaps and the answers are incoherent by 4–6, Llama stopping at 0.895; neurons pinned together on MultiJail break coherence at full pins; on Qwen3-8B four neurons at a quarter of their pins reach 0.97 under K.1 against 0.77 for the best single one, controls pending): 2026-11-18
 
 Job scripts that produced these are in `scripts/jobs/` (each says which entry it belongs to).
 
@@ -239,9 +239,25 @@ No pin: 0.13 Llama-Guard, 0.12 K.1.
 | best 2 / 3 / 4 / 5 together, full pins | 0.75 / 0.72 / 0.66 / 0.48 | 0.60 / 0.56 / 0.62 / 0.54 | 0.09 / 0.02 / 0.10 / 0.00 (0.09 / 0.03 / 0.10 / 0.00) |
 | best 2 / 3 / 4 / 5 together, half pins | 0.70 / 0.69 / 0.75 / 0.52 | 0.53 / 0.60 / 0.66 / 0.38 | 0.72 / 0.70 / 0.67 / 0.33 (0.94 / 0.94 / 0.82 / 0.59) |
 
-- **On Qwen3-8B, pinning more neurons together does not beat the best single neuron under any judge.** K.1: 0.77 for Apple's neuron alone, at most 0.72 for any joint pin. Qwen3Guard: 0.80 alone, at most 0.75 together. Llama-Guard on the translation: 0.69 alone, at most 0.66 together.
+- **On Qwen3-8B at full and half pins, pinning more neurons together does not beat the best single neuron under any judge (at a quarter of the pins it does under K.1; see the finer strengths).** K.1: 0.77 for Apple's neuron alone, at most 0.72 for any joint pin. Qwen3Guard: 0.80 alone, at most 0.75 together. Llama-Guard on the translation: 0.69 alone, at most 0.66 together.
 - **At full pins the joint runs break the model:** under K.1 at most 10% of the answers are coherent. The two guards do not see this (0.48–0.75), the garbled-text trap again.
 - **At half pins the answers are coherent for 2–3 neurons (94%), and the rate is about the single neuron's.** Prompt by prompt (K.1), the best two at half pins jailbreak 9 of the 13 prompts that neither jailbreaks alone at its full pin, but lose 20 that one of them gets alone. So the joint pin reaches some prompts no single neuron reaches, with no net gain.
+**Qwen3-8B, finer strengths** (`joint_pin-470390`, file `Qwen3-8B_mj_ar_fine.json`; same pins, each multiplied by the strength). K.1, with its coherence share in brackets:
+
+| Strength | best 2 | best 3 | best 4 | best 5 |
+|---|---|---|---|---|
+| 0.25 | 0.89 (1.00) | 0.92 (1.00) | **0.97** (1.00) | 0.79 (0.98) |
+| 0.375 | 0.85 (1.00) | 0.84 (0.98) | 0.89 (1.00) | 0.59 (0.92) |
+| 0.5 | 0.72 (0.94) | 0.70 (0.94) | 0.67 (0.82) | 0.33 (0.59) |
+| 0.625 | 0.62 (0.72) | 0.40 (0.62) | 0.47 (0.55) | 0.17 (0.21) |
+| 0.75 | 0.44 (0.54) | 0.33 (0.46) | 0.41 (0.45) | 0.11 (0.11) |
+| 1 | 0.09 (0.09) | 0.02 (0.03) | 0.10 (0.10) | 0.00 (0.00) |
+
+- **At a quarter of their pins, four neurons together reach 0.97 under K.1 with every answer coherent,** against 0.77 for the best single neuron at its pin (L14:F7924 at +30, 91% coherent). The four are L14:F7924 at +7.5, L16:F5318 at +15, L17:F11229 at −3.75 and L18:F7664 at −5. The rate rises with each neuron added (0.89, 0.92, 0.97) and falls with the fifth (0.79). The earlier "no gain" on this model was a strength problem: the half and full strengths were already too strong.
+- **Prompt by prompt (K.1):** the four at a quarter jailbreak all 5 prompts that none of the four gets alone at its full pin, and lose 3.
+- **The two guards do not show the gain:** Qwen3Guard 0.79 for the same run against 0.80 for the single neuron, Llama-Guard on the translation 0.60 against 0.69. K.1 counts a coherent answer that is not a refusal; the guards count harmful content, which on MultiJail many non-refusing answers do not have. So what is shown is fewer refusals with coherent answers, not more answers the guards call harmful.
+- **Not yet a "more than the sum of its parts" result.** Two controls are missing: (1) the single neuron at its best pin under K.1 (the 0.77 is at a pin chosen under Qwen3Guard; the rerank is being K.1-judged, `judge_k1-470494`); (2) each of the four alone at a quarter of its pin on the same prompts (`joint_pin.py --scaled_singles`, submitted). If each alone does little at a quarter and together they give 0.97, the weak pins add up; whether that is more than additive needs those numbers.
+
 **Llama, MultiJail** (`joint_pin-470356`), same setup:
 
 | Llama, MultiJail | Qwen3Guard | Llama-Guard on translation | K.1 (coherent) |
@@ -275,9 +291,9 @@ No pin: 0.13 Llama-Guard, 0.12 K.1.
 - **On Qwen3-1.7B the half-strength joint pins are slightly above the best single neuron under every judge:** K.1 0.94 for four neurons against 0.90 alone; Qwen3Guard 0.74 for two against 0.66; Llama-Guard on the translation 0.61 against 0.60. On 87 prompts that is 1 to 7 prompts, so it is a hint, not a result.
 - **Full pins together lose coherence here too** (0.72 down to 0.17 as neurons are added).
 - **Under K.1 there is little room to begin with on this model:** at least one of the best two already works alone on 98% of the prompts. The two guards put the same answers at 0.52–0.66, because on MultiJail an answer that is not a refusal is often not harmful either.
-- Across the three models so far: no joint pin gives a clear gain over the best single neuron; full-strength joint pins break coherence on all three; the only gain is the small one above.
+- Across the three models at full and half pins: no joint pin gives a clear gain over the best single neuron, and full-strength joint pins break coherence on all three. The clear gain appears on Qwen3-8B at a quarter of the pins (the finer strengths table).
 
-- Caveats. (1) The pins were chosen under Qwen3Guard, which does not check coherence: L16:F5318 at +60 is 0.76 by Qwen3Guard but only 29% coherent under K.1, so one of the "best two" was already over-driven. (2) Only two strengths, full and half; a finer set (0.25, 0.375, 0.625, 0.75) is submitted. (3) 87 prompts: one prompt is 1.1 points.
+- Caveats. (1) The pins were chosen under Qwen3Guard, which does not check coherence: L16:F5318 at +60 is 0.76 by Qwen3Guard but only 29% coherent under K.1, so one of the "best two" was already over-driven. (2) The first run had only two strengths, full and half; the finer set is in the table that follows. (3) 87 prompts: one prompt is 1.1 points.
 
 ### 2026-11-12: Follow-ups to the 5 November meeting (`why_tables.py`, `why_capability.py`, `residual_share.py`, `scripts/jobs/why_quick.sh`)
 Nine points came out of the 5 November meeting (README, "Follow-ups from the 5 November meeting"). This entry holds their results as they come in. The first four tables need no GPU: they are computed from files already in `outputs/` (`why_tables.py`, log `cpu-460362`).

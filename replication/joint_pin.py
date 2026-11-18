@@ -6,6 +6,8 @@ the highest rate). Candidates are ordered best first. Runs, on the rerank's prom
   none
   single   each candidate alone at its own best pin (the reference, regenerated here)
   joint    the best k pinned together, k = 2..5, each at --scales x its own best pin (1 = full, 0.5 = half)
+  single_scaled  (--scaled_singles) each candidate alone at each reduced scale: the control that shows whether
+           weak pins that do little alone add up when applied together
 Responses go only to outputs/joint/<model>_<tag>.json; the log shows string-match refusal rates.
 
 After judging (judge.py), --report prints for every joint run: its rate, the rate of "at least one of the same k
@@ -64,6 +66,13 @@ def report(path):
             print(f"    best {r['k']} together at {r['scale']:g}x: {rate(r):.2f} (any of them alone "
                   f"{sum(any_single) / n:.2f}); jailbreaks {gained} of the {n - sum(any_single)} prompts all "
                   f"{r['k']} fail on alone; loses {lost}{extra}")
+            same = [x for x in runs if x["mode"] == "single_scaled" and x["scale"] == r["scale"]][:r["k"]]
+            if len(same) == r["k"]:
+                any_same = [any(x[key][i] for x in same) for i in range(n)]
+                only_joint = sum(r[key][i] and not any_same[i] for i in range(n))
+                print(f"      each alone at {r['scale']:g}x: " + " / ".join(f"{rate(x):.2f}" for x in same)
+                      + f"; any of them {sum(any_same) / n:.2f}; the joint pin jailbreaks {only_joint} of the "
+                      f"{n - sum(any_same)} prompts none of them gets at this strength")
 
 
 @contextmanager
@@ -101,6 +110,8 @@ def main():
                                                       "if the rerank has it, else unsafe)")
     ap.add_argument("--split", default="harmbench_val")
     ap.add_argument("--scales", type=float, nargs="+", default=[1.0, 0.5])
+    ap.add_argument("--scaled_singles", action="store_true",
+                    help="also run each candidate alone at every reduced scale (the control for the joint runs)")
     ap.add_argument("--max_new", type=int, default=128)
     ap.add_argument("--bs", type=int, default=32)
     ap.add_argument("--tag", required=False, default="en")
@@ -152,6 +163,10 @@ def main():
     for _, layer, neuron, pin in chosen:
         run("single", [(layer, neuron, pin)], layer=layer, neuron=neuron, pin=pin)
     for scale in args.scales:
+        if args.scaled_singles and scale != 1:  # the control: each neuron alone at the same reduced strength
+            for _, layer, neuron, pin in chosen:
+                run("single_scaled", [(layer, neuron, scale * pin)], layer=layer, neuron=neuron, pin=scale * pin,
+                    scale=scale)
         for k in range(2, len(chosen) + 1):
             run("joint", [(l, f, scale * p) for _, l, f, p in chosen[:k]], k=k, scale=scale)
     print(f"saved {out.relative_to(ROOT)}  ({(time.time() - t0) / 60:.1f} min)")
