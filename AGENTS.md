@@ -60,6 +60,7 @@ This is jailbreak research. Prompts are harmful by design, and pinned models pro
 - Cached models: Qwen3-1.7B, Qwen3-8B, Qwen3-1.7B-Base, Qwen3-8B-Base, Llama-3.1-8B-Instruct, Llama-Guard-3-8B (judge; gated, accessible), Qwen3Guard-Gen-8B (Arabic/multilingual judge) and facebook/nllb-200-distilled-600M (translator for judging). An 8B model in fp16 needs two 16 GB cards.
 - **Job-script track arguments:** `mlp_direction.sh` and `arabic_exp6.sh` used to read only the first track argument, so `... poly mj` ran PolyRefuse and silently skipped MultiJail (fixed 2026-11-12). After a job ends, check that every expected output file exists; `COMPLETED` is not enough.
 - **Judging long answers runs out of memory on 16 GB cards** at batch size 16 (512-token answers, non-Latin scripts). `judge.py` and `neuron_check.generate` now halve the batch and retry, but a job that hits this is slower; ask for V100s.
+- **The K.1 judge (gemma-2-9b-it) needs two 16 GB cards.** On one card part of it is offloaded to the CPU and a single run of 191 answers does not finish in an hour (jobs 470288 and 470292, 2026-11-18). A job that ends with `judge.py --judge k1` must get `--gres=gpu:2`, even for Qwen3-1.7B.
 - **Large-vocabulary memory trap:** Qwen3 (151k) and Llama-3 (128k) vocabularies make full-sequence logits huge. When only the last position is needed, call the model with `logits_to_keep=1` (as `capability.py` and `intervene.py` do), or batch sizes that fit for generation will run out of memory.
 
 ## Local Python

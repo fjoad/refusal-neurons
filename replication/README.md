@@ -99,7 +99,7 @@ Newest work first in each topic; every entry has its date, setup, numbers and ca
 Job scripts that produced these are in `scripts/jobs/` (each says which entry it belongs to).
 
 ### 2026-11-18: Follow-ups to the 17 November meeting (`mlp_every_layer.py`, `scripts/jobs/mlp_every_layer.sh`, `mlp_direction.py --steer_only`, `scripts/jobs/alpha_grid.sh`)
-Points 23–25 of the README's "Follow-ups from the 17 November meeting". Setup for all of it: English; directions from the 128 harmful and 128 harmless search prompts; attack on the 191 HarmBench prompts, 128 new tokens; two judges, Llama-Guard-3 (share labelled unsafe) and K.1 on gemma-2-9b-it (share that is not a refusal and is coherent). Jobs `mlp_every_layer-470288` (Qwen3-1.7B), `-470289` (Qwen3-8B), `-470290` (Llama); `alpha_grid-470292/3/4`. **Still to come: K.1 on Qwen3-1.7B, and the grid's K.1 and Llama rows.**
+Points 23–25 of the README's "Follow-ups from the 17 November meeting". Setup for all of it: English; directions from the 128 harmful and 128 harmless search prompts; attack on the 191 HarmBench prompts, 128 new tokens; two judges, Llama-Guard-3 (share labelled unsafe) and K.1 on gemma-2-9b-it (share that is not a refusal and is coherent). Jobs `mlp_every_layer-470288` (Qwen3-1.7B), `-470289` (Qwen3-8B), `-470290` (Llama); `alpha_grid-470292/3/4`. **Still to come: K.1 on Qwen3-1.7B (its two jobs were given one GPU, where the K.1 judge does not fit; that judging was resubmitted as a `judge_k1` job on two GPUs), and the grid's K.1 and Llama rows.**
 
 **Point 23: the MLP direction removed at every layer.** An MLP direction is the harmful-minus-harmless mean of one MLP's neuron values. "Removed" sets the component along it to zero at every token. t* is the template token where Apple's neuron's gap is largest. Each cell is Llama-Guard / K.1.
 
@@ -113,7 +113,7 @@ Points 23–25 of the README's "Follow-ups from the 17 November meeting". Setup 
 | (b, blind) the same with each layer's direction averaged over the template tokens | 0.92 / … | 0.72 / 0.28 | 0.76 / 0.33 |
 | (c) Nanda's residual direction removed only from what the MLPs write | 0.93 / … | 0.72 / 0.49 | 0.78 / 0.53 |
 | (c) Nanda's residual direction removed only from what the attention layers write | 0.78 / … | 0.45 / 0.24 | 0.30 / 0.16 |
-| Nanda's full ablation (block inputs, attention and MLP outputs) | 0.94 / … | 0.96 / … | 0.96 / 0.98 |
+| Nanda's full ablation (block inputs, attention and MLP outputs) | 0.94 / … | 0.96 / 0.99 | 0.96 / 0.98 |
 
 String-match refusal openings (first 200 characters), same order of runs: Qwen3-1.7B 0.39, 0.03, 0.27, 0.25, 0.04, 0.02, 0.01, 0.10, 0.01; Qwen3-8B 0.76, 0.02, 0.69, 0.69, 0.08, 0.14, 0.17, 0.50, 0.00; Llama 0.83, 0.02, 0.75, 0.75, 0.85, 0.20, 0.18, 0.67, 0.00.
 

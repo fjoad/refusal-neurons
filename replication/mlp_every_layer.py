@@ -20,7 +20,8 @@ direction sets the activation's component along it to zero at every token, durin
 Reverse route, blind (no generation): every neuron of every layer is ranked without using the refusal neuron to
 choose the layer or the token (directions averaged over Table 3's tokens), by two measures: its share of its own
 layer's direction, and |gap| x the length of its write vector (how large a harmful-harmless difference it writes
-into the residual stream, comparable across layers). Prints the top 10 and the refusal neuron's rank.
+into the residual stream, comparable across layers). Prints the top 10 and the refusal neuron's rank. The top 5
+by share are also saved as a search-style file for rerank.py (--blind_only stops there; scripts/jobs/blind_rerank.sh).
 
 Responses go only to outputs/evaluate; logs show string-match refusal rates and the rankings.
 Usage: python replication/mlp_every_layer.py --model Qwen/Qwen3-8B --layer 14 --neuron 7924 --pin 20
@@ -122,6 +123,8 @@ def main():
     ap.add_argument("--max_new", type=int, default=128)
     ap.add_argument("--bs", type=int, default=16)
     ap.add_argument("--tag", default="en")
+    ap.add_argument("--blind_only", action="store_true",
+                    help="stop after the blind ranking (writes outputs/neuron_search/<model>_float16_blind.json)")
     args = ap.parse_args()
 
     t0 = time.time()
@@ -147,6 +150,23 @@ def main():
     print(f"{args.model}: {n_layers} layers, {gaps[0].shape[1]} neurons per MLP; t* = token {token} "
           f"('{post_tokens[token]}') of {n_score} scored ({(time.time() - t0) / 60:.1f} min)", flush=True)
     blind = blind_ranking(model, gaps, args.layer, args.neuron)
+    # The blind route's top 5 (by share, all layers) as a search-style file, so rerank.py can run Apple's pin
+    # grid on them. The pin side comes from the sign of the mean harmful value over Table 3's tokens.
+    top5 = blind["share of its own layer's direction; all layers"]["top10"][:5]
+    candidates = [{"layer": c["layer"], "neuron": c["neuron"], "share": c["score"],
+                   "mean_act_harmful": float(harm[c["layer"]].mean[:, c["neuron"]].mean()),
+                   "mean_act_harmless": float(safe[c["layer"]].mean[:, c["neuron"]].mean())} for c in top5]
+    search_out = ROOT / "outputs" / "neuron_search" / f"{short}_float16_blind.json"
+    search_out.parent.mkdir(parents=True, exist_ok=True)
+    write_json(search_out, {"args": {"model": args.model, "space": "mlp", "harmful": args.harmful,
+                                     "harmless": args.harmless},
+                            "score": "share of the neuron's own layer's MLP direction (averaged over Table 3's tokens)",
+                            "candidates": candidates, "watched": []})
+    print("blind top 5 saved to " + str(search_out.relative_to(ROOT)) + ": "
+          + ", ".join(f"L{c['layer']}:F{c['neuron']} (harmful {c['mean_act_harmful']:+.2f}, "
+                      f"harmless {c['mean_act_harmless']:+.2f})" for c in candidates), flush=True)
+    if args.blind_only:
+        return
 
     one = normalize(gaps[args.layer][token])
     own = {l: normalize(gaps[l][token]) for l in layers}
