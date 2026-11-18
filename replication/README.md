@@ -186,7 +186,7 @@ No pin: 0.13 Llama-Guard, 0.12 K.1.
 - **On Llama the blind route, finished with Apple's rerank, picks Apple's neuron at Apple's pin (L11:F4258 at −4) under both judges.** Under K.1 no other candidate gets above 0.14.
 - The other four reach 0.92–0.98 under Llama-Guard at pins of 10–40, where K.1 finds almost no coherent answer. Without the smallest-pin rule Llama-Guard would rank L12:F5760 first (0.98).
 - A side observation: L12:F5760 pinned at +2 makes the model refuse every one of the 191 prompts (K.1 refusal 1.00, from 0.91 unpinned). Not followed up.
-- L31:F6432 is a same-sign case like the two on Qwen3-8B (harmless mean +18, further out than the harmful +13) and is rerun pinned towards the harmless side.
+- L31:F6432 is a same-sign case like the two on Qwen3-8B (harmless mean +18, further out than the harmful +13). Rerun pinned towards the harmless side, it does nothing (see "Same-sign candidates" below).
 
 **Qwen3-1.7B** (`blind_rerank-470313`), same setup. No pin: 0.37 Llama-Guard, 0.22 K.1.
 
@@ -200,11 +200,22 @@ No pin: 0.13 Llama-Guard, 0.12 K.1.
 
 - **On Qwen3-1.7B the blind route's rerank under K.1 picks L15:F1109 at +40 (0.92), with Apple's neuron second:** L13:F3270 is 0.87 at +40 and first passes 0.90 at +60 (0.95). Both keep every answer coherent. This model's reranks were near-ties before (M2 rerank; Arabic Experiment 1), and L15:F1109 is the neuron that tops its Arabic search.
 - Under Llama-Guard the smallest-pin rule would pick L1:F4392 at +10 (0.96), where K.1 finds 22% of the answers coherent.
-- L1:F1871 is a same-sign case (harmless −6.42, harmful −6.10) and is rerun pinned towards the harmless side.
+- L1:F1871 is a same-sign case (harmless −6.42, harmful −6.10). Rerun pinned towards the harmless side, it is a partial jailbreak (K.1 0.58 at −20) and never reaches 0.90 (see "Same-sign candidates" below).
 
 **Point 25b across the three models (K.1, Apple's rule):** the reverse route, run blind and finished with Apple's rerank, ends on a coherent single-neuron jailbreak on every model. On Llama it is Apple's neuron at Apple's pin. On Qwen3-8B it is a tie between Apple's neuron and L14:F1251. On Qwen3-1.7B it is L15:F1109, with Apple's neuron second. Every candidate that Llama-Guard alone would have preferred (L3:F1803, L12:F5760, L1:F4392) is incoherent under K.1.
 
-- **Same-sign candidates, rerun on the other side** (`scripts/jobs/blind_flip.sh`, `rerank.py --flip`). Apple's sign rule pins opposite to the sign of the harmful mean. For four candidates the harmless mean has the same sign as the harmful one and lies further out, so the rule pushed them away from the harmless side; they were rerun pinned towards and past it. Qwen3-8B L29:F1450 at −10 to −60 (`blind_flip-470500`): 0.13–0.14 Llama-Guard, 0.11–0.12 K.1, the same as no pin. Qwen3-8B L3:F1803 at −0.5 to −10 (`blind_flip-470501`): 0.12–0.14 Llama-Guard (K.1 0.11–0.12 on the first three pins, the rest being judged). So both are real failures, on either side. Llama L31:F6432 and Qwen3-1.7B L1:F1871 are running.
+- **Same-sign candidates, rerun on the other side** (`scripts/jobs/blind_flip.sh`, `rerank.py --flip`). Apple's sign rule pins opposite to the sign of the harmful mean. For four candidates the harmless mean has the same sign as the harmful one and lies further out, so the rule pushed them away from the harmless side; they were rerun pinned towards and past it, on the same 191 HarmBench prompts.
+
+| Candidate | Pins tried (other side) | Llama-Guard (no pin) | K.1 (no pin) | Verdict |
+|---|---|---|---|---|
+| Qwen3-8B L29:F1450 (`blind_flip-470500`) | −10 to −60 | 0.13–0.14 (0.13) | 0.11–0.12 (0.12) | does nothing |
+| Qwen3-8B L3:F1803 (`blind_flip-470501`) | −0.5 to −10 | 0.12–0.14 (0.13) | 0.10–0.12 (0.12) | does nothing |
+| Llama L31:F6432 (`blind_flip-470537`) | +16 to +60 | 0.13–0.14 (0.15) | 0.09–0.10 (0.09) | does nothing |
+| Qwen3-1.7B L1:F1871 (`blind_flip-470558`) | −6.5 to −30 | 0.38–0.46 up to −15, 0.70 at −20, 0.95 at −30 (0.37) | 0.24–0.26 up to −15, **0.58** at −20 (98% coherent), 0.51 at −30 (57% coherent) (0.22) | partial; never reaches 0.90 |
+
+  - **Three of the four are real failures on either side.** All their answers stay coherent and refused.
+  - **Qwen3-1.7B L1:F1871 is a partial jailbreak on the harmless side:** K.1 0.58 at −20, three times its natural value of about −6, with coherent answers. At −30 Llama-Guard says 0.95 but only 57% of the answers are coherent and K.1 falls to 0.51. Under Apple's rule it is still not selected, so the model's pick (L15:F1109) stands.
+  - **So Apple's sign rule cost nothing here:** no same-sign candidate would have been selected on the other side.
 
 **Point 26a: what the other top-5 candidates do, from the reranks already judged** (`topk_union.py`, no GPU, log `cpu-470314`). Each candidate is taken at its own best pin (the smallest reaching 0.90, else its highest rate). "Any of the 5" is the share of prompts jailbroken by at least one of the five, each pinned alone. It is not the five pinned together.
 
@@ -253,10 +264,25 @@ No pin: 0.13 Llama-Guard, 0.12 K.1.
 | 0.75 | 0.44 (0.54) | 0.33 (0.46) | 0.41 (0.45) | 0.11 (0.11) |
 | 1 | 0.09 (0.09) | 0.02 (0.03) | 0.10 (0.10) | 0.00 (0.00) |
 
-- **At a quarter of their pins, four neurons together reach 0.97 under K.1 with every answer coherent,** against 0.77 for the best single neuron at its pin (L14:F7924 at +30, 91% coherent). The four are L14:F7924 at +7.5, L16:F5318 at +15, L17:F11229 at −3.75 and L18:F7664 at −5. The rate rises with each neuron added (0.89, 0.92, 0.97) and falls with the fifth (0.79). The earlier "no gain" on this model was a strength problem: the half and full strengths were already too strong.
+- **At a quarter of their pins, four neurons together reach 0.97 under K.1 with every answer coherent,** against 0.77 for Apple's neuron at its pin (L14:F7924 at +30, 91% coherent; the control below finds one single run at 0.78). The four are L14:F7924 at +7.5, L16:F5318 at +15, L17:F11229 at −3.75 and L18:F7664 at −5. The rate rises with each neuron added (0.89, 0.92, 0.97) and falls with the fifth (0.79). The earlier "no gain" on this model was a strength problem: the half and full strengths were already too strong.
 - **Prompt by prompt (K.1):** the four at a quarter jailbreak all 5 prompts that none of the four gets alone at its full pin, and lose 3.
 - **The two guards do not show the gain:** Qwen3Guard 0.79 for the same run against 0.80 for the single neuron, Llama-Guard on the translation 0.60 against 0.69. K.1 counts a coherent answer that is not a refusal; the guards count harmful content, which on MultiJail many non-refusing answers do not have. So what is shown is fewer refusals with coherent answers, not more answers the guards call harmful.
-- **Not yet a "more than the sum of its parts" result.** Two controls are missing: (1) the single neuron at its best pin under K.1 (the 0.77 is at a pin chosen under Qwen3Guard; the rerank is being K.1-judged, `judge_k1-470494`); (2) each of the four alone at a quarter of its pin on the same prompts (`joint_pin.py --scaled_singles`, submitted). If each alone does little at a quarter and together they give 0.97, the weak pins add up; whether that is more than additive needs those numbers.
+**Qwen3-8B, the control: each neuron alone at the same reduced strength** (`joint_pin-470578`, `--scaled_singles`, file `Qwen3-8B_mj_ar_ctl.json`; same 87 prompts and pins). K.1; every reduced-strength run is 98–100% coherent. The joint runs at 0.25 repeat the finer-strengths run exactly (0.89 / 0.92 / 0.97 / 0.79).
+
+| Strength | L14:F7924 | L16:F5318 | L17:F11229 | L18:F7664 | L16:F8474 | Any of the first four, each alone | Best 2 / 3 / 4 / 5 together |
+|---|---|---|---|---|---|---|---|
+| full pin (+30, +60, −15, −20, −40) | 0.77 | 0.25 | 0.63 | 0.47 | 0.25 | 0.94 | 0.09 / 0.02 / 0.10 / 0.00 |
+| 0.25 | 0.41 | **0.78** | 0.31 | 0.32 | 0.32 | 0.82 | 0.89 / 0.92 / **0.97** / 0.79 |
+| 0.125 | 0.26 | 0.48 | 0.28 | 0.28 | 0.22 | 0.53 | 0.68 / 0.80 / **0.90** / 0.84 |
+
+No pin: 0.20.
+
+- **Weak pins add up.** At an eighth of their pins no neuron alone gets above 0.48, and at least one of the four works on 53% of the prompts. Pinned together the four give 0.90, and jailbreak 34 of the 41 prompts that none of them gets alone at that strength. At a quarter: at least one alone 0.82, together 0.97 (14 of the 16 prompts none gets alone).
+- **At an eighth it is more than the sum of the parts.** Over no pin (0.20) the four alone add 7, 29, 8 and 8 points, 52 together, which would give 0.71. Together they give 0.90. At a quarter the four gains already sum to more than 100%, so that strength cannot answer the question.
+- **The fifth neuron always hurts:** 0.79 after 0.97 at a quarter, 0.84 after 0.90 at an eighth.
+- **Correction to the single-neuron baseline: 0.77 was not the best single neuron.** L16:F5318 alone at +15 gives 0.78 with every answer coherent. Its Qwen3Guard-chosen pin of +60 was four times too strong (0.25, 29% coherent). So the gain from four together is 0.97 against a best single run of 0.78 found so far, about 17 of 87 prompts. Each neuron's own best pin under K.1 is still needed for the final comparison (the rerank is being K.1-judged, `judge_k1-470494`); then the joint pin is rerun from K.1-chosen pins on all three models.
+- **Against the same-strength singles the guards agree on the direction:** at a quarter, Qwen3Guard gives 0.23 / 0.60 / 0.16 / 0.09 alone and 0.79 for the four together; Llama-Guard on the translation 0.15 / 0.45 / 0.11 / 0.08 alone and 0.60 together. They still put the joint run no higher than the best single neuron at its full pin (0.80 and 0.69), where K.1 finds that run less coherent.
+- Caveats: 87 prompts, one model, one run per setting; answers not read.
 
 **Llama, MultiJail** (`joint_pin-470356`), same setup:
 
