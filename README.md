@@ -106,7 +106,7 @@ The 17 November group meeting went mainly through the first (5 November) deck ag
 
 Answered in discussion, no experiment: how Apple's neuron can be "6th" when the rerank picks from a top 5 (the rank is its place in a different search's list, PolyRefuse English prompts with the model's own phrases; in Apple's setup it is 5th). Single neurons for other behaviours, and a culture neuron, are in [RESEARCH_DIRECTIONS.md](RESEARCH_DIRECTIONS.md) as ideas for a later paper.
 
-**Multimodal (speech and images):** to be discussed; no plan yet.
+**Multimodal (speech and images):** direction set on 2026-11-18 (see Decisions). It runs on omni models, with Asim on activation extraction and experiments. Candidate models, the text-to-speech tool and the datasets Nadir listed are in [reading/README.md](reading/README.md) under "Multimodal: models, tools and datasets". No experiment plan written yet; the checkpoint meant by "Qwen3.8-Omni-Flash" is to be confirmed with Nadir (not on Hugging Face under that name on 2026-11-18).
 
 ### Part 1 checklist: every Apple experiment, in English and in Arabic
 
@@ -168,6 +168,7 @@ Then **writing** (December), for 4 January. After this paper: images and audio (
 - **Shared Google Drive folder** (fjoad1 account; anyone with the link can view): **[Refusal Neurons](https://drive.google.com/drive/folders/10q3hGmtRQUqM5EneyoZhL_j46phpbwy6)**
   - [Slides](https://drive.google.com/drive/folders/14CgO54B1EEDSPxSL4YIaJB80EHOnpDUB): one deck per meeting, named by date
   - [Meeting minutes](https://drive.google.com/drive/folders/1xjEww7FKtUxB_ms_m1BfkR0aKmH9LP1x): [2026-11-05 weekly meeting](https://docs.google.com/document/d/1XHGakgoGHCT23WmCpIR8pH5S4-mypLJ-/edit), [2026-10-22 weekly meeting](https://docs.google.com/document/d/1TnyCnlIqGuIo23iHMe7UKnCt23fyArFX/edit), [2026-10-19 kickoff](https://docs.google.com/document/d/1iISPLsnNnbcexcsJRaZbgwe34YXMlaI3/edit)
+  - "Start here - links and reading list" (in the folder's root; source `drive/src/links.html`): one page for a new person, with the code, the papers to read first, the omni models and datasets, and the wider reading list. Update it when a model, dataset or key paper is added.
 - Each set of minutes ends with an appendix, "The slides explained, step by step": one section per slide of that meeting's deck, saying in plain words what was done, how every number was calculated, and what the data looks like (added 2026-11-12 for both decks, at Nadir's request).
 - Minutes live only in Drive, not in this public repo, because they contain internal discussion. A Drive-ready copy is kept locally in `drive/` (gitignored). `drive/src/` holds the HTML sources, converted to Word with `soffice --headless --convert-to docx`.
 - The slides' source (`slides/build_slides.js`) and PDF are also in this repo.
@@ -176,6 +177,7 @@ Then **writing** (December), for 4 January. After this paper: images and audio (
 
 These were settled in discussion. Don't reopen them without a new reason.
 
+- **Finish the multilingual and multimodal thread before any new direction** (2026-11-18, Nadir and Faaiz). Compute and time are limited, and the research questions for this thread are clear. The group meetings are pushed back; others are welcome to join and give input, but no new directions for now. Asim joins for the omni-model part (activation extraction and running experiments).
 - **Part 1 is an investigation, not a reproduction** (2026-11-05). In Arabic (and later every language) we run Apple's experiments the same way and report whether the model behaves the same; matching Apple's numbers is a finding, not the goal.
 - **Replicate first, extend second.** Every direction depends on finding the neuron ourselves. Apple released no code, so we reimplement from the paper (Section 2 and Appendix A).
 - **Models:** Qwen3-1.7B, Qwen3-8B, Llama-3.1-8B-Instruct. They cover both families in the paper and fit our GPUs. Larger models only if needed.
