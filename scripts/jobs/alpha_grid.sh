@@ -13,13 +13,16 @@
 #SBATCH --exclude=crimv3mgpu018
 #SBATCH --chdir=/export/home/fjoad/refusal-neurons
 #SBATCH -o logs/%x-%j.out
-# Usage: sbatch scripts/jobs/alpha_grid.sh <model> <layer> <neuron> <pin>
+# Usage: sbatch scripts/jobs/alpha_grid.sh <model> <layer> <neuron> <pin> ["<alphas>" <tag>]
+#   A finer grid around the window: ... meta-llama/Llama-3.1-8B-Instruct 11 4258 -4 "2.75 3.25 3.5" en_alpha_fine
 set -e
 source ~/anaconda3/bin/activate refneu
 export HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 PYTHONUNBUFFERED=1
 short=$(basename "$1")
-python -u replication/mlp_direction.py --model "$1" --layer $2 --neuron $3 --pin $4 --bs 16 --tag en_alpha \
-  --steer_only --alphas 0.5 1 1.5 2 2.5 3 4 6 8 12 16 24 32
-f=outputs/evaluate/${short}_L$2_mlpdir_en_alpha.json
+alphas=${5:-0.5 1 1.5 2 2.5 3 4 6 8 12 16 24 32}
+tag=${6:-en_alpha}
+python -u replication/mlp_direction.py --model "$1" --layer $2 --neuron $3 --pin $4 --bs 16 --tag $tag \
+  --steer_only --alphas $alphas
+f=outputs/evaluate/${short}_L$2_mlpdir_$tag.json
 python -u replication/judge.py $f
 python -u replication/judge.py $f --judge k1 --bs 8

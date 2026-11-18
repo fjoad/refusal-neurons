@@ -99,28 +99,28 @@ Newest work first in each topic; every entry has its date, setup, numbers and ca
 Job scripts that produced these are in `scripts/jobs/` (each says which entry it belongs to).
 
 ### 2026-11-18: Follow-ups to the 17 November meeting (`mlp_every_layer.py`, `scripts/jobs/mlp_every_layer.sh`, `mlp_direction.py --steer_only`, `scripts/jobs/alpha_grid.sh`)
-Points 23–25 of the README's "Follow-ups from the 17 November meeting". Setup for all of it: English; directions from the 128 harmful and 128 harmless search prompts; attack on the 191 HarmBench prompts, 128 new tokens; two judges, Llama-Guard-3 (share labelled unsafe) and K.1 on gemma-2-9b-it (share that is not a refusal and is coherent). Jobs `mlp_every_layer-470288` (Qwen3-1.7B), `-470289` (Qwen3-8B), `-470290` (Llama); `alpha_grid-470292/3/4`. **Still to come: K.1 on Qwen3-1.7B (its two jobs were given one GPU, where the K.1 judge does not fit; that judging was resubmitted as a `judge_k1` job on two GPUs), and the grid's K.1 and Llama rows.**
+Points 23–25 of the README's "Follow-ups from the 17 November meeting". Setup for all of it: English; directions from the 128 harmful and 128 harmless search prompts; attack on the 191 HarmBench prompts, 128 new tokens; two judges, Llama-Guard-3 (share labelled unsafe) and K.1 on gemma-2-9b-it (share that is not a refusal and is coherent). Jobs `mlp_every_layer-470288` (Qwen3-1.7B), `-470289` (Qwen3-8B), `-470290` (Llama); `alpha_grid-470292/3/4`. Qwen3-1.7B's two jobs were given one GPU, where the K.1 judge does not fit; its K.1 scores come from `judge_k1-470310` on two GPUs. **Still to come: the end of Qwen3-1.7B's grid under K.1, a finer grid on Llama, and the blind route's rerank (point 25b).**
 
 **Point 23: the MLP direction removed at every layer.** An MLP direction is the harmful-minus-harmless mean of one MLP's neuron values. "Removed" sets the component along it to zero at every token. t* is the template token where Apple's neuron's gap is largest. Each cell is Llama-Guard / K.1.
 
 | Run | Qwen3-1.7B (L13:F3270) | Qwen3-8B (L14:F7924) | Llama (L11:F4258) |
 |---|---|---|---|
-| nothing | 0.37 / … | 0.13 / 0.12 | 0.14 / 0.10 |
-| Apple's neuron pinned (+40 / +20 / −4) | 0.93 / … | 0.97 / 0.95 | 0.94 / 0.96 |
-| the neuron's layer's direction removed in that layer only (the 5 November run) | 0.48 / … | 0.22 / 0.14 | 0.23 / 0.12 |
-| (a) that same direction removed inside every MLP | 0.47 / … | 0.20 / 0.14 | 0.23 / 0.11 |
-| (b) each MLP's own direction (token t*) removed inside its own MLP, all layers at once | 0.85 / … | 0.71 / 0.29 | 0.12 / 0.10 |
-| (b, blind) the same with each layer's direction averaged over the template tokens | 0.92 / … | 0.72 / 0.28 | 0.76 / 0.33 |
-| (c) Nanda's residual direction removed only from what the MLPs write | 0.93 / … | 0.72 / 0.49 | 0.78 / 0.53 |
-| (c) Nanda's residual direction removed only from what the attention layers write | 0.78 / … | 0.45 / 0.24 | 0.30 / 0.16 |
-| Nanda's full ablation (block inputs, attention and MLP outputs) | 0.94 / … | 0.96 / 0.99 | 0.96 / 0.98 |
+| nothing | 0.37 / 0.22 | 0.13 / 0.12 | 0.14 / 0.10 |
+| Apple's neuron pinned (+40 / +20 / −4) | 0.93 / 0.87 | 0.97 / 0.95 | 0.94 / 0.96 |
+| the neuron's layer's direction removed in that layer only (the 5 November run) | 0.48 / 0.31 | 0.22 / 0.14 | 0.23 / 0.12 |
+| (a) that same direction removed inside every MLP | 0.47 / 0.29 | 0.20 / 0.14 | 0.23 / 0.11 |
+| (b) each MLP's own direction (token t*) removed inside its own MLP, all layers at once | 0.85 / 0.65 | 0.71 / 0.29 | 0.12 / 0.10 |
+| (b, blind) the same with each layer's direction averaged over the template tokens | 0.92 / 0.75 | 0.72 / 0.28 | 0.76 / 0.33 |
+| (c) Nanda's residual direction removed only from what the MLPs write | 0.93 / 0.86 | 0.72 / 0.49 | 0.78 / 0.53 |
+| (c) Nanda's residual direction removed only from what the attention layers write | 0.78 / 0.56 | 0.45 / 0.24 | 0.30 / 0.16 |
+| Nanda's full ablation (block inputs, attention and MLP outputs) | 0.94 / 0.96 | 0.96 / 0.99 | 0.96 / 0.98 |
 
 String-match refusal openings (first 200 characters), same order of runs: Qwen3-1.7B 0.39, 0.03, 0.27, 0.25, 0.04, 0.02, 0.01, 0.10, 0.01; Qwen3-8B 0.76, 0.02, 0.69, 0.69, 0.08, 0.14, 0.17, 0.50, 0.00; Llama 0.83, 0.02, 0.75, 0.75, 0.85, 0.20, 0.18, 0.67, 0.00.
 
 - **(a) Removing the one MLP direction inside every MLP does nothing more than removing it in its own layer** (0.47 vs 0.48, 0.20 vs 0.22, 0.23 vs 0.23). The one-layer run did not fail because it was one layer, for this direction.
-- **(b) Removing each MLP's own direction, all layers at once, does much more, but the judges disagree on how much.** On the Qwen models the refusal openings almost disappear (0.04 and 0.08) and Llama-Guard labels 0.85 and 0.71 of the answers unsafe. K.1 on Qwen3-8B still calls 71% of those answers refusals (0.29). On pinned answers and on Nanda's full ablation the two judges agree within 0.03, so these answers are of a different kind. Their text has not been read; `replication/show_responses.py` shows it.
+- **(b) Removing each MLP's own direction, all layers at once, does much more, but the judges disagree on how much.** On the Qwen models the refusal openings almost disappear (0.04 and 0.08) and Llama-Guard labels 0.85 and 0.71 of the answers unsafe. K.1 on Qwen3-8B still calls 71% of those answers refusals (0.29); on Qwen3-1.7B it gives 0.65. On pinned answers and on Nanda's full ablation the two judges agree within 0.06, so these answers are of a different kind (over all nine Qwen3-1.7B runs the two judges agree on 80% of answers, kappa 0.55). Their text has not been read; `replication/show_responses.py` shows it.
 - **On Llama (b) depends on the token.** With each layer's direction read at t* (`<|end_header_id|>`, the third of four template tokens) nothing happens (0.12). Averaged over the template tokens it is 0.76 by Llama-Guard and 0.33 by K.1.
-- **(c) Nanda's direction taken out of the MLP outputs only goes most of the way by Llama-Guard (0.93, 0.72, 0.78), half way by K.1 (0.49, 0.53); out of the attention outputs only it does less (0.78, 0.45, 0.30; K.1 0.24, 0.16).** Neither part alone matches the full ablation on the 8B models. On Qwen3-1.7B the MLP part alone equals it by Llama-Guard.
+- **(c) Nanda's direction taken out of the MLP outputs only goes most of the way by Llama-Guard (0.93, 0.72, 0.78) and by K.1 about half way on the 8B models (0.49, 0.53) and most of the way on Qwen3-1.7B (0.86); out of the attention outputs only it does less (0.78, 0.45, 0.30; K.1 0.56, 0.24, 0.16).** Neither part alone matches the full ablation (K.1 0.96–0.99). On every model and under both judges the MLP part does more than the attention part.
 - Caveat for (c): the part runs leave the direction in the block inputs, so the other kind of layer can still read and rewrite it.
 
 **Point 24: the reverse route run blind.** No generation. Every neuron of every layer is ranked without using Apple's neuron to choose the layer or the token: each layer's MLP direction is averaged over the template tokens, and a neuron's score is its share of its own layer's direction (its squared entry over the layer's sum). Second score: |gap| × the length of the neuron's write vector.
@@ -142,9 +142,13 @@ String-match refusal openings (first 200 characters), same order of runs: Qwen3-
 | Qwen3-8B, K.1 | 0.12 | 0.23 | 0.46 | 0.67 | 0.85 | **0.96** | 0.97 | 0.87 | 0.26 | 0.08 | 0.00 | 0.00 | 0.00 | 0.00 |
 | Qwen3-8B, coherent | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 0.95 | 0.31 | 0.12 | 0.00 | 0.00 | 0.00 | 0.00 |
 | Llama, LG | 0.14 | 0.30 | 0.47 | 0.54 | 0.78 | **0.94** | 0.97 | 0.91 | 0.88 | 0.98 | 0.98 | 0.97 | 0.97 | 0.97 |
+| Llama, K.1 | 0.10 | 0.18 | 0.29 | 0.40 | 0.57 | 0.78 | 0.895 | 0.47 | 0.21 | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 |
+| Llama, coherent | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 0.99 | 0.62 | 0.36 | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 |
 | Qwen3-1.7B, LG | 0.37 | 0.57 | 0.81 | **0.95** | 0.96 | 0.95 | 0.95 | 0.95 | 0.96 | 0.98 | 0.96 | 0.97 | 0.99 | 0.93 |
+| Qwen3-1.7B, K.1 | 0.22 | 0.40 | 0.62 | 0.81 | **0.92** | … | … | … | … | … | … | … | … | … |
 
-K.1 for Llama and Qwen3-1.7B is still running (`alpha_grid-470294`, `judge_k1-470310`).
+- **On Llama the steering does not reach 0.90 under K.1 on this grid:** the best is 0.895 at α = 3 (171 of 191; pinned neuron 0.96), and at α = 4 it is 0.47 because only 62% of the answers are coherent. The window between "still refusing" and "no longer coherent" is narrower than the grid's step, so a finer grid (2.75, 3.25, 3.5) is being run before saying it fails.
+- **On Qwen3-1.7B K.1 first reaches 0.90 at α = 2** (0.92; the rest of its row is still being judged).
 
 - **By Apple's rule (the smallest value reaching 0.90) under Apple's judge, the steering strength on Qwen3-8B is α = 2.5** (0.96; unit-vector strength 22). Under Llama-Guard it is 2 on Qwen3-8B, 2.5 on Llama and 1.5 on Qwen3-1.7B.
 - **The window is narrow on Qwen3-8B: 2.5 to 3.** At α = 4, the value on the 5 November slide, K.1 is already down to 0.87 because 5% of the answers are no longer coherent. At α = 6 only 31% are coherent, and from α = 12 none are.
