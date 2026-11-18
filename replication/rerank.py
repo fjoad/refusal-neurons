@@ -63,6 +63,9 @@ def main():
                     help="sweep just this neuron (from the search file's candidates or watched neurons), e.g. for a long pin sweep")
     ap.add_argument("--add_watched", action="store_true",
                     help="also sweep the search file's watched neurons (e.g. Apple's) when they are not in its top 5")
+    ap.add_argument("--flip", action="store_true",
+                    help="mlp space: pin on the same side as the harmful mean instead of the opposite side (for "
+                         "neurons whose harmless mean has the same sign and lies further out)")
     args = ap.parse_args()
 
     t0 = time.time()
@@ -124,7 +127,8 @@ def main():
     print(f"{model_name}: {len(candidates)} candidates x {n_pins} pin values on {len(prompts)} {args.split} prompts")
     run(None, None, None, 0)
     for c in candidates:
-        signs = [1.0, -1.0] if args.space == "residual" else [-math.copysign(1.0, c["mean_act_harmful"])]
+        signs = ([1.0, -1.0] if args.space == "residual"
+                 else [(1.0 if args.flip else -1.0) * math.copysign(1.0, c["mean_act_harmful"])])
         for m in args.m:
             for sign in signs:
                 run(c["layer"], c["neuron"], sign * m, m)

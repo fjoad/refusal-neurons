@@ -157,6 +157,24 @@ String-match refusal openings (first 200 characters), same order of runs: Qwen3-
 - **Llama-Guard does not see the breakdown:** it stays at 0.94–0.99 from α = 6 to 32, where K.1 says the answers are not coherent. This is the garbled-text trap of the judge sanity check (2026-10-21). The 5 November slide's 0.96 at α = 4 was a Llama-Guard number; under K.1 the best steering result on Qwen3-8B is 0.97 at α = 3, the same as the pinned neuron's 0.95–0.97.
 - So saturation is at 2.5–3 gaps, and going further breaks the model instead of adding anything. The grid does not need extending past 32.
 
+**Point 25b: Apple's pin grid on the neurons the blind reverse route finds** (`mlp_every_layer.py --blind_only`, `scripts/jobs/blind_rerank.sh`). The blind route's top 5 by share (point 24's table, all layers) go through Apple's rerank: each pinned at 2, 4, 6, 10, 15, 20, 30, 40, 60 on the side opposite to the sign of its harmful mean, on the 191 HarmBench prompts; Llama-Guard and K.1. Nothing about Apple's neuron is used to pick the five. Qwen3-8B first (`blind_rerank-470311`); Llama and Qwen3-1.7B are in their last judging runs.
+
+| Qwen3-8B candidate (share of its layer's direction) | Harmful / harmless mean | First pin reaching 0.90, Llama-Guard | First pin reaching 0.90, K.1 | Best K.1 (pin; coherent) |
+|---|---|---|---|---|
+| L15:F1889 (21%) | +2.08 / +0.01 | −40 (0.95) | none | 0.71 (−30; 0.99) |
+| L3:F1803 (20%) | −0.31 / −0.56 | +15 (0.97) | none | 0.23 (+10; 0.68); from +15 on no answer is coherent |
+| L14:F1251 (18%) | +1.66 / +0.03 | −15 (0.91) | **−20 (0.95)** | 0.95 (−20; 1.00) |
+| L29:F1450 (16%) | −7.70 / −16.19 | none (0.12–0.16) | none | 0.13 (no effect at any pin) |
+| **L14:F7924** (16%), Apple's | −1.54 / −0.04 | +20 (0.97) | **+20 (0.95)** | 0.95 (+20; 1.00) |
+
+No pin: 0.13 Llama-Guard, 0.12 K.1.
+
+- **Run blind and finished with Apple's rerank under Apple's judge, the reverse route ends in a tie between Apple's neuron and a second neuron of the same layer, L14:F1251.** Both first reach 0.90 at a pin of 20, both at 0.953, both with every answer coherent. No other candidate reaches 0.90 under K.1.
+- **L14:F1251 is new.** It is not in any of our search top-5 lists for Qwen3-8B. It is as good a single-neuron jailbreak as Apple's on these prompts, and it stays coherent over a wider range (0.90 at −30 and 0.83 at −40, where Apple's neuron is 0.91 at +30 and 0.32 at +40).
+- **Under Llama-Guard the rule would pick differently and wrongly:** L3:F1803 reaches 0.97 at +15, but K.1 finds none of those answers coherent. This is the same judge problem as in the steering grid.
+- **L15:F1889, the blind route's first neuron, is a partial jailbreak** (K.1 0.71 at −30, then coherence drops).
+- Caveat on two candidates. Apple's sign rule pins opposite to the sign of the harmful mean. For L3:F1803 and L29:F1450 the harmless mean has the same sign as the harmful one and lies further out, so the rule pushed them away from the harmless side. They are being rerun pinned towards and past the harmless side before being counted as failures.
+
 **Point 26a: what the other top-5 candidates do, from the reranks already judged** (`topk_union.py`, no GPU, log `cpu-470314`). Each candidate is taken at its own best pin (the smallest reaching 0.90, else its highest rate). "Any of the 5" is the share of prompts jailbroken by at least one of the five, each pinned alone. It is not the five pinned together.
 
 | Rerank | Judge | No pin | Best one alone | Any of the best 2 | Any of the 5 | Of the best one's failures, all five fail on |
