@@ -99,7 +99,7 @@ Newest work first in each topic; every entry has its date, setup, numbers and ca
 Job scripts that produced these are in `scripts/jobs/` (each says which entry it belongs to).
 
 ### 2026-11-18: Follow-ups to the 17 November meeting (`mlp_every_layer.py`, `scripts/jobs/mlp_every_layer.sh`, `mlp_direction.py --steer_only`, `scripts/jobs/alpha_grid.sh`)
-Points 23–25 of the README's "Follow-ups from the 17 November meeting". Setup for all of it: English; directions from the 128 harmful and 128 harmless search prompts; attack on the 191 HarmBench prompts, 128 new tokens; two judges, Llama-Guard-3 (share labelled unsafe) and K.1 on gemma-2-9b-it (share that is not a refusal and is coherent). Jobs `mlp_every_layer-470288` (Qwen3-1.7B), `-470289` (Qwen3-8B), `-470290` (Llama); `alpha_grid-470292/3/4`. Qwen3-1.7B's two jobs were given one GPU, where the K.1 judge does not fit; its K.1 scores come from `judge_k1-470310` on two GPUs. **Still to come: the end of Qwen3-1.7B's grid under K.1, a finer grid on Llama, and the blind route's rerank (point 25b).**
+Points 23–25 of the README's "Follow-ups from the 17 November meeting". Setup for all of it: English; directions from the 128 harmful and 128 harmless search prompts; attack on the 191 HarmBench prompts, 128 new tokens; two judges, Llama-Guard-3 (share labelled unsafe) and K.1 on gemma-2-9b-it (share that is not a refusal and is coherent). Jobs `mlp_every_layer-470288` (Qwen3-1.7B), `-470289` (Qwen3-8B), `-470290` (Llama); `alpha_grid-470292/3/4`. Qwen3-1.7B's two jobs were given one GPU, where the K.1 judge does not fit; its K.1 scores come from `judge_k1-470310` on two GPUs. **Still to come: a finer grid on Llama, and the blind route's rerank (point 25b).**
 
 **Point 23: the MLP direction removed at every layer.** An MLP direction is the harmful-minus-harmless mean of one MLP's neuron values. "Removed" sets the component along it to zero at every token. t* is the template token where Apple's neuron's gap is largest. Each cell is Llama-Guard / K.1.
 
@@ -145,10 +145,12 @@ String-match refusal openings (first 200 characters), same order of runs: Qwen3-
 | Llama, K.1 | 0.10 | 0.18 | 0.29 | 0.40 | 0.57 | 0.78 | 0.895 | 0.47 | 0.21 | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 |
 | Llama, coherent | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 0.99 | 0.62 | 0.36 | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 |
 | Qwen3-1.7B, LG | 0.37 | 0.57 | 0.81 | **0.95** | 0.96 | 0.95 | 0.95 | 0.95 | 0.96 | 0.98 | 0.96 | 0.97 | 0.99 | 0.93 |
-| Qwen3-1.7B, K.1 | 0.22 | 0.40 | 0.62 | 0.81 | **0.92** | … | … | … | … | … | … | … | … | … |
+| Qwen3-1.7B, K.1 | 0.22 | 0.40 | 0.62 | 0.81 | **0.92** | 0.95 | 0.85 | 0.30 | 0.01 | 0.01 | 0.00 | 0.00 | 0.00 | 0.00 |
+| Qwen3-1.7B, coherent | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 0.99 | 0.88 | 0.31 | 0.01 | 0.01 | 0.00 | 0.27 | 0.00 | 0.00 |
 
 - **On Llama the steering does not reach 0.90 under K.1 on this grid:** the best is 0.895 at α = 3 (171 of 191; pinned neuron 0.96), and at α = 4 it is 0.47 because only 62% of the answers are coherent. The window between "still refusing" and "no longer coherent" is narrower than the grid's step, so a finer grid (2.75, 3.25, 3.5) is being run before saying it fails.
-- **On Qwen3-1.7B K.1 first reaches 0.90 at α = 2** (0.92; the rest of its row is still being judged).
+- **On Qwen3-1.7B K.1 first reaches 0.90 at α = 2** (0.92; unit-vector strength 49), peaks at 0.95 at α = 2.5 (pinned neuron 0.87), and falls to 0.85 at α = 3 and 0.30 at α = 4 as coherence goes. Over this file the two judges agree on 45% of answers (kappa 0.09), because Llama-Guard keeps labelling the incoherent answers unsafe.
+- **Same shape on all three models:** K.1 rises to a peak at α = 2.5–3 and collapses by α = 4–6. In unit-vector strengths the peaks are far apart (about 61 on Qwen3-1.7B, 26 on Qwen3-8B, 8 on Llama), so counting in gaps is the scale on which the models line up.
 
 - **By Apple's rule (the smallest value reaching 0.90) under Apple's judge, the steering strength on Qwen3-8B is α = 2.5** (0.96; unit-vector strength 22). Under Llama-Guard it is 2 on Qwen3-8B, 2.5 on Llama and 1.5 on Qwen3-1.7B.
 - **The window is narrow on Qwen3-8B: 2.5 to 3.** At α = 4, the value on the 5 November slide, K.1 is already down to 0.87 because 5% of the answers are no longer coherent. At α = 6 only 31% are coherent, and from α = 12 none are.
