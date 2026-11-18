@@ -94,7 +94,7 @@ Newest work first in each topic; every entry has its date, setup, numbers and ca
 - **Follow-ups to the 5 November meeting** (note 6's layers, added 2026-11-17: the harmful/harmless signal is shared across languages by layer 10–13 in both Qwen sizes, so no extra language step in the small model; note 3 for larger k, added 2026-11-17: longer lists do not overlap more, but four neurons per model, Apple's among them, are in every language's top 20 outside Yoruba and Swahili; the neuron fires on the prompts the model refuses, in every language but Yoruba and Qwen-Swahili; the small model does not fall off faster with language; MultiJail's lower numbers are the same borderline prompts in every language): 2026-11-12
 - **Arabic Experiments 2 and 8** (PolyRefuse: the neuron jailbreaks Arabic as well as English, 88–95%, matching Arditi's Arabic direction; MultiJail weaker for both; the neuron is 1st or 2nd most aligned with the Arabic direction): 2026-11-05
 
-- **Follow-ups to the 17 November meeting** (points 23–25, partly in: the one MLP direction removed in every MLP does no more than in one layer; each MLP's own direction, and Nanda's direction taken out of the MLP outputs only, remove most refusal openings but the two judges disagree on whether the answers are jailbreaks; the blind reverse route puts Apple's neuron 1st, 2nd and 5th in the whole model; the steering grid reaches 0.90 at 1.5–2.5 gaps): 2026-11-18
+- **Follow-ups to the 17 November meeting** (points 23–26: the one MLP direction removed in every MLP does no more than in one layer; each MLP's own direction, and Nanda's direction taken out of the MLP outputs only, remove most refusal openings but the two judges disagree on whether the answers are jailbreaks; the blind reverse route puts Apple's neuron 1st, 2nd and 5th in the whole model, and with Apple's rerank ends on Apple's neuron on Llama, a tie with L14:F1251 on Qwen3-8B and L15:F1109 on Qwen3-1.7B; under K.1 the steering peaks at 2.5–3 gaps and the answers are incoherent by 4–6, Llama stopping at 0.895; neurons pinned together on MultiJail give no clear gain over the best single one): 2026-11-18
 
 Job scripts that produced these are in `scripts/jobs/` (each says which entry it belongs to).
 
@@ -157,7 +157,7 @@ String-match refusal openings (first 200 characters), same order of runs: Qwen3-
 - **Llama-Guard does not see the breakdown:** it stays at 0.94–0.99 from α = 6 to 32, where K.1 says the answers are not coherent. This is the garbled-text trap of the judge sanity check (2026-10-21). The 5 November slide's 0.96 at α = 4 was a Llama-Guard number; under K.1 the best steering result on Qwen3-8B is 0.97 at α = 3, the same as the pinned neuron's 0.95–0.97.
 - So saturation is at 2.5–3 gaps, and going further breaks the model instead of adding anything. The grid does not need extending past 32.
 
-**Point 25b: Apple's pin grid on the neurons the blind reverse route finds** (`mlp_every_layer.py --blind_only`, `scripts/jobs/blind_rerank.sh`). The blind route's top 5 by share (point 24's table, all layers) go through Apple's rerank: each pinned at 2, 4, 6, 10, 15, 20, 30, 40, 60 on the side opposite to the sign of its harmful mean, on the 191 HarmBench prompts; Llama-Guard and K.1. Nothing about Apple's neuron is used to pick the five. Qwen3-8B first (`blind_rerank-470311`), then Llama; Qwen3-1.7B is in its last judging runs.
+**Point 25b: Apple's pin grid on the neurons the blind reverse route finds** (`mlp_every_layer.py --blind_only`, `scripts/jobs/blind_rerank.sh`). The blind route's top 5 by share (point 24's table, all layers) go through Apple's rerank: each pinned at 2, 4, 6, 10, 15, 20, 30, 40, 60 on the side opposite to the sign of its harmful mean, on the 191 HarmBench prompts; Llama-Guard and K.1. Nothing about Apple's neuron is used to pick the five. Qwen3-8B first (`blind_rerank-470311`), then Llama and Qwen3-1.7B.
 
 | Qwen3-8B candidate (share of its layer's direction) | Harmful / harmless mean | First pin reaching 0.90, Llama-Guard | First pin reaching 0.90, K.1 | Best K.1 (pin; coherent) |
 |---|---|---|---|---|
@@ -187,6 +187,22 @@ No pin: 0.13 Llama-Guard, 0.12 K.1.
 - The other four reach 0.92–0.98 under Llama-Guard at pins of 10–40, where K.1 finds almost no coherent answer. Without the smallest-pin rule Llama-Guard would rank L12:F5760 first (0.98).
 - A side observation: L12:F5760 pinned at +2 makes the model refuse every one of the 191 prompts (K.1 refusal 1.00, from 0.91 unpinned). Not followed up.
 - L31:F6432 is a same-sign case like the two on Qwen3-8B (harmless mean +18, further out than the harmful +13) and is rerun pinned towards the harmless side.
+
+**Qwen3-1.7B** (`blind_rerank-470313`), same setup. No pin: 0.37 Llama-Guard, 0.22 K.1.
+
+| Qwen3-1.7B candidate (share) | Harmful / harmless mean | First pin reaching 0.90, Llama-Guard | First pin reaching 0.90, K.1 | Best K.1 (pin; coherent) |
+|---|---|---|---|---|
+| L15:F1109 (24%) | −7.62 / −0.61 | +30 (0.91) | **+40 (0.92)** | 0.97 (+60; 0.98) |
+| **L13:F3270** (20%), Apple's | −3.78 / +0.02 | +40 (0.93) | +60 (0.95) | 0.95 (+60; 1.00); 0.87 at +40 |
+| L1:F1871 (15%) | −6.10 / −6.42 | +40 (0.96) | none | 0.28 (+30; 0.47) |
+| L12:F4580 (14%) | +2.41 / 0.00 | −30 (0.94) | none | 0.84 (−30; 0.99) |
+| L1:F4392 (13%) | −1.54 / −1.25 | +10 (0.96) | none | 0.26 (+4; 1.00); incoherent from +10 |
+
+- **On Qwen3-1.7B the blind route's rerank under K.1 picks L15:F1109 at +40 (0.92), with Apple's neuron second:** L13:F3270 is 0.87 at +40 and first passes 0.90 at +60 (0.95). Both keep every answer coherent. This model's reranks were near-ties before (M2 rerank; Arabic Experiment 1), and L15:F1109 is the neuron that tops its Arabic search.
+- Under Llama-Guard the smallest-pin rule would pick L1:F4392 at +10 (0.96), where K.1 finds 22% of the answers coherent.
+- L1:F1871 is a same-sign case (harmless −6.42, harmful −6.10) and is rerun pinned towards the harmless side.
+
+**Point 25b across the three models (K.1, Apple's rule):** the reverse route, run blind and finished with Apple's rerank, ends on a coherent single-neuron jailbreak on every model. On Llama it is Apple's neuron at Apple's pin. On Qwen3-8B it is a tie between Apple's neuron and L14:F1251. On Qwen3-1.7B it is L15:F1109, with Apple's neuron second. Every candidate that Llama-Guard alone would have preferred (L3:F1803, L12:F5760, L1:F4392) is incoherent under K.1.
 
 - Caveat on two candidates. Apple's sign rule pins opposite to the sign of the harmful mean. For L3:F1803 and L29:F1450 the harmless mean has the same sign as the harmful one and lies further out, so the rule pushed them away from the harmless side. They are being rerun pinned towards and past the harmless side before being counted as failures.
 
