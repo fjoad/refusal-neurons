@@ -43,13 +43,23 @@ def main():
     for lang in args.langs:
         data = load("mmlu_1000" if lang == "en" else f"mmmlu_{lang}_1000")
         prompts = build_prompts(tok, [mmlu_text(q) for q in data])[0]
-        preds = []
+        preds, i, bs = [], 0, args.bs
         with torch.no_grad():
-            for i in range(0, len(prompts), args.bs):
-                batch = tok(prompts[i:i + args.bs], return_tensors="pt", padding=True,
-                            add_special_tokens=False).to(model.device)
-                logits = model(**batch, logits_to_keep=1).logits[:, -1, letter_ids]
+            while i < len(prompts):
+                try:
+                    batch = tok(prompts[i:i + bs], return_tensors="pt", padding=True,
+                                add_special_tokens=False).to(model.device)
+                    logits = model(**batch, logits_to_keep=1).logits[:, -1, letter_ids]
+                except torch.OutOfMemoryError:  # long questions in some scripts (Bengali) on 16 GB cards
+                    if bs == 1:
+                        raise
+                    batch = None
+                    torch.cuda.empty_cache()
+                    bs = max(1, bs // 2)
+                    print(f"out of GPU memory; batch size now {bs}", flush=True)
+                    continue
                 preds += logits.argmax(-1).tolist()
+                i += bs
         acc = sum(p == q["answer"] for p, q in zip(preds, data)) / len(data)
         shares = [preds.count(k) / len(preds) for k in range(4)]
         result["results"].append({"lang": lang, "n": len(data), "accuracy": acc, "predicted_share": shares,
