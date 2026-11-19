@@ -284,6 +284,19 @@ No pin: 0.20.
 - **Against the same-strength singles the guards agree on the direction:** at a quarter, Qwen3Guard gives 0.23 / 0.60 / 0.16 / 0.09 alone and 0.79 for the four together; Llama-Guard on the translation 0.15 / 0.45 / 0.11 / 0.08 alone and 0.60 together. They still put the joint run no higher than the best single neuron at its full pin (0.80 and 0.69), where K.1 finds that run less coherent.
 - Caveats: 87 prompts, one model, one run per setting; answers not read.
 
+**Each MultiJail candidate's best pin under K.1** (`judge_k1-470494`, the three `*_float16_mj_ar.json` reranks, 87 prompts, pins 2 to 60). The pin shown is the smallest within 0.02 of the candidate's highest K.1 rate.
+
+| Model | Candidates, best first (pin, K.1 rate) | Reaches 0.90 |
+|---|---|---|
+| Qwen3-8B | L14:F7924 +20 **0.85**; L16:F5318 +20 0.82; L17:F11229 −20 0.67; L18:F7664 −15 0.45; L16:F8474 −15 0.36 | none |
+| Llama | L11:F4258 −4 **0.77**; L13:F1358 +10 0.61; L10:F1084 +6 0.53; L15:F9635 +10 0.43; L10:F9064 −2 0.26 | none |
+| Qwen3-1.7B | L15:F1109 +30 **0.91**; L10:F244 −15 0.86; L13:F3270 +60 0.83; L12:F2897 −30 0.82; L12:F4580 −20 0.70 | L15:F1109 only |
+
+- **The fair single-neuron baseline on Qwen3-8B is 0.85** (Apple's neuron at +20), above the 0.77 and 0.78 quoted above, which were at pins chosen by Qwen3Guard. Four neurons together at a quarter of the Qwen3Guard-chosen pins gave 0.97, so the gain over the best single neuron is 12 points, about 10 of 87 prompts.
+- **The K.1-chosen pins are much smaller than the Qwen3Guard-chosen ones** (Qwen3-8B: +20 against +30 and +60; Llama: 2 to 10 against 40 to 60). Qwen3Guard kept rewarding stronger pins after the answers stopped making sense.
+- **On Llama Apple's neuron is the best MultiJail candidate under K.1** (0.77 at Apple's own pin of −4), ahead of the Arabic search's four other candidates.
+- Next: the joint pin rerun from these pins at 1, 0.5, 0.25 and 0.125 of each, with each neuron alone at every strength (`joint_pin-471236` Qwen3-8B, `471237` Llama, `471238` Qwen3-1.7B; files `*_mj_ar_k1.json`).
+
 **Llama, MultiJail** (`joint_pin-470356`), same setup:
 
 | Llama, MultiJail | Qwen3Guard | Llama-Guard on translation | K.1 (coherent) |
