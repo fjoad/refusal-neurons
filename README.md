@@ -102,7 +102,7 @@ The 17 November group meeting went mainly through the first (5 November) deck ag
 | 27 | If one of the top neurons is on, are they all on? One on at a high pin with the rest pushed the other way: does it cancel? | Prompt-by-prompt co-firing of the top 5; one pinned to the attack side with the others held on the harmful side | `cofire.py`, `scripts/jobs/cofire.sh` | 🟡 script written 2026-11-18; to run on the three models (English HarmBench, Apple's search top 5) |
 | 28 | Do the top 5 residual-stream numbers together work where one does not (32%)? | The five best residual numbers pinned together | `joint_pin.py` (pins residual numbers when the search file's space is residual), `scripts/jobs/joint_pin.sh <model> res "1 0.5 0.25" "" unsafe_k1 y` | 🟡 script written 2026-11-18; to run |
 | 29 | Does changing the refusal phrases (the "starter statement") change the result? | Standard: the model's most common refusal openings per language (Apple's fixed list for the English replication). Try other lists (a single phrase, an unrelated phrase as a control) and track the top 5 and the rerank winner. So far only the rank of Apple's neuron under two lists (5 November follow-up, note 4) | `refusal_phrases.py`, `neuron_search.py --phrases_json` | 🟡 |
-| 30 | Justify dropping the languages where the model fails (Yoruba, Swahili, Javanese) | MMLU per language; drop a language below a set accuracy, or with no MMLU translation. Not dropped yet; the justification is for the paper | to write; needs a multilingual MMLU | ⬜ |
+| 30 | Justify dropping the languages where the model fails (Yoruba, Swahili, Javanese) | MMLU per language; drop a language below a set accuracy, or with no MMLU translation. Not dropped yet; the justification is for the paper | `data/prepare_mmmlu.py`, `mmlu_languages.py`, `scripts/jobs/mmlu_languages.sh` | 🟡 2026-11-19: the same 1,000 questions prepared in 15 languages besides English (MMMLU: ar, bn, de, es, fr, it, ja, ko, sw, yo, zh; Global-MMLU: nl, pl, ru, vi). Javanese and Thai have no translation in either set, so Javanese falls under "no MMLU translation"; Thai would too, which needs a decision (another Thai MMLU, or keep Thai on other grounds). Accuracy runs on the three models: to submit |
 
 Answered in discussion, no experiment: how Apple's neuron can be "6th" when the rerank picks from a top 5 (the rank is its place in a different search's list, PolyRefuse English prompts with the model's own phrases; in Apple's setup it is 5th). Single neurons for other behaviours, and a culture neuron, are in [RESEARCH_DIRECTIONS.md](RESEARCH_DIRECTIONS.md) as ideas for a later paper.
 
@@ -241,7 +241,7 @@ Everything heavy runs on **panther** (QCRI SLURM). The repo is a plain git clone
 | `data/prepare_arabic.py` | MultiJail en/ar and Aya en/ar splits (test sets and search sets) |
 | `data/prepare_xstest.py` | XSTest safe/unsafe splits |
 | `data/prepare_capability.py` | Fixed MMLU (1,000) and GSM8K (250) subsets |
-| `data/prepare_mmmlu.py` | Arabic MMLU: the same 1000 questions as `mmlu_1000`, from MMMLU (`mmmlu_ar_1000`) |
+| `data/prepare_mmmlu.py` | MMLU in the other languages: the same 1000 questions as `mmlu_1000`, from MMMLU (ar, bn, de, es, fr, it, ja, ko, sw, yo, zh) and Global-MMLU (nl, pl, ru, vi), as `mmmlu_<lang>_1000`. Thai and Javanese are in neither |
 | `data/prepare_multilingual.py` | PolyRefuse (14 languages) and MultiJail + Aya (10 languages) splits, the same prompts in every language |
 
 **Experiments** (`replication/`)
@@ -274,6 +274,7 @@ Everything heavy runs on **panther** (QCRI SLURM). The repo is a plain git clone
 | `topk_union.py` | 17 Nov follow-up, point 26a | CPU. From judged rerank files: each top-5 candidate alone at its own best pin, the share of prompts jailbroken by at least one of the best k (each pinned alone), and how many prompts all five fail on |
 | `joint_pin.py` | 17 Nov follow-up, point 26b | Pins the best 2, 3, 4, 5 candidates together, each at its own best pin from the judged rerank (full and half strength). `--report` (no GPU) prints the joint rate against "any of them alone" and how many prompts only the joint pin jailbreaks |
 | `cofire.py` | 17 Nov follow-up, point 27 | (a) Reads the top 5 candidates' natural values on every harmful and harmless prompt: how many are on per prompt, "if one is on, are the others on?", correlations. (b) Pins the best candidate at its own pin with the other four held at their harmful mean or pushed the opposite way from their own pin, with controls. `--report` (no GPU) prints both tables. Job: `scripts/jobs/cofire.sh <model> [arditi \| blind]` |
+| `mmlu_languages.py` | 17 Nov follow-up, point 30 | MMLU accuracy per language with no intervention, the same 1,000 questions in every language (English answer instruction throughout). Job: `scripts/jobs/mmlu_languages.sh <model> [languages]` |
 | `show_responses.py` | any | Writes a few generated answers to a file, for a human to read. Reads neuron_check, rerank, evaluate and direction_variants files; `--pins 20,40,80 --by_prompt` puts the same prompt's answers at several pins side by side (for the example slide) |
 
 **SLURM wrappers** (`scripts/`)
@@ -308,6 +309,7 @@ python replication/show_responses.py outputs/neuron_check/<file>.json --out /tmp
 | `xstest_unsafe`, `xstest_safe` | 200 + 250 | XSTest | detection (Exp. 6), harmful-word controls (Exp. 4) |
 | `mmlu_1000`, `gsm8k_250` | 1000, 250 | MMLU, GSM8K test | capability (Exp. 3) |
 | `mmmlu_ar_1000` | 1000 | MMMLU Arabic (OpenAI), the same questions as `mmlu_1000` | Arabic capability (Arabic Exp. 3) |
+| `mmmlu_<lang>_1000` (bn, de, es, fr, it, ja, ko, sw, yo, zh; nl, pl, ru, vi) | 1000 each | The same questions as `mmlu_1000`: MMMLU (OpenAI) for the first ten, Global-MMLU (Cohere) for nl, pl, ru, vi. Each translation's own answer key is kept (it differs from the English key on 1 German, 6 Korean and 7 Chinese questions). No Thai or Javanese exists in either | MMLU per language (17 Nov point 30) |
 | `multijail_en`, `multijail_ar` | 100 + 100 | MultiJail, the same prompts in both languages | Arabic A and C (test) |
 | `aya_harmless_en`, `aya_harmless_ar` | 100 + 100 | Aya test split | Arabic A and C (test) |
 | `multijail_train_en`, `multijail_train_ar` | 128 + 128 | MultiJail, disjoint from the 100 above | Arabic B (search) |
