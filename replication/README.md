@@ -334,6 +334,33 @@ No pin: 0.20.
 
 - Caveats. (1) The pins were chosen under Qwen3Guard, which does not check coherence: L16:F5318 at +60 is 0.76 by Qwen3Guard but only 29% coherent under K.1, so one of the "best two" was already over-driven. (2) The first run had only two strengths, full and half; the finer set is in the table that follows. (3) 87 prompts: one prompt is 1.1 points.
 
+**Point 30: MMLU per language, nothing pinned** (`mmlu_languages.py`, `scripts/jobs/mmlu_languages.sh`, 2026-11-19). Setup: the same 1,000 MMLU questions in English and 15 other languages (`data/prepare_mmmlu.py`: MMMLU for ar, bn, de, es, fr, it, ja, ko, sw, yo, zh; Global-MMLU for nl, pl, ru, vi). No intervention. The answer is the most likely next token among A, B, C, D after the chat template; the answer instruction is in English for every language. Chance is 0.25. "Top letter" is the share of questions on which the model picked its most frequent letter (0.25 would be even).
+
+| Language | Qwen3-1.7B accuracy (top letter) | Qwen3-8B | Llama-3.1-8B |
+|---|---|---|---|
+| English | 0.54 (A 0.31) | 0.68 | 0.64 |
+| Italian | 0.47 (D 0.36) | running | running |
+| Spanish | 0.47 (D 0.32) | | |
+| Chinese | 0.47 (B 0.28) | | |
+| German | 0.46 (B 0.38) | | |
+| French | 0.43 (C 0.53) | | |
+| Dutch | 0.43 (B 0.47) | | |
+| Russian | 0.41 (A 0.46) | | |
+| Vietnamese | 0.40 (C 0.60) | | |
+| Japanese | 0.40 (A 0.54) | | |
+| Polish | 0.39 (A 0.51) | | |
+| Korean | 0.37 (A 0.60) | | |
+| Arabic | 0.35 (A 0.62) | 0.57 | 0.46 |
+| Swahili | 0.30 (B 0.62) | | |
+| Bengali | 0.30 (A 0.59) | | |
+| Yoruba | **0.26** (A 0.40) | | |
+| Thai, Javanese | no MMLU translation in either set | | |
+
+- **Qwen3-1.7B (`mmlu_lang-471235`): Yoruba is at chance (0.26); Swahili and Bengali are just above it (0.30).** Every other language is between 0.35 and 0.47, against 0.54 in English.
+- **Part of the drop is a habit of answering one letter.** In ten of the fifteen other languages the small model picks one letter on more than 45% of the questions (0.62 in Arabic and Swahili), so these accuracies understate what it understands. A fix to try before drawing a line: the answer instruction in the question's language (Arabic Experiment 3 did this for Arabic), or scoring the letters after removing the model's letter bias.
+- **Bengali is as low as Swahili, and Bengali is a MultiJail language we were not planning to drop.** If the rule is an accuracy threshold, it has to be stated so that it treats the two the same way.
+- The 8B models' first runs stopped on Bengali (long questions ran a 16 GB card out of memory); `mmlu_languages.py` now halves the batch and retries. Reruns: `471269` (Qwen3-8B), `471312` (Llama).
+
 ### 2026-11-12: Follow-ups to the 5 November meeting (`why_tables.py`, `why_capability.py`, `residual_share.py`, `scripts/jobs/why_quick.sh`)
 Nine points came out of the 5 November meeting (README, "Follow-ups from the 5 November meeting"). This entry holds their results as they come in. The first four tables need no GPU: they are computed from files already in `outputs/` (`why_tables.py`, log `cpu-460362`).
 
