@@ -295,7 +295,7 @@ No pin: 0.20.
 - **The fair single-neuron baseline on Qwen3-8B is 0.85** (Apple's neuron at +20), above the 0.77 and 0.78 quoted above, which were at pins chosen by Qwen3Guard. Four neurons together at a quarter of the Qwen3Guard-chosen pins gave 0.97, so the gain over the best single neuron is 12 points, about 10 of 87 prompts.
 - **The K.1-chosen pins are much smaller than the Qwen3Guard-chosen ones** (Qwen3-8B: +20 against +30 and +60; Llama: 2 to 10 against 40 to 60). Qwen3Guard kept rewarding stronger pins after the answers stopped making sense.
 - **On Llama Apple's neuron is the best MultiJail candidate under K.1** (0.77 at Apple's own pin of −4), ahead of the Arabic search's four other candidates.
-- Next: the joint pin rerun from these pins at 1, 0.5, 0.25 and 0.125 of each, with each neuron alone at every strength (`joint_pin-471236` Qwen3-8B, `471237` Llama, `471238` Qwen3-1.7B; files `*_mj_ar_k1.json`).
+- The joint pin rerun from these pins is the next block.
 
 **Llama, MultiJail** (`joint_pin-470356`), same setup:
 
@@ -334,32 +334,106 @@ No pin: 0.20.
 
 - Caveats. (1) The pins were chosen under Qwen3Guard, which does not check coherence: L16:F5318 at +60 is 0.76 by Qwen3Guard but only 29% coherent under K.1, so one of the "best two" was already over-driven. (2) The first run had only two strengths, full and half; the finer set is in the table that follows. (3) 87 prompts: one prompt is 1.1 points.
 
+**Point 26b, final: the joint pin from K.1-chosen pins, all three models** (`joint_pin-471236` Qwen3-8B, `471237` Llama, `471238` Qwen3-1.7B; files `*_mj_ar_k1.json`; 2026-11-19). Setup: Arabic MultiJail, 87 prompts, 128 tokens. Each of the five candidates has its own best pin under K.1 (table above). The best 2, 3, 4, 5 are pinned together, each at 1, 0.5, 0.25 or 0.125 of its own pin, and each neuron is also run alone at every strength. Numbers are K.1 (not a refusal and coherent).
+
+| | Qwen3-8B | Llama | Qwen3-1.7B |
+|---|---|---|---|
+| no pin | 0.20 | 0.18 | 0.28 |
+| best single neuron at its full pin | 0.85 | 0.77 | 0.93 |
+| at least one of the five works alone (full pins) | 0.97 | 0.91 | 1.00 |
+| best 2 / 3 / 4 / 5 together, full pins | 0.83 / 0.52 / 0.46 / 0.31 | 0.83 / 0.64 / 0.38 / 0.24 | 0.93 / 0.87 / 0.57 / 0.48 |
+| **best 2 / 3 / 4 / 5 together, half pins** | 0.92 / 0.93 / **0.95** / 0.93 | 0.87 / 0.95 / 0.99 / **1.00** | 0.91 / **0.99** / 0.91 / 0.97 |
+| each alone at half pins | 0.48 / 0.60 / 0.52 / 0.33 / 0.28 | 0.64 / 0.48 / 0.56 / 0.40 / 0.26 | 0.63 / 0.53 / 0.80 / 0.72 / 0.45 |
+| best 2 / 3 / 4 / 5 together, quarter pins | 0.61 / 0.87 / 0.91 / 0.87 | 0.66 / 0.85 / 0.93 / 0.97 | 0.71 / 0.92 / 0.94 / 0.98 |
+| each alone at quarter pins | 0.30 / 0.37 / 0.36 / 0.26 / 0.23 | 0.39 / 0.40 / 0.40 / 0.31 / 0.24 | 0.55 / 0.39 / 0.61 / 0.51 / 0.43 |
+| best 2 / 3 / 4 / 5 together, eighth pins | 0.36 / 0.55 / 0.61 / 0.69 | 0.44 / 0.60 / 0.66 / 0.71 | 0.49 / 0.76 / 0.85 / 0.86 |
+| each alone at eighth pins | 0.26 / 0.29 / 0.28 / 0.22 / 0.23 | 0.32 / 0.33 / 0.30 / 0.30 / 0.22 | 0.43 / 0.37 / 0.44 / 0.38 / 0.36 |
+
+- **Several neurons at half of their own pins beat the best single neuron on all three models.** Qwen3-8B 0.95 (four) against 0.85; Llama 1.00 (five, 87 of 87, every answer coherent) against 0.77; Qwen3-1.7B 0.99 (three) against 0.93. The half-pin runs are 97–100% coherent.
+- **How many neurons to reach 100%:** on Llama five at half pins do (four give 0.99). Qwen3-1.7B gets 0.99 with three. Qwen3-8B stops at 0.95 with four.
+- **Full pins together break the model,** as before: coherence falls to 0.24–0.61 with four or five neurons.
+- **More than the sum of the parts only on Qwen3-8B.** At an eighth of the pins, the five gains over no pin sum to 0.48 on Qwen3-8B against 0.69 together (four at a quarter: 0.69 summed, 0.91 together). On Llama the sum is 0.75 against 0.71, and on Qwen3-1.7B 0.86 against 0.86: there the neurons simply add.
+- **Why a joint pin can beat every single pin:** each neuron alone needs a pin strong enough to start damaging the answers before it reaches the hard prompts. Spread over several neurons, the same push stays in a range where the answers are coherent.
+- **Qwen3Guard sees less of this.** At half pins it gives Qwen3-8B 0.72–0.75 together against 0.76 for the best single neuron, Llama 0.63–0.72 against 0.62, Qwen3-1.7B 0.60–0.70 against 0.60. So under the guard the gain is none on Qwen3-8B and about 10 points on the other two. K.1 counts coherent answers that are not refusals; the guard counts harmful content, and on MultiJail many non-refusing answers are not harmful. The result as measured is "the model stops refusing, with coherent answers".
+- Caveats: 87 prompts, one run per setting, one dataset and language; answers not read.
+
+**Point 27: do the top-5 neurons fire together, and does holding the others back cancel a pin?** (`cofire.py`, `scripts/jobs/cofire.sh`, `cofire-471241` Qwen3-8B, `471242` Llama, `471243` Qwen3-1.7B; files `outputs/cofire/*_en_arditi.json`; 2026-11-19). Setup: English, the top 5 of our run of Apple's search, each with its own best pin under K.1 (the English rerank was K.1-judged for this by the same jobs). 191 HarmBench prompts and 100 harmless ones.
+
+(a) Co-firing, nothing pinned. Each neuron's value is read at the template token the search chose for it. "On" means on the harmful side of the midpoint between its harmful and harmless means.
+
+| | Qwen3-8B | Llama | Qwen3-1.7B |
+|---|---|---|---|
+| each neuron on, harmful prompts | 0.64–0.74 | 0.63–0.90 | 0.66–0.81 |
+| each neuron on, harmless prompts | 0.00–0.01 | 0.00–0.01 | 0.00–0.01 |
+| all five on (harmful prompts) | 0.39 | 0.60 | 0.45 |
+| none on (harmful prompts) | 0.10 | 0.06 | 0.06 |
+| correlation between pairs, harmful prompts | 0.14 to 0.70 | 0.18 to 0.68 | 0.28 to 0.71 |
+| refusal rate with 0 / 1 / 2 / 3 / 4 / 5 on (string match) | 0.05 / 0.23 / 0.57 / 0.81 / 0.94 / 0.97 | 0.00 / 0.08 / 0.57 / 0.79 / 0.94 / 0.98 | 0.00 / 0.10 / 0.07 / 0.12 / 0.32 / 0.65 |
+
+- **They mostly fire together, and they are not one switch.** All five are on for 39–60% of harmful prompts and none on harmless ones, with pairwise correlations between 0.14 and 0.71.
+- **"If one is on, are they all on?" Not in general.** Qwen3-8B: when Apple's neuron is on, all four others are on 55% of the time. Llama is one-sided: when Apple's neuron is on, the other four are on 96% of the time, but when any other one is on, Apple's neuron is on only 70–78% of the time. Apple's neuron on Llama is the last to switch on.
+- **Refusal rises with the number of neurons that are on.** With none on the model almost never refuses (0.00–0.05); with all five on it refuses 0.97–0.98 of the time on the 8B models and 0.65 on Qwen3-1.7B. The step from two to three is where the 8B models cross 0.5.
+
+(b) Cancel test. The best candidate is pinned at its own pin; the other four are held at their mean value on harmful prompts, or pushed the opposite way from their own pin. K.1 rate, with Llama-Guard in brackets. Attackers: Qwen3-8B L14:F7924 at +20, Llama L11:F4258 at −4, Qwen3-1.7B L13:F3270 at +60 (Apple's neuron on all three).
+
+| Run | Qwen3-8B | Llama | Qwen3-1.7B |
+|---|---|---|---|
+| no pin | 0.12 (0.13) | 0.09 (0.15) | 0.21 (0.37) |
+| attacker alone | 0.95 (0.97) | 0.96 (0.94) | 0.95 (0.94) |
+| attacker + others held at their harmful mean | 0.70 (0.83) | 0.86 (0.90) | 0.80 (0.90) |
+| attacker + others at −0.25× their own pin | 0.61 (0.83) | **0.07** (0.24) | 0.58 (0.77) |
+| attacker + others at −0.5× their own pin | 0.70 (0.85) | 0.00 (0.25), 40% coherent | **0.06** (0.04) |
+| attacker + others at −1× their own pin | 0.54 (0.89), 67% coherent | 0.00, none coherent | 0.00 (0.03) |
+| others held at their harmful mean, no attacker | 0.02; string-match refusal 0.95 (0.76 with no pin) | 0.05; refusal 0.90 (0.83) | 0.05; refusal 0.54 (0.39) |
+
+- **Yes, the others can cancel the pin, fully on two models.** On Llama, pushing the other four a quarter of their own pin the other way takes Apple's neuron from 0.96 to 0.07, with 98% of the answers coherent (refusals come back: string-match refusal 0.89). On Qwen3-1.7B it takes half their pins (0.95 to 0.06, all coherent).
+- **On Qwen3-8B the pin mostly survives:** 0.61–0.70 with the others pushed a quarter or half the other way. At full strength the answers stop being coherent.
+- **Just holding the others at their natural harmful value costs the pin 10–25 points** (0.95 to 0.70, 0.96 to 0.86, 0.95 to 0.80). So part of what a single pin does goes through the other four neurons moving with it.
+- **Without the attacker, holding the other four on the harmful side raises refusal** (string match 0.76 to 0.95, 0.83 to 0.90, 0.39 to 0.54). They carry refusal themselves.
+- Caveats: the four "others" are the search's candidates, not the model's full set of refusal neurons; on Llama three of them barely work as attackers (0.13–0.23 alone), yet they cancel. Pins are applied at every token while the harmful means were measured at one token. Answers not read.
+
+**Point 28: the five best residual-stream numbers pinned together** (`joint_pin.py` on a residual search, `joint_pin-471239` Qwen3-8B, `471240` Llama; files `*_en_residual.json`; 2026-11-19). Setup: English, 191 HarmBench prompts, the residual search's top 5, each at its own best pin under K.1, together at 1, 0.5 and 0.25 of the pins. K.1 rate.
+
+| | Qwen3-8B | Llama |
+|---|---|---|
+| no pin | 0.12 | 0.09 |
+| each alone at its own pin | 0.16 / 0.14 / 0.13 / 0.13 / 0.13 | 0.32 / 0.26 / 0.20 / 0.16 / 0.15 |
+| at least one of the five works alone | 0.18 | 0.45 |
+| best 2 / 3 / 4 / 5 together, full pins | 0.21 / 0.17 / 0.15 / 0.16 | 0.10 / 0.02 / 0.01 / 0.02 |
+| together, half pins | 0.13 / 0.12 / 0.13 / 0.13 | 0.24 / 0.28 / 0.28 / 0.29 |
+| together, quarter pins | 0.12 / 0.13 / 0.13 / 0.12 | 0.15 / 0.15 / 0.15 / 0.16 |
+
+- **No. Five residual numbers together do no better than one.** Qwen3-8B: at most 0.21 against 0.16. Llama: at most 0.29 against 0.32 (the "32%" from the meeting), and at full pins together the rate falls to 0.01–0.10.
+- **This is the opposite of the neurons,** where several together at reduced strength beat the best single one on every model (point 26b). It fits the 5 November finding that the direction is spread thinly over the 4,096 residual numbers: five of them are still a small part of it.
+- Caveats: the search's five candidates are only three different numbers on each model, repeated at neighbouring layers (Qwen3-8B: 690 at layers 22 and 23, 1214 at 19 and 22, 615; Llama: 2742 at layers 13, 14 and 15, 325, 2082). The residual stream carries a number from one layer to the next, so repeats add little. Qwen3-1.7B has no residual search and was not run. Under Llama-Guard the Llama singles look better (0.30–0.66) because the guard rewards the less coherent answers.
+
 **Point 30: MMLU per language, nothing pinned** (`mmlu_languages.py`, `scripts/jobs/mmlu_languages.sh`, 2026-11-19). Setup: the same 1,000 MMLU questions in English and 15 other languages (`data/prepare_mmmlu.py`: MMMLU for ar, bn, de, es, fr, it, ja, ko, sw, yo, zh; Global-MMLU for nl, pl, ru, vi). No intervention. The answer is the most likely next token among A, B, C, D after the chat template; the answer instruction is in English for every language. Chance is 0.25. "Top letter" is the share of questions on which the model picked its most frequent letter (0.25 would be even).
 
-| Language | Qwen3-1.7B accuracy (top letter) | Qwen3-8B | Llama-3.1-8B |
+| Language | Qwen3-8B | Llama-3.1-8B | Qwen3-1.7B (top letter) |
 |---|---|---|---|
-| English | 0.54 (A 0.31) | 0.68 | 0.64 |
-| Italian | 0.47 (D 0.36) | running | running |
-| Spanish | 0.47 (D 0.32) | | |
-| Chinese | 0.47 (B 0.28) | | |
-| German | 0.46 (B 0.38) | | |
-| French | 0.43 (C 0.53) | | |
-| Dutch | 0.43 (B 0.47) | | |
-| Russian | 0.41 (A 0.46) | | |
-| Vietnamese | 0.40 (C 0.60) | | |
-| Japanese | 0.40 (A 0.54) | | |
-| Polish | 0.39 (A 0.51) | | |
-| Korean | 0.37 (A 0.60) | | |
-| Arabic | 0.35 (A 0.62) | 0.57 | 0.46 |
-| Swahili | 0.30 (B 0.62) | | |
-| Bengali | 0.30 (A 0.59) | | |
-| Yoruba | **0.26** (A 0.40) | | |
+| English | 0.68 | 0.64 | 0.54 (A 0.31) |
+| Spanish | 0.64 | 0.57 | 0.47 (D 0.32) |
+| French | 0.64 | 0.57 | 0.43 (C 0.53) |
+| Chinese | 0.63 | 0.55 | 0.47 (B 0.28) |
+| German | 0.62 | 0.56 | 0.46 (B 0.38) |
+| Italian | 0.62 | 0.57 | 0.47 (D 0.36) |
+| Japanese | 0.61 | 0.52 | 0.40 (A 0.54) |
+| Russian | 0.61 | 0.54 | 0.41 (A 0.46) |
+| Dutch | 0.59 | 0.52 | 0.43 (B 0.47) |
+| Vietnamese | 0.59 | 0.50 | 0.40 (C 0.60) |
+| Korean | 0.58 | 0.52 | 0.37 (A 0.60) |
+| Arabic | 0.57 | 0.47 | 0.35 (A 0.62) |
+| Polish | 0.55 | 0.51 | 0.39 (A 0.51) |
+| Bengali | 0.50 | 0.42 | 0.30 (A 0.59) |
+| Swahili | **0.38** | **0.40** | **0.30** (B 0.62) |
+| Yoruba | **0.30** | **0.32** | **0.26** (A 0.40) |
 | Thai, Javanese | no MMLU translation in either set | | |
 
-- **Qwen3-1.7B (`mmlu_lang-471235`): Yoruba is at chance (0.26); Swahili and Bengali are just above it (0.30).** Every other language is between 0.35 and 0.47, against 0.54 in English.
-- **Part of the drop is a habit of answering one letter.** In ten of the fifteen other languages the small model picks one letter on more than 45% of the questions (0.62 in Arabic and Swahili), so these accuracies understate what it understands. A fix to try before drawing a line: the answer instruction in the question's language (Arabic Experiment 3 did this for Arabic), or scoring the letters after removing the model's letter bias.
-- **Bengali is as low as Swahili, and Bengali is a MultiJail language we were not planning to drop.** If the rule is an accuracy threshold, it has to be stated so that it treats the two the same way.
-- The 8B models' first runs stopped on Bengali (long questions ran a 16 GB card out of memory); `mmlu_languages.py` now halves the batch and retries. Reruns: `471269` (Qwen3-8B), `471312` (Llama).
+- **Yoruba and Swahili are the two lowest languages on all three models** (`mmlu_lang-471269` Qwen3-8B, `471312` Llama, `471235` Qwen3-1.7B). Yoruba is near chance everywhere (0.26–0.32). Swahili is 0.30–0.40. On the 8B models there is a clear gap to the next language: Bengali 0.50 and 0.42, then everything else at 0.47–0.64.
+- **As a share of the model's English accuracy:** Qwen3-8B: Yoruba 0.44, Swahili 0.57, Bengali 0.75. Llama: Yoruba 0.50, Swahili 0.63, Bengali 0.65. On Qwen3-8B any line between 0.57 and 0.75 drops exactly Yoruba and Swahili. On Llama Swahili and Bengali are nearly level, so no clean line separates them: a threshold either keeps Swahili or also drops Bengali.
+- **Javanese and Thai have no MMLU translation** in MMMLU or Global-MMLU. That covers Javanese under "no translation". Thai would fall under the same rule and needs a decision.
+- **Qwen3-1.7B leans on one letter.** In ten of the fifteen other languages it picks one letter on more than 45% of the questions (0.62 in Arabic and Swahili). The 8B models do this only on Swahili (Qwen3-8B: D 0.50) and Yoruba (Qwen3-8B: D 0.63). So the small model's accuracies understate what it understands; an answer instruction in the question's language (as Arabic Experiment 3 used) may reduce it.
+- The answer instruction was in English for every language. The 8B models' first runs stopped on Bengali (long questions ran a 16 GB card out of memory); `mmlu_languages.py` now halves the batch and retries.
 
 ### 2026-11-12: Follow-ups to the 5 November meeting (`why_tables.py`, `why_capability.py`, `residual_share.py`, `scripts/jobs/why_quick.sh`)
 Nine points came out of the 5 November meeting (README, "Follow-ups from the 5 November meeting"). This entry holds their results as they come in. The first four tables need no GPU: they are computed from files already in `outputs/` (`why_tables.py`, log `cpu-460362`).
