@@ -16,7 +16,7 @@
 # Usage: sbatch scripts/jobs/omni_check.sh [<pins, default "13:4787:30 14:13014:30"> [<tag>]]
 #   The default pins are the two neurons Asim reported (text-found and speech-found, both at +30).
 set -e
-export HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 PYTHONUNBUFFERED=1
+export HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 PYTHONUNBUFFERED=1 PYTHONUTF8=1
 source ~/envs/refomni/bin/activate
 python -u replication/omni.py check --pins ${1:-13:4787:30 14:13014:30} ${2:+--tag $2}
 deactivate

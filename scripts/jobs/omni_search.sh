@@ -15,7 +15,7 @@
 # Usage: sbatch scripts/jobs/omni_search.sh [<forms, default "text image">]
 #   The watched neurons are the two Asim reported.
 set -e
-export HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 PYTHONUNBUFFERED=1
+export HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 PYTHONUNBUFFERED=1 PYTHONUTF8=1
 source ~/envs/refomni/bin/activate
 forms=${1:-text image}
 python -u replication/omni.py search --forms $forms --watch 13:4787 14:13014

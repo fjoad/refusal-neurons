@@ -213,8 +213,8 @@ def cmd_check(args):
     path, safe_path = out_dir / f"{short}_check_{args.harmful}{tag}.json", out_dir / f"{short}_check_{args.harmless}{tag}.json"
 
     def save():
-        path.write_text(json.dumps(res, indent=1, ensure_ascii=False))
-        safe_path.write_text(json.dumps(safe_res, indent=1, ensure_ascii=False))
+        path.write_text(json.dumps(res, indent=1, ensure_ascii=False), encoding="utf-8")
+        safe_path.write_text(json.dumps(safe_res, indent=1, ensure_ascii=False), encoding="utf-8")
 
     # (c) reading check, picture forms only: can the model read the picture at all?
     if any(f != "text" for f in args.forms):
@@ -388,7 +388,7 @@ def cmd_search(args):
             "args": dict(argd(args), form=form, score_tokens=len(SCORE_TOKENS), space="mlp"), "n_layers_searched": n_layers,
             "n_harmful": len(harmful), "n_harmless": len(harmless), "post_tokens": SCORE_TOKENS,
             "refusal_prefixes": [proc.tokenizer.decode(ids) for ids in prefixes], **stats,
-            "candidates": candidates, "watched": watched, "minutes": (time.time() - t0) / 60}, indent=1, ensure_ascii=False))
+            "candidates": candidates, "watched": watched, "minutes": (time.time() - t0) / 60}, indent=1, ensure_ascii=False), encoding="utf-8")
         print(f"saved outputs/neuron_search/{name}  ({(time.time() - t0) / 60:.1f} min)", flush=True)
 
 
@@ -415,7 +415,7 @@ def cmd_rerank(args):
             handle.remove()
         rr = sum(map(is_refusal, texts)) / len(texts)
         result["runs"].append({"layer": layer, "neuron": neuron, "m": m, "pin": pin, "refusal_rate_stringmatch": rr, "responses": texts})
-        out_path.write_text(json.dumps(result, indent=1, ensure_ascii=False))
+        out_path.write_text(json.dumps(result, indent=1, ensure_ascii=False), encoding="utf-8")
         print(("no pin" if pin is None else f"L{layer}:F{neuron} pin={pin:+g}") + f": string-match refusal {rr:.2f}  ({(time.time() - t0) / 60:.1f} min)", flush=True)
 
     print(f"{len(candidates)} candidates x {len(args.m)} pins on {len(prompts)} {args.split} prompts, form {args.form}")
