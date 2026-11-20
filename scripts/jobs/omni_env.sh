@@ -1,5 +1,5 @@
 #!/bin/bash
-# Builds the 'refomni' environment for replication/omni.py (the omni model needs transformers >= 4.52 and Pillow;
+# Builds the 'refomni' environment for replication/omni.py (the omni model needs transformers >= 4.52, Pillow and torchvision;
 # refneu has transformers 4.51.3 and must stay as it is, since every text result was run in it). It is a venv on
 # top of refneu's Python: it reuses refneu's torch and adds only the newer transformers and Pillow.
 # Run once: sbatch scripts/jobs/omni_env.sh     Then in a job: source ~/envs/refomni/bin/activate
@@ -14,4 +14,7 @@ set -e
 ~/anaconda3/envs/refneu/bin/python -m venv --system-site-packages ~/envs/refomni
 source ~/envs/refomni/bin/activate
 pip install --no-cache-dir "transformers==4.52.3" pillow
-python -c "import transformers, PIL, torch; print('transformers', transformers.__version__, 'Pillow', PIL.__version__, 'torch', torch.__version__); from transformers import Qwen2_5OmniThinkerForConditionalGeneration, Qwen2_5OmniProcessor; print('omni classes import')"
+# The omni processor loads a video processor that needs torchvision even when no video is used. 0.20.1 is the
+# build for refneu's torch 2.5.1; --no-deps keeps pip from replacing torch.
+pip install --no-cache-dir --no-deps "torchvision==0.20.1"
+python -c "import transformers, PIL, torch, torchvision; print('torchvision', torchvision.__version__, 'transformers', transformers.__version__, 'Pillow', PIL.__version__, 'torch', torch.__version__); from transformers import Qwen2_5OmniThinkerForConditionalGeneration, Qwen2_5OmniProcessor; print('omni classes import')"
