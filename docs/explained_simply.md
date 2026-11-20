@@ -412,7 +412,7 @@ The steps above checked pieces in Arabic. Now we redo *all* of Apple's experimen
    - Javanese and Thai have no translated MMLU in either dataset we used. That settles Javanese ("no test exists"). Thai would fall under the same rule, which we need to decide on.
    - The small model, Qwen3-1.7B, often answers the same letter over and over in other languages (62% "A" in Arabic), so its scores understate what it understands.
 
-Still to run from that meeting: whether the top neurons fire together, the top 5 residual numbers together, other refusal-phrase lists, and MMLU per language to justify dropping Yoruba, Swahili and Javanese.
+Still to run from that meeting: other refusal-phrase lists (does changing the phrases the search uses change which neurons it finds?). Still to decide: where to put the line for dropping a language, given Bengali, and what to do about Thai.
 
 ## 9. Caveats
 - English answers have one judge (Llama-Guard-3), which doesn't check that answers make sense. Arabic answers have two that agree (Qwen3Guard, and Llama-Guard on a translation).
