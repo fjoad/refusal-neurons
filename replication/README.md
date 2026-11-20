@@ -94,9 +94,42 @@ Newest work first in each topic; every entry has its date, setup, numbers and ca
 - **Follow-ups to the 5 November meeting** (note 6's layers, added 2026-11-17: the harmful/harmless signal is shared across languages by layer 10–13 in both Qwen sizes, so no extra language step in the small model; note 3 for larger k, added 2026-11-17: longer lists do not overlap more, but four neurons per model, Apple's among them, are in every language's top 20 outside Yoruba and Swahili; the neuron fires on the prompts the model refuses, in every language but Yoruba and Qwen-Swahili; the small model does not fall off faster with language; MultiJail's lower numbers are the same borderline prompts in every language): 2026-11-12
 - **Arabic Experiments 2 and 8** (PolyRefuse: the neuron jailbreaks Arabic as well as English, 88–95%, matching Arditi's Arabic direction; MultiJail weaker for both; the neuron is 1st or 2nd most aligned with the Arabic direction): 2026-11-05
 
+- **Speech, first results reported by Asim** (Qwen2.5-Omni-7B, text and spoken English; not reproduced by us): 2026-11-19
 - **Follow-ups to the 17 November meeting** (points 23–26: the one MLP direction removed in every MLP does no more than in one layer; each MLP's own direction, and Nanda's direction taken out of the MLP outputs only, remove most refusal openings but the two judges disagree on whether the answers are jailbreaks; the blind reverse route puts Apple's neuron 1st, 2nd and 5th in the whole model, and with Apple's rerank ends on Apple's neuron on Llama, a tie with L14:F1251 on Qwen3-8B and L15:F1109 on Qwen3-1.7B; under K.1 the steering peaks at 2.5–3 gaps and the answers are incoherent by 4–6, Llama stopping at 0.895; neurons pinned together on MultiJail break coherence at full pins; on Qwen3-8B four neurons at a quarter of their pins reach 0.97 under K.1 against 0.77 for the best single one, controls pending): 2026-11-18
 
 Job scripts that produced these are in `scripts/jobs/` (each says which entry it belongs to).
+
+### 2026-11-19: Speech, first results reported by Asim (Qwen2.5-Omni-7B)
+
+**Status: reported, not reproduced.** These numbers come from two slides and messages Asim posted in the thread's Teams chat on 19 November. His code and outputs are in his own repository on panther (`/export/home/aersoy/repos/refusal-omni`), which our account cannot read, so nothing here has been checked by us. The scheduler's records show the runs were made on 18 November between 19:11 and 22:50 and on 19 November (searches, reranks, attacks, Llama-Guard and K.1 judging, a speech-recognition check of the synthesized audio).
+
+Setup, as reported:
+- **Model:** Qwen/Qwen2.5-Omni-7B, the MLPs of the "thinker" (the part that reads text or audio and writes the text answer; the "talker" only turns that text into speech). 340,992 neurons searched.
+- **Data:** the Apple paper's sets, in English: HarmBench for the search, JailbreakBench for the test. Spoken versions made with XTTS-v2 in two voices, one male and one female.
+- **Method:** our pipeline unchanged: gradient search, rerank, pin. The answers are text in both cases, so the refusal phrases are the same.
+
+| Top 5 of the text search | Rank in the speech search |
+|---|---|
+| L17:F6944 | 26 |
+| L14:F13014 | 2 |
+| L17:F5484 | 20 |
+| L14:F13435 | 1 |
+| L13:F4787 | 7 |
+
+- **432 of the top 1,000 neurons are in both searches** (about 5 expected by chance).
+- Neuron A, chosen from text: L13:F4787, pinned at +30, read at the first newline of the template. Neuron B, chosen from speech: L14:F13014, read at the second newline; its rerank pin was +60, and it was also run at +30.
+
+Attack rate in percent, no pin → pinned (the judge is not stated on the slide):
+
+| Test prompts | A (from text) at +30 | B (from speech) at +60 | B at +30 | jailbroken only by A / only by B, at +30 |
+|---|---|---|---|---|
+| Text | 10 → 100 | 12 → 88 | 10 → 97 | 3 / 0 |
+| Speech, voice 1 | 8 → 96 | 9 → 94 | 7 → 96 | 3 / 3 |
+| Speech, voice 2 | 11 → 99 | 10 → 96 | 11 → 97 | 2 / 0 |
+
+- **As reported: the two searches do not pick the same single neuron, but each neuron works in the other modality,** and at the same pin the two are equally good. The speech search's first-ranked neuron is the text search's fourth, and the text search's second is the speech search's second.
+- **What we need before using these numbers:** which judge the table uses and whether the answers are coherent under K.1; the number of test prompts; how the prompts whose synthesized audio was unintelligible were handled; the no-pin rates differ between columns (7 to 12), which needs explaining; access to the code and output files.
+- Closest prior work: Foo and Lee (2026) localize a refusal direction in audio LMs to the text LM's middle-to-late layers, Qwen2.5-Omni included, at the direction level ([reading list](../reading/README.md)).
 
 ### 2026-11-18: Follow-ups to the 17 November meeting (`mlp_every_layer.py`, `scripts/jobs/mlp_every_layer.sh`, `mlp_direction.py --steer_only`, `scripts/jobs/alpha_grid.sh`)
 Points 23–25 of the README's "Follow-ups from the 17 November meeting". Setup for all of it: English; directions from the 128 harmful and 128 harmless search prompts; attack on the 191 HarmBench prompts, 128 new tokens; two judges, Llama-Guard-3 (share labelled unsafe) and K.1 on gemma-2-9b-it (share that is not a refusal and is coherent). Jobs `mlp_every_layer-470288` (Qwen3-1.7B), `-470289` (Qwen3-8B), `-470290` (Llama); `alpha_grid-470292/3/4`. Qwen3-1.7B's two jobs were given one GPU, where the K.1 judge does not fit; its K.1 scores come from `judge_k1-470310` on two GPUs. **Still to come: the blind route's rerank (point 25b).**

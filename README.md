@@ -106,7 +106,7 @@ The 17 November group meeting went mainly through the first (5 November) deck ag
 
 Answered in discussion, no experiment: how Apple's neuron can be "6th" when the rerank picks from a top 5 (the rank is its place in a different search's list, PolyRefuse English prompts with the model's own phrases; in Apple's setup it is 5th). Single neurons for other behaviours, and a culture neuron, are in [RESEARCH_DIRECTIONS.md](RESEARCH_DIRECTIONS.md) as ideas for a later paper.
 
-**Multimodal (speech and images):** direction set on 2026-11-18 (see Decisions). It runs on omni models, with Asim on activation extraction and experiments. Candidate models, the text-to-speech tool and the datasets Nadir listed are in [reading/README.md](reading/README.md) under "Multimodal: models, tools and datasets". No experiment plan written yet; the checkpoint meant by "Qwen3.8-Omni-Flash" is to be confirmed with Nadir (not on Hugging Face under that name on 2026-11-18).
+**Multimodal (speech and images):** direction set on 2026-11-18 (see Decisions). Asim runs the omni-model experiments in his own repository on panther (`/export/home/aersoy/repos/refusal-omni`, not readable from our account; nothing of it is in this repo yet). First results, reported by Asim on 2026-11-19 and not yet reproduced or checked by us: on Qwen2.5-Omni-7B the search runs unchanged on spoken English prompts (made with XTTS-v2), the text and speech searches largely find the same neurons, and a neuron found in one modality jailbreaks the other (results log, "Speech, first results reported by Asim"). Next, asked by Nadir for the Sunday 22 November meeting: one more language in both text and speech; the RedVox and Omni-SafetyBench sets; Nanda's difference-of-means direction on the omni model; what sits in the parts the modalities do not share. Images: Omni-SafetyBench has them; Faaiz may try over the weekend. Models, tools, datasets and the closest prior work (Foo and Lee 2026) are in [reading/README.md](reading/README.md). The checkpoint meant by "Qwen3.8-Omni-Flash" is still to be confirmed with Nadir.
 
 ### Part 1 checklist: every Apple experiment, in English and in Arabic
 
@@ -164,6 +164,7 @@ Then **writing** (December), for 4 January. After this paper: images and audio (
 
 ## Meetings and shared folder
 
+- **Next meeting: Sunday 22 November 2026, 2–3 pm** (Nadir, Asim, Faaiz), in place of the 19 November meeting, which did not take place.
 - **Weekly meeting with Nadir every Thursday.** Each meeting gets dated slides and one page of minutes: attendees, what was discussed, decisions, action items.
 - **Shared Google Drive folder** (fjoad1 account; anyone with the link can view): **[Refusal Neurons](https://drive.google.com/drive/folders/10q3hGmtRQUqM5EneyoZhL_j46phpbwy6)**
   - [Slides](https://drive.google.com/drive/folders/14CgO54B1EEDSPxSL4YIaJB80EHOnpDUB): one deck per meeting, named by date (22 October, 5, 12 and 17 November are there)
@@ -177,6 +178,8 @@ Then **writing** (December), for 4 January. After this paper: images and audio (
 
 These were settled in discussion. Don't reopen them without a new reason.
 
+- **The multilingual and multimodal work is one thread and aims at one combined paper** (2026-11-19, Nadir: "stronger combined"). It is run by Nadir, Faaiz and Asim, with its own Teams chat ("Multilingual-Multimodal Safety"). Next meeting: Sunday 22 November, 2–3 pm. The questions Nadir set for it: are the neurons language agnostic (yes in our text experiments; confirm on the omni model), modality agnostic, how much they overlap across languages and modalities, whether they hold across datasets, and what changes across omni models of different size and design.
+- **A second thread with Taha and Majd can start on other ideas** (2026-11-19, Nadir's suggestion), kept separate so the two agendas do not crowd each other. Ideas named so far: concept neurons beyond suicide-related content (the Apple paper leaves a broader survey to future work), and styles of refusal, which our EMNLP paper already touched. Nothing is planned or started.
 - **Finish the multilingual and multimodal thread before any new direction** (2026-11-18, Nadir and Faaiz). Compute and time are limited, and the research questions for this thread are clear. The group meetings are pushed back; others are welcome to join and give input, but no new directions for now. Asim joins for the omni-model part (activation extraction and running experiments).
 - **Part 1 is an investigation, not a reproduction** (2026-11-05). In Arabic (and later every language) we run Apple's experiments the same way and report whether the model behaves the same; matching Apple's numbers is a finding, not the goal.
 - **Replicate first, extend second.** Every direction depends on finding the neuron ourselves. Apple released no code, so we reimplement from the paper (Section 2 and Appendix A).
@@ -216,7 +219,7 @@ See [RESEARCH_DIRECTIONS.md](RESEARCH_DIRECTIONS.md) for the five directions in 
 |---|---|---|
 | 0 | Replicate Kazemi et al. on small Qwen3 and Llama-3.1 models | Our own refusal-neuron pipeline ([replication/](replication/)) |
 | Paper A | The same neuron across **languages** (directions 1–3, multilingual) | Multilingual paper |
-| Paper B | The same neuron across **modalities**, image and speech (directions 1–3, multimodal) | Multimodal paper; could merge with A if results are small |
+| Paper B | The same neuron across **modalities**, image and speech (directions 1–3, multimodal) | Multimodal paper; could merge with A if results are small. 2026-11-19: Nadir prefers A and B as one combined paper (see Decisions) |
 | Paper C | **Neurons vs directions vs SAEs** (directions 4–5) | Interpretability paper bridging our EMNLP paper, Kazemi et al., and Goodfire |
 
 A parallel benchmark (the same prompts in N languages × text, image of text, speech) would serve Papers A and B and could be released on its own.
