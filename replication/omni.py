@@ -118,44 +118,78 @@ def check_suffix(proc, batch):
         raise ValueError(f"prompt does not end with {SCORE_TOKENS}: {got}")
 
 
+def batches(proc, form, instructions, bs):
+    """Index batches in which every prompt has exactly the same length, so nothing is ever padded. A text prompt's
+    length is its token count; a picture's is its height (the same height gives the same number of picture
+    tokens). Padded rows sometimes came out garbled in fp16 (first run, 2026-11-20)."""
+    if form == "text":
+        keys = [len(proc.tokenizer(chat_text(proc, form, x), add_special_tokens=False).input_ids) for x in instructions]
+    else:
+        keys = [render(x).height for x in instructions]
+    groups = collections.defaultdict(list)
+    for i, k in enumerate(keys):
+        groups[k].append(i)
+    return [g[j:j + bs] for g in groups.values() for j in range(0, len(g), bs)]
+
+
+def unpadded(model, proc, form, instructions, idx):
+    batch = inputs_for(model, proc, form, [instructions[i] for i in idx])
+    if not bool(batch["attention_mask"].all()):
+        raise ValueError("a batch was padded; prompts in one batch must have the same length")
+    check_suffix(proc, batch)
+    return batch
+
+
 @torch.no_grad()
 def acts(model, proc, hooks, form, instructions, bs):
     """Each hook's neuron at the scored tokens: {hook: array [prompts, 5]}."""
-    out = {h: [] for h in hooks}
-    for i in range(0, len(instructions), bs):
-        batch = inputs_for(model, proc, form, instructions[i:i + bs])
-        check_suffix(proc, batch)
+    out = {h: [None] * len(instructions) for h in hooks}
+    for idx in batches(proc, form, instructions, bs):
+        batch = unpadded(model, proc, form, instructions, idx)
         for h in hooks:
             h.records.clear()
         model(**batch, use_cache=False)
         for h in hooks:
-            out[h].append(h.records[0][:, -len(SCORE_TOKENS):])
-    return {h: torch.cat(v).numpy() for h, v in out.items()}
+            for row, i in zip(h.records[0][:, -len(SCORE_TOKENS):], idx):
+                out[h][i] = row
+    return {h: torch.stack(v).numpy() for h, v in out.items()}
 
 
 @torch.no_grad()
 def generate(model, proc, hooks, form, instructions, bs, max_new):
-    texts, i = [], 0
-    while i < len(instructions):
+    """Greedy answers, stopped at the end of the assistant's turn. The thinker loaded on its own has no stop token
+    set, so without eos_token_id every answer runs on into invented further turns."""
+    tok = proc.tokenizer
+    stop = [tok.convert_tokens_to_ids("<|im_end|>"), tok.convert_tokens_to_ids("<|endoftext|>")]
+    texts, todo = [None] * len(instructions), batches(proc, form, instructions, bs)
+    while todo:
+        idx = todo.pop()
         batch = ids = None
         try:
-            batch = inputs_for(model, proc, form, instructions[i:i + bs])
-            ids = model.generate(**batch, max_new_tokens=max_new, do_sample=False)
+            batch = unpadded(model, proc, form, instructions, idx)
+            ids = model.generate(**batch, max_new_tokens=max_new, do_sample=False, eos_token_id=stop,
+                                 pad_token_id=tok.pad_token_id)
         except torch.OutOfMemoryError:
-            if bs == 1:
+            if len(idx) == 1:
                 raise
         for h in hooks:
             h.records.clear()
-        if ids is None:  # out of memory: free it, halve the batch and redo this batch
+        if ids is None:  # out of memory: free it and redo this batch as two halves
             del batch
             gc.collect()
             torch.cuda.empty_cache()
-            bs = max(1, bs // 2)
-            print(f"out of GPU memory while generating; batch size now {bs}", flush=True)
+            todo += [idx[:len(idx) // 2], idx[len(idx) // 2:]]
+            print(f"out of GPU memory while generating; splitting a batch of {len(idx)}", flush=True)
             continue
-        texts += proc.tokenizer.batch_decode(ids[:, batch["input_ids"].shape[1]:], skip_special_tokens=True)
-        i += bs
+        for i, t in zip(idx, tok.batch_decode(ids[:, batch["input_ids"].shape[1]:], skip_special_tokens=True)):
+            texts[i] = t
     return texts
+
+
+def garbled(texts):
+    """Share of answers that are mostly one word repeated (a broken generation, not a judge's opinion)."""
+    w = [t.split() for t in texts]
+    return float(np.mean([len(x) >= 12 and len(set(x)) / len(x) < 0.3 for x in w]))
 
 
 def words(s):
@@ -255,7 +289,7 @@ def cmd_check(args):
             res["runs"].append({"mode": form, "form": form, "layer": layer, "neuron": neuron, "pin": value,
                                 "refusal_rate_stringmatch": rr, "responses": texts})
             label = "no pin" if layer is None else f"L{layer}:F{neuron} pinned at {value:+g}"
-            print(f"{form}: {label}: string-match refusal {rr:.2f} on {len(texts)} harmful prompts  ({(time.time() - t0) / 60:.1f} min)", flush=True)
+            print(f"{form}: {label}: string-match refusal {rr:.2f}, garbled {garbled(texts):.2f} on {len(texts)} harmful prompts  ({(time.time() - t0) / 60:.1f} min)", flush=True)
             save()
         for h in hook_list:
             h.value = None
@@ -263,7 +297,7 @@ def cmd_check(args):
         rr = float(np.mean([is_refusal(t) for t in texts]))
         safe_res["runs"].append({"mode": form, "form": form, "layer": None, "neuron": None, "pin": None,
                                  "refusal_rate_stringmatch": rr, "responses": texts})
-        print(f"{form}: no pin: string-match refusal {rr:.2f} on {len(texts)} harmless prompts  ({(time.time() - t0) / 60:.1f} min)", flush=True)
+        print(f"{form}: no pin: string-match refusal {rr:.2f}, garbled {garbled(texts):.2f} on {len(texts)} harmless prompts  ({(time.time() - t0) / 60:.1f} min)", flush=True)
         save()
     print(f"saved outputs/omni/{path.name} and {safe_path.name}  ({(time.time() - t0) / 60:.1f} min)")
 
@@ -290,8 +324,7 @@ def split_means(model, proc, hooks, form, instructions, prefixes, bs, label):
         hook.reset()
     start, expected = time.time(), 0
     for offset in range(0, len(instructions), bs):
-        batch = inputs_for(model, proc, form, instructions[offset:offset + bs])
-        check_suffix(proc, batch)
+        batch = unpadded(model, proc, form, instructions, list(range(offset, min(offset + bs, len(instructions)))))
         for hook in hooks:
             hook.prompt_len = batch["input_ids"].shape[1]
         log_probs = []
@@ -416,7 +449,7 @@ def cmd_rerank(args):
         rr = sum(map(is_refusal, texts)) / len(texts)
         result["runs"].append({"layer": layer, "neuron": neuron, "m": m, "pin": pin, "refusal_rate_stringmatch": rr, "responses": texts})
         out_path.write_text(json.dumps(result, indent=1, ensure_ascii=False), encoding="utf-8")
-        print(("no pin" if pin is None else f"L{layer}:F{neuron} pin={pin:+g}") + f": string-match refusal {rr:.2f}  ({(time.time() - t0) / 60:.1f} min)", flush=True)
+        print(("no pin" if pin is None else f"L{layer}:F{neuron} pin={pin:+g}") + f": string-match refusal {rr:.2f}, garbled {garbled(texts):.2f}  ({(time.time() - t0) / 60:.1f} min)", flush=True)
 
     print(f"{len(candidates)} candidates x {len(args.m)} pins on {len(prompts)} {args.split} prompts, form {args.form}")
     run(None, None, None, 0)
@@ -468,7 +501,7 @@ def main():
     s.add_argument("--refusal_phrases", nargs="+", default=None, help="default: the model's own two most common openings")
     s.add_argument("--watch", nargs="*", default=[], metavar="L:F")
     s.add_argument("--n", type=int, default=0, help="first N prompts of each split (0 = all; for a quick test)")
-    s.add_argument("--bs", type=int, default=1)
+    s.add_argument("--bs", type=int, default=1, help="keep at 1: prompts of different lengths cannot share a batch")
     s.add_argument("--grad_scale", type=float, default=128.0)
     s.set_defaults(fn=cmd_search)
     r = sub.add_parser("rerank", parents=[common])
