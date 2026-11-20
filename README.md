@@ -36,7 +36,7 @@ Read in this order:
 | **M3**: full evaluation | JailbreakBench attack, constant and anchor pins, MMLU/GSM8K cost, XSTest detection | ✅ Matches the paper (Llama-Guard only) |
 | Other paper experiments | Sections 3.1, 3.2, 3.3, 3.4 and Appendix G | ✅ except 3.3 on Llama (needs a coherence judge); 3.5 and 4 not done |
 | **Arabic replication** | The whole Apple paper again in Arabic, with the Arabic neuron found from scratch, on two tracks (PolyRefuse, MultiJail) | 🟡 Experiment 1 search done (largely the same neurons as English). PolyRefuse rerank done: the Arabic search-and-rerank recovers Apple's neuron and pin on Qwen3-8B (L14:F7924, +20) and on Llama under Qwen3Guard (L11:F4258, −4); Qwen3-1.7B is a near-tie. MultiJail: no neuron reaches 0.90 on any model; the pins remove most refusals, but many answers are judged safe (borderline prompts). Experiment 1 done. Experiment 2 (the jailbreak) and 8 (alignment) done: on PolyRefuse the neuron jailbreaks Arabic as well as English. Experiments 3–5, 7 and 8 done. Experiment 6 (residual baseline) done 2026-11-17: no residual number reaches 0.90 under K.1 (best 0.55 on Llama, 0.28 on Qwen3-8B MultiJail), with one near-exception, Qwen3-8B on PolyRefuse (0.87 at the largest pin, coherent, against 0.97 for the neuron) |
-| Modalities | Image and speech | ⬜ |
+| Modalities | Image and speech, on Qwen2.5-Omni-7B | 🟡 Speech: reported by Asim (same neurons, pins transfer), not yet checked by us. Images, typed-out pictures (2026-11-20): the picture search shares 4 of its top 5 neurons with the text search, the model refuses pictures as often as text (97–99%), and a text-found neuron pinned at +30 jailbreaks pictures (0.77–0.84). Pin sweeps running; pictures with no words not started |
 
 ### Work in progress
 

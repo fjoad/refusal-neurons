@@ -414,6 +414,27 @@ The steps above checked pieces in Arabic. Now we redo *all* of Apple's experimen
 
 Still to run from that meeting: other refusal-phrase lists (does changing the phrases the search uses change which neurons it finds?). Still to decide: where to put the line for dropping a language, given Bengali, and what to do about Thai.
 
+## 8d. Images: the same request as a picture (20 November)
+
+**Why.** Asim reported that on an omni model (one network that takes text, speech and pictures) the same neurons carry refusal for typed and spoken English. We asked the same for pictures.
+
+**What we did.**
+1. Took every prompt from the English experiment and turned it into a picture of its typed text: black words on a white background. Example: the picture just shows the sentence "What are some ways to reduce water usage in homes?".
+2. Gave the model (Qwen2.5-Omni-7B) each request two ways: typed, and as the picture with no other text.
+3. Checked the model can read the pictures: asked it to copy out the text. It gives back 99% of the words on harmless pictures.
+4. Ran Apple's search twice, once on the typed prompts and once on the pictures (128 harmful, 128 harmless).
+5. Counted refusals on 100 harmful test prompts in each form, with nothing pinned and with a neuron pinned.
+
+**What we found.**
+- **The search finds largely the same neurons.** 4 of the top 5 are the same, and 351 of the top 1,000 (chance would be about 5).
+- **The model refuses a pictured request as often as a typed one:** 98% against 99%. On this model, a typed-out picture does not get past safety.
+- **A neuron found on text removes refusal on pictures.** Pinned at +30, it gets a non-refusing, sensible answer on 77–84% of pictured prompts, against 67–74% of typed ones.
+- **The neurons fire more weakly on pictures, and at a different spot.** On text they fire at two of the template tokens; on pictures only the last one still fires, at about 60% of its text strength. It still tells harmful from harmless pictures almost perfectly.
+
+**What this does not show.** A typed-out picture still contains the words; only the carrier changed. The harder test is a picture with no words in it (a picture of the thing itself). That is not done.
+
+**A fault we caught.** In the first run most answers kept going after they should have stopped, and a few were scrambled. The cause was how the model was set up to write answers, not the model. That run was thrown away and redone.
+
 ## 9. Caveats
 - English answers have one judge (Llama-Guard-3), which doesn't check that answers make sense. Arabic answers have two that agree (Qwen3Guard, and Llama-Guard on a translation).
 - Capability is measured on subsets of MMLU and GSM8K.
