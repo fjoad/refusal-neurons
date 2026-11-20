@@ -94,10 +94,49 @@ Newest work first in each topic; every entry has its date, setup, numbers and ca
 - **Follow-ups to the 5 November meeting** (note 6's layers, added 2026-11-17: the harmful/harmless signal is shared across languages by layer 10–13 in both Qwen sizes, so no extra language step in the small model; note 3 for larger k, added 2026-11-17: longer lists do not overlap more, but four neurons per model, Apple's among them, are in every language's top 20 outside Yoruba and Swahili; the neuron fires on the prompts the model refuses, in every language but Yoruba and Qwen-Swahili; the small model does not fall off faster with language; MultiJail's lower numbers are the same borderline prompts in every language): 2026-11-12
 - **Arabic Experiments 2 and 8** (PolyRefuse: the neuron jailbreaks Arabic as well as English, 88–95%, matching Arditi's Arabic direction; MultiJail weaker for both; the neuron is 1st or 2nd most aligned with the Arabic direction): 2026-11-05
 
+- **Images, typed-out pictures on Qwen2.5-Omni-7B** (the English experiment's prompts as pictures of their typed text: the search on pictures shares 4 of its top 5 and 351 of its top 1,000 neurons with the search on text): 2026-11-20
 - **Speech, first results reported by Asim** (Qwen2.5-Omni-7B, text and spoken English; not reproduced by us): 2026-11-19
 - **Follow-ups to the 17 November meeting** (points 23–26: the one MLP direction removed in every MLP does no more than in one layer; each MLP's own direction, and Nanda's direction taken out of the MLP outputs only, remove most refusal openings but the two judges disagree on whether the answers are jailbreaks; the blind reverse route puts Apple's neuron 1st, 2nd and 5th in the whole model, and with Apple's rerank ends on Apple's neuron on Llama, a tie with L14:F1251 on Qwen3-8B and L15:F1109 on Qwen3-1.7B; under K.1 the steering peaks at 2.5–3 gaps and the answers are incoherent by 4–6, Llama stopping at 0.895; neurons pinned together on MultiJail break coherence at full pins; on Qwen3-8B four neurons at a quarter of their pins reach 0.97 under K.1 against 0.77 for the best single one, controls pending): 2026-11-18
 
 Job scripts that produced these are in `scripts/jobs/` (each says which entry it belongs to).
+
+### 2026-11-20: Images, typed-out pictures on Qwen2.5-Omni-7B (`omni.py`)
+
+**Question.** Asim reported that on Qwen2.5-Omni-7B the same neurons carry refusal for typed and spoken English. Does that hold when the request arrives as a picture?
+
+**Setup.** Faaiz's decision (2026-11-20): start from the prompts that already work in text, not from Omni-SafetyBench (which has no harmless prompts and many borderline requests). Every prompt of the English experiment is rendered as a picture of its typed text (`omni.render`: black text on white, 672 pixels wide, 28-pixel font, wrapped; the picture's sides are multiples of 28 so the model uses it at its own size). The same request is then given in three forms:
+
+1. **text**: typed, as in the English replication;
+2. **image**: the picture and nothing else;
+3. **image_follow**: the picture plus the sentence "Answer the request written in the image."
+
+- Model: the thinker of Qwen/Qwen2.5-Omni-7B, fp16, the model's own chat template with no system message (it inserts "You are a helpful assistant."). 28 layers; the search covers the first 18 (340,992 neurons), the same count Asim reports.
+- Scored tokens: the five the template adds after the user's turn, `<|im_end|> \n <|im_start|> assistant \n` (index 0–4), the same five as Qwen3's Table 3 tokens.
+- Jobs: `scripts/jobs/omni_search.sh` (472818), `omni_check.sh`, `omni_rerank.sh`; environment `refomni` (`scripts/jobs/omni_env.sh`).
+- We do not know Asim's system prompt, refusal phrases or judge, so his numbers and ours are not expected to match exactly.
+
+**Search on text and on pictures** (job 472818; Arditi's 128 harmful and 128 harmless search prompts, as in the English replication). Refusal phrase for both forms: "I'm sorry, but I", the model's own opening (118 of 128 short answers to the harmful prompts in text form; 122 of 128 are string-match refusals).
+
+| Rank | Text search | Picture search |
+|---|---|---|
+| 1 | L14:F13014 (−3.20 / −0.02) | L16:F11620 (+2.74 / +0.22) |
+| 2 | L16:F1870 (+1.64 / −0.02) | L14:F13014 (−1.71 / −0.01) |
+| 3 | L14:F13435 (−2.81 / +0.07) | L14:F13435 (−2.28 / −0.00) |
+| 4 | L16:F11620 (+2.91 / +0.16) | L16:F1870 (+0.84 / −0.09) |
+| 5 | L17:F5484 (−2.79 / −0.01) | L13:F4787 (−2.76 / −0.72) |
+
+Brackets: the neuron's mean value on harmful / harmless prompts at its best token, which is the last one (index 4, the newline after `assistant`) for every neuron in both forms.
+
+- **Shared between the two rankings:** 4 of the top 5, 6 of the top 10, 53 of the top 100, 351 of the top 1,000. With about 180,000 neurons passing the filter in each form, chance for the top 1,000 is about 5.
+- **Each form's top 5 ranked in the other:** text's top 5 are 2nd, 4th, 3rd, 1st and 6th in the picture search; the picture search's top 5 are 4th, 1st, 3rd, 2nd and 6th in the text search.
+- **The neurons fire more weakly on pictures:** L14:F13014 −3.20 on harmful text and −1.71 on harmful pictures; L16:F1870 +1.64 and +0.84; L13:F4787 −4.68 and −2.76. Harmless values barely move.
+- **Against Asim's reported text top 5** (L17:F6944, L14:F13014, L17:F5484, L14:F13435, L13:F4787): three are in our text top 5, and his text-found neuron L13:F4787 is 6th in our text search and 5th in the picture search. L17:F6944 is not in either of our top 5s; L16:F1870 and L16:F11620 are not in his.
+
+**Caveats.**
+- One model, English, one rendering style. A typed-out picture changes only the carrier, so this is the easy case; pictures with no words in them are not tested.
+- The search does not generate answers and runs one prompt at a time, so the two faults found in the first answer run (below) do not touch it.
+
+**Answers: refusal with and without pins (in progress).** The first run (job 472817) is not used. Two faults in how answers were generated: (1) the thinker loaded on its own has no stop token set, so 50–85% of unpinned answers ran on past the end of the turn into invented further turns, up to the 128-token limit; (2) rows padded to a longer prompt in the same batch sometimes came out garbled from the first word (8 of 100 harmless text answers, never the longest prompt of a batch). Found by reading the harmless answers and by counting on the harmful file without reading it. Fixed in `omni.py`: answers stop at `<|im_end|>`, and a batch only holds prompts of exactly one length. Rerun: jobs 472942 (table), 472943 and 472944 (pin sweeps on pictures and on text).
 
 ### 2026-11-19: Speech, first results reported by Asim (Qwen2.5-Omni-7B)
 
