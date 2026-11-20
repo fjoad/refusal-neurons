@@ -342,7 +342,7 @@ def cmd_search(args):
     from neuron_search import SearchHook, refusal_prefixes, top_candidates, watch_ranks
     t0 = time.time()
     watch = parse_neurons(args.watch, 2)
-    harmful, harmless = load(args.harmful), load(args.harmless)
+    harmful, harmless = load(args.harmful)[:args.n or None], load(args.harmless)[:args.n or None]
     model, proc = load_omni(args.model, args.dtype)
     model.requires_grad_(False)
     model.config.use_cache = False
@@ -467,6 +467,7 @@ def main():
     s.add_argument("--harmless", default="arditi_harmless_train")
     s.add_argument("--refusal_phrases", nargs="+", default=None, help="default: the model's own two most common openings")
     s.add_argument("--watch", nargs="*", default=[], metavar="L:F")
+    s.add_argument("--n", type=int, default=0, help="first N prompts of each split (0 = all; for a quick test)")
     s.add_argument("--bs", type=int, default=1)
     s.add_argument("--grad_scale", type=float, default=128.0)
     s.set_defaults(fn=cmd_search)
