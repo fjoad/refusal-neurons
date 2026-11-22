@@ -53,26 +53,117 @@ SCORE_TOKENS = ["<|im_end|>", "Ċ", "<|im_start|>", "assistant", "Ċ"]
 FORMS = ["text", "image", "image_follow"]
 
 
-def render(text, width=672, size=28, margin=28):
+LANG = None  # set by --lang: the language of the prompts, which picks the font and the layout of the pictures
+# Noto fonts (scripts/get_fonts.sh puts them in assets/fonts). A word is drawn in its script's font when it has a
+# character of that script, otherwise in Noto Sans; the CJK font has Latin letters itself.
+SCRIPT_FONTS = {"ar": ("NotoSansArabic-Regular.ttf", [(0x0600, 0x06FF), (0x0750, 0x077F), (0xFB50, 0xFDFF), (0xFE70, 0xFEFF)]),
+                "th": ("NotoSansThai-Regular.ttf", [(0x0E00, 0x0E7F)]),
+                "bn": ("NotoSansBengali-Regular.ttf", [(0x0980, 0x09FF)]),
+                "zh": ("NotoSansCJKsc-Regular.otf", None), "ja": ("NotoSansCJKsc-Regular.otf", None),
+                "ko": ("NotoSansCJKsc-Regular.otf", None)}
+NO_SPACES = {"zh", "ja", "th"}  # written without spaces between words: lines may break between any two characters
+_fonts = {}
+
+
+def _font(name, size):
+    from PIL import ImageFont
+    if (name, size) not in _fonts:
+        _fonts[(name, size)] = ImageFont.truetype(str(ROOT / "assets" / "fonts" / name), size)
+    return _fonts[(name, size)]
+
+
+def render(text, width=672, size=28, margin=28, lang="default"):
     """A picture of the typed request: black text on white, wrapped to `width` pixels. Sides are multiples of 28
-    (the image encoder's patch grid), so the picture is used at its own size."""
+    (the image encoder's patch grid), so the picture is used at its own size. With no language (the English
+    experiment) Pillow's built-in font is used; with a language, Noto fonts, right-to-left lines for Arabic, and
+    breaks between characters for scripts written without spaces."""
     from PIL import Image, ImageDraw, ImageFont
-    font = ImageFont.load_default(size=size)
-    lines, line = [], ""
+    lang = LANG if lang == "default" else lang
+    if lang is None:
+        font = ImageFont.load_default(size=size)
+        lines, line = [], ""
+        for word in text.split():
+            trial = f"{line} {word}".strip()
+            if line and font.getlength(trial) > width - 2 * margin:
+                lines.append(line)
+                line = word
+            else:
+                line = trial
+        lines.append(line)
+        step = int(size * 1.4)
+        height = max(112, 28 * math.ceil((2 * margin + step * len(lines)) / 28))
+        img = Image.new("RGB", (width, height), "white")
+        draw = ImageDraw.Draw(img)
+        for i, l in enumerate(lines):
+            draw.text((margin, margin + i * step), l, fill="black", font=font)
+        return img
+    import unicodedata
+    name, ranges = SCRIPT_FONTS.get(lang, (None, []))
+    latin = _font("NotoSans-Regular.ttf", size)
+    rtl = lang == "ar"
+
+    def in_script(piece):
+        return name is not None and (ranges is None or any(lo <= ord(c) <= hi for c in piece for lo, hi in ranges))
+
+    def kw(piece):
+        return {"direction": "rtl", "language": "ar"} if rtl and in_script(piece) else {}
+
+    def fnt(piece):
+        return _font(name, size) if in_script(piece) else latin
+
+    def wid(piece):
+        return fnt(piece).getlength(piece, **kw(piece))
+
+    # pieces: (text, glue), glue = a space came before it. Scripts without spaces are cut into characters, each
+    # kept together with the marks that sit on it.
+    pieces = []
     for word in text.split():
-        trial = f"{line} {word}".strip()
-        if line and font.getlength(trial) > width - 2 * margin:
-            lines.append(line)
-            line = word
+        if lang in NO_SPACES or wid(word) > width - 2 * margin:
+            clusters = []
+            for c in word:
+                if clusters and unicodedata.category(c) in ("Mn", "Mc", "Me"):
+                    clusters[-1] += c
+                else:
+                    clusters.append(c)
+            pieces += [(c, i == 0) for i, c in enumerate(clusters)]
         else:
-            line = trial
+            pieces.append((word, True))
+    space = latin.getlength(" ")
+    lines, line, used = [], [], 0.0
+    for piece, glue in pieces:
+        w = wid(piece)
+        gap = space if (glue and line) else 0.0
+        if line and used + gap + w > width - 2 * margin:
+            lines.append(line)
+            line, used, gap = [], 0.0, 0.0
+        line.append((piece, gap, w))
+        used += gap + w
     lines.append(line)
-    step = int(size * 1.4)
+    step = int(size * 1.6)
     height = max(112, 28 * math.ceil((2 * margin + step * len(lines)) / 28))
     img = Image.new("RGB", (width, height), "white")
     draw = ImageDraw.Draw(img)
-    for i, l in enumerate(lines):
-        draw.text((margin, margin + i * step), l, fill="black", font=font)
+    for i, line in enumerate(lines):
+        base = margin + size + i * step
+        if rtl:  # lay words out from the right; a run of non-Arabic words keeps its own left-to-right order
+            order, run = [], []
+            for item in line:
+                if in_script(item[0]):
+                    order += run[::-1] + [item]
+                    run = []
+                else:
+                    run.append(item)
+            order += run[::-1]
+            x = width - margin
+            for piece, gap, w in order:
+                x -= gap + w
+                draw.text((x, base), piece, fill="black", font=fnt(piece), anchor="ls", **kw(piece))
+        else:
+            x = margin
+            for piece, gap, w in line:
+                x += gap
+                draw.text((x, base), piece, fill="black", font=fnt(piece), anchor="ls", **kw(piece))
+                x += w
     return img
 
 
@@ -193,7 +284,9 @@ def garbled(texts):
 
 
 def words(s):
-    return re.findall(r"[a-z0-9']+", s.lower())
+    if LANG in NO_SPACES:  # no spaces between words: compare character by character
+        return [c for c in s if c.isalnum()]
+    return re.findall(r"[^\W_]+(?:'[^\W_]+)?", s.lower())
 
 
 def read_score(prompt, answer):
@@ -371,6 +464,50 @@ def own_phrases(model, proc, harmful, bs):
     return phrases, len(refusals) / len(texts), top[:10]
 
 
+def cmd_phrases(args):
+    """Refusal phrases per language, as refusal_phrases.py --refusal_check does for the text models: a short
+    answer to every harmful search prompt (text form), Qwen3Guard marks which are refusals, and the two most
+    common openings among those become the phrases (first four words, or the first six tokens for scripts without
+    spaces). Writes outputs/refusal_phrases/<model>_omni.json in refusal_phrases.py's layout."""
+    global LANG
+    from judge import JUDGES, parse_qwen3guard, verdicts
+    from refusal_phrases import opening
+    from transformers import AutoModelForCausalLM, AutoTokenizer
+    t0 = time.time()
+    model, proc = load_omni(args.model, args.dtype)
+    tok = proc.tokenizer
+    generated = {}
+    for split in args.splits:
+        raw = load(split)[:args.n or None]
+        LANG = split.split("_")[1]
+        texts = [t.strip() for t in generate(model, proc, [], "text", raw, 16, 48)]
+        opens = [opening(t, 4, tok.decode(tok(t, add_special_tokens=False).input_ids[:6]).strip()) for t in texts]
+        generated[split] = (raw, opens, texts)
+        print(f"{split}: {len(raw)} short answers ({(time.time() - t0) / 60:.1f} min)", flush=True)
+    del model
+    gc.collect()
+    torch.cuda.empty_cache()
+    jtok = AutoTokenizer.from_pretrained(JUDGES["qwen3guard"], padding_side="left", local_files_only=True)
+    jtok.pad_token = jtok.pad_token or jtok.eos_token
+    judge = AutoModelForCausalLM.from_pretrained(JUDGES["qwen3guard"], torch_dtype=getattr(torch, args.dtype),
+                                                 device_map="auto", local_files_only=True).eval()
+    out = ROOT / "outputs" / "refusal_phrases"
+    out.mkdir(parents=True, exist_ok=True)
+    path = out / f"{args.model.split('/')[-1]}_omni.json"
+    result = json.loads(path.read_text()) if path.exists() else {"args": argd(args), "splits": {}}
+    for split, (raw, opens, texts) in generated.items():
+        keep = [parse_qwen3guard(v)["refusal"] for v in verdicts(judge, jtok, raw, texts, 8, 32)]
+        counts = collections.Counter(o for o, r in zip(opens, keep) if r)
+        n_ref = sum(keep)
+        top = [(o, c) for o, c in counts.most_common() if c >= 3 and o]
+        phrases = [o for o, c in top[:2] if n_ref and c / n_ref >= 0.05]
+        result["splits"][split] = {"n": len(raw), "top": top[:10], "phrases": phrases, "refusal_rate": n_ref / len(raw)}
+        print(f"{split}: refusal rate {n_ref / len(raw):.2f}  phrases {phrases}  (top: "
+              + "; ".join(f"{o!r} x{c}" for o, c in top[:5]) + f")  ({(time.time() - t0) / 60:.1f} min)", flush=True)
+        path.write_text(json.dumps(result, indent=1, ensure_ascii=False), encoding="utf-8")
+    print(f"saved outputs/refusal_phrases/{path.name}")
+
+
 def cmd_search(args):
     from neuron_search import SearchHook, refusal_prefixes, top_candidates, watch_ranks
     t0 = time.time()
@@ -382,6 +519,13 @@ def cmd_search(args):
     if any(p.device.type == "meta" for p in model.parameters()):
         raise RuntimeError("Search needs resident model weights; CPU/disk offload is not supported")
     stats = {}
+    if args.phrases_json:  # another language: that language's own phrases, or the fallback when it rarely refuses
+        found = json.loads((ROOT / args.phrases_json).read_text())["splits"][args.harmful]
+        stats = {"refusal_rate_text": found.get("refusal_rate"), "top_openings": found["top"],
+                 "phrases_used_fallback": not found["phrases"]}
+        args.refusal_phrases = found["phrases"] or args.fallback_phrases
+        print(f"{args.harmful}: refusal rate {found.get('refusal_rate')}; phrases {args.refusal_phrases}"
+              + ("  (fallback: no common refusal opening)" if not found["phrases"] else ""), flush=True)
     if not args.refusal_phrases:
         args.refusal_phrases, rate, top = own_phrases(model, proc, harmful, 16)
         stats = {"refusal_rate_stringmatch_text": rate, "top_openings": top}
@@ -484,6 +628,28 @@ def cmd_report(args):
                 f"top {k}: {len(set(ranks[f][:k]) & set(ranks[g][:k]))}" for k in (5, 10, 100, 1000)))
 
 
+def cmd_grid(args):
+    """No GPU: across language sets (--tags, e.g. poly_de) and forms, where the watched neurons rank, each search's
+    top 5, and how much of its top 5 / 10 / 100 it shares with the English reference search of the same form."""
+    from topk_overlap import ranking
+    short = args.model.split("/")[-1]
+    watch = parse_neurons(args.watch, 2)
+    for form in args.forms:
+        ref = ranking(f"{short}_{args.dtype}_omni_{form}", None)
+        print(f"===== form: {form}; reference = the English search ({'missing' if ref is None else 'top 5 ' + ' '.join(f'L{a}:F{b}' for a, b in ref[:5])})")
+        for tag in args.tags:
+            r = ranking(f"{short}_{args.dtype}_omni_{form}_{tag}", None)
+            if r is None:
+                print(f"  {tag}: no search")
+                continue
+            d = json.loads((ROOT / "outputs" / "neuron_search" / f"{short}_{args.dtype}_omni_{form}_{tag}.json").read_text())
+            ranks = "  ".join(f"L{a}:F{b} {r.index((a, b)) + 1 if (a, b) in r else 'out'}" for a, b in watch)
+            shared = "  ".join(f"top {k}: {len(set(r[:k]) & set(ref[:k]))}" for k in (5, 10, 100)) if ref else ""
+            fb = " (fallback phrases)" if d.get("phrases_used_fallback") else ""
+            print(f"  {tag}{fb}: refusal rate {d.get('refusal_rate_text')}; top 5 " + " ".join(f"L{a}:F{b}" for a, b in r[:5])
+                  + f"; ranks {ranks}; shared with English {shared}")
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -491,6 +657,8 @@ def main():
     common.add_argument("--model", default=MODEL)
     common.add_argument("--dtype", default="float16", choices=["float16", "bfloat16", "float32"])
     common.add_argument("--tag", default="")
+    common.add_argument("--lang", default=None, help="language code of the prompts (ar, zh, de, ...): pictures are drawn "
+                        "with Noto fonts and that script's layout. Default: the English experiment's built-in font")
     c = sub.add_parser("check", parents=[common])
     c.add_argument("--forms", nargs="+", default=FORMS, choices=FORMS)
     c.add_argument("--harmful", default="jailbreakbench")
@@ -506,6 +674,9 @@ def main():
     s.add_argument("--harmful", default="arditi_harmful_train")
     s.add_argument("--harmless", default="arditi_harmless_train")
     s.add_argument("--refusal_phrases", nargs="+", default=None, help="default: the model's own two most common openings")
+    s.add_argument("--phrases_json", default=None, help="omni.py phrases output; uses the entry for --harmful")
+    s.add_argument("--fallback_phrases", nargs="+", default=["I'm sorry, but I"],
+                   help="with --phrases_json, used when that language has no common refusal opening")
     s.add_argument("--watch", nargs="*", default=[], metavar="L:F")
     s.add_argument("--n", type=int, default=0, help="first N prompts of each split (0 = all; for a quick test)")
     s.add_argument("--bs", type=int, default=1, help="keep at 1: prompts of different lengths cannot share a batch")
@@ -521,10 +692,21 @@ def main():
     r.add_argument("--max_new", type=int, default=128)
     r.add_argument("--bs", type=int, default=16)
     r.set_defaults(fn=cmd_rerank)
+    ph = sub.add_parser("phrases", parents=[common])
+    ph.add_argument("--splits", nargs="+", required=True, help="harmful search splits, e.g. poly_de_harmful_train")
+    ph.add_argument("--n", type=int, default=0)
+    ph.set_defaults(fn=cmd_phrases)
+    g = sub.add_parser("grid", parents=[common])
+    g.add_argument("--tags", nargs="+", required=True, help="language sets, e.g. poly_de poly_ar")
+    g.add_argument("--forms", nargs="+", default=["text", "image"], choices=FORMS)
+    g.add_argument("--watch", nargs="*", default=[], metavar="L:F")
+    g.set_defaults(fn=cmd_grid)
     p = sub.add_parser("report", parents=[common])
     p.add_argument("--forms", nargs="+", default=FORMS, choices=FORMS)
     p.set_defaults(fn=cmd_report)
     args = ap.parse_args()
+    global LANG
+    LANG = args.lang
     args.fn(args)
 
 
