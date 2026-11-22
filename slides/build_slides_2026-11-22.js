@@ -105,7 +105,7 @@ const SIX = {                   // job 474042: all six neurons' averages on the 
   "13435a": "−0.01 / 0.00", "13435b": "−1.74 / −0.01", "1870a": "−0.06 / −0.06", "1870b": "+0.90 / −0.09",
   "11620a": "+0.22 / +0.12", "11620b": "+3.05 / +0.18", "5484a": "+0.02 / +0.03", "5484b": "−1.55 / +0.02",
   result: "on pictures all six neurons are silent at the first newline and still fire at the last one, at 60 to 105% of their text strength. The same six tell harmful from harmless in both forms.",
-  t1870: null, p1870: null,   // L16:F1870 at −40 on the test prompts: filled when the judges finish
+  t1870: "77%", p1870: { text: "95%", options: { bold: true, color: TEAL } },   // L16:F1870 at −40 on the test prompts
 };
 
 // ------------------------------------------------------------------ 1. title

@@ -173,6 +173,21 @@ The model reads the pictures. The lower score on harmful pictures is refusal, no
 - **As a detector the neuron still separates harmful from harmless pictures** (AUROC 0.98–1.00 at the last newline).
 - Why the first newline goes quiet is not known. One difference: in text form it follows the request's words directly; in picture form it follows the picture's closing marker.
 
+**All six neurons of our own run, and the sweep's second pick on the test prompts** (job 474042; the six are both searches' top 5 together; values are means over the 100 harmful / 100 harmless test prompts).
+
+| Neuron | Text: first newline | Text: last newline | Pictures: first newline | Pictures: last newline |
+|---|---|---|---|---|
+| L13:F4787 | −5.18 / −0.45 | −4.63 / −0.53 | −0.18 / −0.02 | −2.83 / −0.67 |
+| L14:F13014 | −4.82 / −0.01 | −2.78 / 0.00 | −0.03 / +0.08 | −1.77 / −0.01 |
+| L14:F13435 | −2.45 / +0.03 | −2.06 / +0.07 | −0.01 / 0.00 | −1.74 / −0.01 |
+| L16:F1870 | +3.73 / +0.01 | +1.51 / −0.02 | −0.06 / −0.06 | +0.90 / −0.09 |
+| L16:F11620 | +3.80 / +0.21 | +2.87 / +0.14 | +0.22 / +0.12 | +3.05 / +0.18 |
+| L17:F5484 | −3.97 / −0.20 | −2.54 / +0.01 | +0.02 / +0.03 | −1.55 / +0.02 |
+
+- **All six behave the same way:** on text they fire at both newlines; on pictures the first newline is silent (harmful and harmless both near zero) and the last newline fires at 60–105% of its text value (0.61, 0.64, 0.84, 0.60, 1.06, 0.61 in table order).
+- **AUROC at the last newline on pictures:** 0.95–1.00 for all six (L16:F11620 and L17:F5484 1.00; L13:F4787 0.99; L14:F13014 and L16:F1870 0.98; L14:F13435 0.95).
+- **L16:F1870 at −40 on the 100 JailbreakBench prompts** (K.1 success, Llama-Guard in brackets): text 0.77 (0.78), picture 0.95 (0.94), picture + sentence 0.94 (0.93); all answers coherent. On the test pictures it beats L13:F4787 at +30 (0.84); on HarmBench the two tied at 0.91, and our rule picked L13:F4787 for its smaller pin. Its gap between text and pictures (18 points) is the largest we have seen.
+
 **The first answer run is not used** (job 472817). Two faults in how answers were generated: (1) the thinker loaded on its own has no stop token set, so 50–85% of unpinned answers ran on past the end of the turn into invented further turns, up to the 128-token limit; (2) rows padded to a longer prompt in the same batch sometimes came out garbled from the first word (8 of 100 harmless text answers, never the longest prompt of a batch). Found by reading the harmless answers and by counting on the harmful file without reading it. Fixed in `omni.py`: answers stop at `<|im_end|>`, and a batch only holds prompts of exactly one length. The faults had inflated Llama-Guard's no-pin rate to 0.23–0.29 and cut coherence to about 0.9; the string-match refusal rates were nearly the same (0.94–0.96).
 
 **Pin sweeps: each form's own best neuron and pin** (jobs 472943 on pictures, 472944 on text; `omni.py rerank`; the 191 HarmBench prompts in that form, pins 2–60 opposite to the neuron's harmful side, 128 new tokens; K.1 success, with no pin 0.08 on pictures and 0.07 on text). Our selection rule, as in the English replication: the neuron that reaches 0.90 at the smallest pin.
