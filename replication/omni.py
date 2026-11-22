@@ -25,6 +25,10 @@ Subcommands:
           outputs/neuron_search/<model>_float16_omni_<form>.json and _means.pt, the usual layout.
   rerank  pin sweep for a search file's top 5 on HarmBench in one form (rerank.py's grid and layout).
   report  no GPU: overlap of the forms' rankings (top 5, 10, 100, 1000) and each form's top 5 ranked in the others.
+  evaluate  the attack exactly as evaluate.py runs it on the text models: no pin, the constant pin and the anchor
+          pin (k = 1, 2), 512 new tokens, in one form.
+  phrases, grid  other languages (--lang): the model's own refusal phrases per language, and the table across
+          language sets. Pictures in other scripts use Noto fonts (scripts/get_fonts.sh).
 Usage:
   python replication/omni.py check --pins 13:4787:30 14:13014:30
   python replication/omni.py search --forms text image --watch 13:4787 14:13014
@@ -247,9 +251,10 @@ def acts(model, proc, hooks, form, instructions, bs):
 
 
 @torch.no_grad()
-def generate(model, proc, hooks, form, instructions, bs, max_new):
+def generate(model, proc, hooks, form, instructions, bs, max_new, before=None):
     """Greedy answers, stopped at the end of the assistant's turn. The thinker loaded on its own has no stop token
-    set, so without eos_token_id every answer runs on into invented further turns."""
+    set, so without eos_token_id every answer runs on into invented further turns. `before(idx)` is called with a
+    batch's prompt indices just before it is generated (the anchor pin sets one value per prompt there)."""
     tok = proc.tokenizer
     stop = [tok.convert_tokens_to_ids("<|im_end|>"), tok.convert_tokens_to_ids("<|endoftext|>")]
     texts, todo = [None] * len(instructions), batches(proc, form, instructions, bs)
@@ -258,6 +263,8 @@ def generate(model, proc, hooks, form, instructions, bs, max_new):
         batch = ids = None
         try:
             batch = unpadded(model, proc, form, instructions, idx)
+            if before:
+                before(idx)
             ids = model.generate(**batch, max_new_tokens=max_new, do_sample=False, eos_token_id=stop,
                                  pad_token_id=tok.pad_token_id)
         except torch.OutOfMemoryError:
@@ -372,7 +379,7 @@ def cmd_check(args):
                   f"harmless {best['harmless']:+.2f}, AUROC {best['auroc']:.3f}   all tokens: "
                   + "  ".join(f"{r['harmful']:+.2f}/{r['harmless']:+.2f} ({r['auroc']:.2f})" for r in per_token), flush=True)
         # (b) answers: no pin, then each pinned neuron (harmful prompts); no pin on the harmless prompts
-        for layer, neuron, value in [(None, None, None)] + pins:
+        for layer, neuron, value in ([] if args.skip_answers else [(None, None, None)] + pins):
             for h in hook_list:
                 h.value = None
             if layer is not None:
@@ -610,6 +617,49 @@ def cmd_rerank(args):
     print(f"saved outputs/rerank/{out_path.name}  ({(time.time() - t0) / 60:.1f} min)")
 
 
+def cmd_evaluate(args):
+    """evaluate.py for the omni model, one form: no pin, the constant pin, and the anchor pin for each k, on a test
+    split with 512 new tokens. Same interventions (intervene.py's Pin and Eq. 6-7), same output layout, so judge.py
+    and the Part 2 tables read it. d comes from the search file given (that form's and language's own search)."""
+    from intervene import Pin, neuron_gap
+    t0 = time.time()
+    d = neuron_gap(args.search, args.layer, args.neuron)
+    model, proc = load_omni(args.model, args.dtype)
+    pin = Pin(args.neuron)
+    model.model.layers[args.layer].mlp.down_proj.register_forward_pre_hook(pin)
+    raw = load(args.split)[:args.n or None]
+    out_dir = ROOT / "outputs" / "evaluate"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    out_path = out_dir / f"{args.model.split('/')[-1]}_L{args.layer}_F{args.neuron}_omni_{args.form}{'_' + args.tag if args.tag else ''}.json"
+    result = {"args": argd(args), "model": args.model, "form": args.form, "d": d, "prompts": raw, "runs": []}
+    print(f"{args.model} L{args.layer}:F{args.neuron}  m*={args.pin:+g}  d={d:+.3f}  on {len(raw)} {args.split} prompts, form {args.form}", flush=True)
+
+    def run(mode, values, k=None):
+        def before(idx):
+            pin.values = [values[i] for i in idx] if isinstance(values, list) else values
+        texts = generate(model, proc, [pin], args.form, raw, args.bs, args.max_new, before)
+        pin.values = None
+        rr = sum(map(is_refusal, texts)) / len(texts)
+        result["runs"].append({"layer": None if mode == "none" else args.layer, "neuron": args.neuron,
+                               "pin": None if mode == "none" else args.pin, "mode": mode, "k": k,
+                               "refusal_rate_stringmatch": rr, "responses": texts})
+        out_path.write_text(json.dumps(result, indent=1, ensure_ascii=False), encoding="utf-8")
+        print(f"{mode}{'' if k is None else f' k={k:g}'}: string-match refusal {rr:.2f}, garbled {garbled(texts):.2f}  ({(time.time() - t0) / 60:.1f} min)", flush=True)
+
+    run("none", None)
+    run("constant", args.pin)
+    if args.k:
+        pin.values = None
+        natural = torch.as_tensor(acts(model, proc, [pin], args.form, raw, args.bs)[pin])  # [prompts, 5 scored tokens]
+        v = natural.max(1).values if d > 0 else natural.min(1).values
+    for k in args.k:
+        h = k * args.pin * v / d - d
+        h = torch.minimum(h, torch.tensor(args.pin)) if args.pin > 0 else torch.maximum(h, torch.tensor(args.pin))
+        result.setdefault("anchor_values", {})[f"{k:g}"] = h.tolist()
+        run("anchor", h.tolist(), k)
+    print(f"saved outputs/evaluate/{out_path.name}  ({(time.time() - t0) / 60:.1f} min)")
+
+
 def cmd_report(args):
     from topk_overlap import ranking
     short = args.model.split("/")[-1]
@@ -668,6 +718,8 @@ def main():
     c.add_argument("--pins", nargs="*", default=[], metavar="L:F:value", help="neurons to pin, one at a time, signed value")
     c.add_argument("--max_new", type=int, default=128)
     c.add_argument("--bs", type=int, default=8)
+    c.add_argument("--skip_answers", action="store_true",
+                   help="no answers to the harmful prompts (the attack is then run with the evaluate subcommand)")
     c.set_defaults(fn=cmd_check)
     s = sub.add_parser("search", parents=[common])
     s.add_argument("--forms", nargs="+", default=["text", "image"], choices=FORMS)
@@ -701,6 +753,18 @@ def main():
     g.add_argument("--forms", nargs="+", default=["text", "image"], choices=FORMS)
     g.add_argument("--watch", nargs="*", default=[], metavar="L:F")
     g.set_defaults(fn=cmd_grid)
+    e = sub.add_parser("evaluate", parents=[common])
+    e.add_argument("--search", required=True, help="omni search JSON that has this neuron (for d)")
+    e.add_argument("--form", required=True, choices=FORMS)
+    e.add_argument("--layer", type=int, required=True)
+    e.add_argument("--neuron", type=int, required=True)
+    e.add_argument("--pin", type=float, required=True, help="m*, signed")
+    e.add_argument("--k", type=float, nargs="*", default=[1, 2], help="anchor scales; none = skip the anchor")
+    e.add_argument("--split", default="jailbreakbench")
+    e.add_argument("--n", type=int, default=0)
+    e.add_argument("--max_new", type=int, default=512)
+    e.add_argument("--bs", type=int, default=16)
+    e.set_defaults(fn=cmd_evaluate)
     p = sub.add_parser("report", parents=[common])
     p.add_argument("--forms", nargs="+", default=FORMS, choices=FORMS)
     p.set_defaults(fn=cmd_report)
