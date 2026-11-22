@@ -99,7 +99,7 @@ function pic(s, name, x, y, w, pxH) {
 const para = (s, text, x, y, w, h, size = 14) =>
   s.addText(text, { x, y, w, h, fontFace: FONT, fontSize: size, color: INK, valign: "top", margin: 0 });
 // The two jobs still running when the deck was first built; fill these from the results log when they end.
-const TEXT_SWEEP_4787 = null;   // job 473938: L13:F4787 on text, K.1 at pins 20, 30, 40, 60
+const TEXT_SWEEP_4787 = "68%, 84%, 88%, 77%";   // job 473938: L13:F4787 on text, K.1 at pins 20, 30, 40, 60
 const SIX = {                   // job 474042: all six neurons' averages on the 100 harmful / 100 harmless test pictures
   "4787a": "−0.18 / −0.02", "4787b": "−2.83 / −0.67", "13014a": "−0.03 / +0.08", "13014b": "−1.77 / −0.01",
   "13435a": "−0.01 / 0.00", "13435b": "−1.74 / −0.01", "1870a": "−0.06 / −0.06", "1870b": "+0.90 / −0.09",
@@ -318,7 +318,7 @@ const SIX = {                   // job 474042: all six neurons' averages on the 
     "On pictures the rule picks L13:F4787 at +30 (91%). That is the neuron, and the pin value, already found on text; here it is found without using text.",
     "At the same pin, every neuron in both sweeps works at least as well on pictures as on text (for example L16:F1870 at 40: 91% against 78%).",
     TEXT_SWEEP_4787
-      ? `On text, L13:F4787 gives ${TEXT_SWEEP_4787} at pins 20, 30, 40, 60. The other five do not reach 90%.`
+      ? `On text nothing reaches 90%: L13:F4787 (6th in the text search, swept separately) gives ${TEXT_SWEEP_4787} at pins 20, 30, 40, 60, against 78%, 91%, 90%, 83% on pictures.`
       : "On text none of our text top 5 reaches 90% up to a pin of 60. L13:F4787 was 6th in the text search; its text sweep is still running.",
   ], ML, 5.0, CW, 1.1, 12.5);
   result(s, [b("Result: "), t("run on pictures alone, the whole method (search, then pin sweep) arrives at L13:F4787 pinned at +30.")], { y: 6.2, h: 0.62 });

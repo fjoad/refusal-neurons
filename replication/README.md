@@ -188,6 +188,20 @@ The model reads the pictures. The lower score on harmful pictures is refusal, no
 - **AUROC at the last newline on pictures:** 0.95–1.00 for all six (L16:F11620 and L17:F5484 1.00; L13:F4787 0.99; L14:F13014 and L16:F1870 0.98; L14:F13435 0.95).
 - **L16:F1870 at −40 on the 100 JailbreakBench prompts** (K.1 success, Llama-Guard in brackets): text 0.77 (0.78), picture 0.95 (0.94), picture + sentence 0.94 (0.93); all answers coherent. On the test pictures it beats L13:F4787 at +30 (0.84); on HarmBench the two tied at 0.91, and our rule picked L13:F4787 for its smaller pin. Its gap between text and pictures (18 points) is the largest we have seen.
 
+**The test in the original form** (job 474081; `omni.py evaluate`, which is `evaluate.py` for this model: the 100 JailbreakBench prompts, no pin, the constant pin and the anchor pin at k = 1 and 2, 512 new tokens; L13:F4787 at +30; d from that form's own search, −3.98 on text and −2.04 on pictures). The tables above used 128 tokens and no anchor; this is the setup of the English replication on the text models.
+
+| | Text: K.1 (Llama-Guard) | Pictures: K.1 (Llama-Guard) |
+|---|---|---|
+| No pin | 0.01 (0.01) | 0.02 (0.02) |
+| Constant pin | 0.75 (0.71) | pending (0.82) |
+| Anchor, k = 1 | 0.75 (0.72) | rerunning |
+| Anchor, k = 2 | 0.75 (0.71) | rerunning |
+
+- **512 tokens give the same picture as 128** on text: 0.75 against 0.74.
+- **The anchor equals the constant pin on harmful prompts** (0.75 at both k), as on the text models: where the neuron fires, the anchor's value reaches the cap.
+- The picture run lost its anchor runs to an out-of-memory error when reading the neuron on pictures in batches of 16 (fixed in `omni.acts`); rerun as job 474287.
+- **To check:** a word-repetition count flags 7–11% of the pinned 512-token text answers as mostly one word repeated (3% on pictures, 0% with no pin), while the K.1 judge calls all of them coherent. At 128 tokens the count was 0–1%. Not yet looked into.
+
 **The first answer run is not used** (job 472817). Two faults in how answers were generated: (1) the thinker loaded on its own has no stop token set, so 50–85% of unpinned answers ran on past the end of the turn into invented further turns, up to the 128-token limit; (2) rows padded to a longer prompt in the same batch sometimes came out garbled from the first word (8 of 100 harmless text answers, never the longest prompt of a batch). Found by reading the harmless answers and by counting on the harmful file without reading it. Fixed in `omni.py`: answers stop at `<|im_end|>`, and a batch only holds prompts of exactly one length. The faults had inflated Llama-Guard's no-pin rate to 0.23–0.29 and cut coherence to about 0.9; the string-match refusal rates were nearly the same (0.94–0.96).
 
 **Pin sweeps: each form's own best neuron and pin** (jobs 472943 on pictures, 472944 on text; `omni.py rerank`; the 191 HarmBench prompts in that form, pins 2–60 opposite to the neuron's harmful side, 128 new tokens; K.1 success, with no pin 0.08 on pictures and 0.07 on text). Our selection rule, as in the English replication: the neuron that reaches 0.90 at the smallest pin.
@@ -213,7 +227,8 @@ Text: the text search's top 5, pinned on text.
 | 5 | L17:F5484 | 0.20, 0.36, 0.53, 0.72 | never |
 
 - **Run on pictures from scratch, the whole method picks L13:F4787 at +30** (0.91; Llama-Guard 0.87; all answers coherent). That is the neuron and the pin value Asim reported for text. Second is L16:F1870 at −40 (0.91).
-- **On text, none of our text top 5 reaches 0.90 up to a pin of 60.** Best: L16:F1870 at −60 (0.89, with coherence down to 0.95) and L14:F13014 at +60 (0.85). L13:F4787 was 6th in our text search, so it was not in this sweep; its text sweep is job 473938.
+- **On text, none of our text top 5 reaches 0.90 up to a pin of 60.** Best: L16:F1870 at −60 (0.89, with coherence down to 0.95) and L14:F13014 at +60 (0.85).
+- **L13:F4787 on text** (6th in our text search, so swept separately, job 473938): 0.68, 0.84, 0.88, 0.77 at +20, +30, +40, +60. It does not reach 0.90 on text either; on pictures the same pins give 0.78, 0.91, 0.90, 0.83. Llama-Guard: 0.65, 0.81, 0.87, 0.82 on text.
 - **Every neuron in both sweeps works at least as well on pictures as on text at the same pin:** L14:F13014 at +30, 0.80 against 0.72; L16:F1870 at −40, 0.91 against 0.78; L14:F13435 at +60, 0.56 against 0.50; L16:F11620 at −60, 0.46 against 0.41. This matches the JailbreakBench table above, and fits the neurons firing less on pictures (less to overcome), but that reading is not tested.
 - **The search's first place is not the best attacker in either form** (L16:F11620 on pictures, L14:F13014 on text), as on the text models: the search makes the shortlist and the pin sweep picks.
 - Coherence under K.1 is 0.98–1.00 everywhere except the −60 pins of L16:F1870 (0.95) and the +60 pin of L17:F5484 on text (0.88).
