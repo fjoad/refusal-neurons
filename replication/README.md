@@ -94,11 +94,48 @@ Newest work first in each topic; every entry has its date, setup, numbers and ca
 - **Follow-ups to the 5 November meeting** (note 6's layers, added 2026-11-17: the harmful/harmless signal is shared across languages by layer 10–13 in both Qwen sizes, so no extra language step in the small model; note 3 for larger k, added 2026-11-17: longer lists do not overlap more, but four neurons per model, Apple's among them, are in every language's top 20 outside Yoruba and Swahili; the neuron fires on the prompts the model refuses, in every language but Yoruba and Qwen-Swahili; the small model does not fall off faster with language; MultiJail's lower numbers are the same borderline prompts in every language): 2026-11-12
 - **Arabic Experiments 2 and 8** (PolyRefuse: the neuron jailbreaks Arabic as well as English, 88–95%, matching Arditi's Arabic direction; MultiJail weaker for both; the neuron is 1st or 2nd most aligned with the Arabic direction): 2026-11-05
 
+- **Images in every language, search** (Qwen2.5-Omni-7B, the 14 PolyRefuse languages as text and as pictures: on text L14:F13014 is in the top 3 in 13 of 14 languages; on pictures it is in the top 10 in 10 of 14, and Arabic, Japanese and Thai pictures give different lists; Yoruba differs in both): 2026-11-22
 - **Images, typed-out pictures on Qwen2.5-Omni-7B** (the English experiment's prompts as pictures of their typed text: the search on pictures shares 4 of its top 5 and 351 of its top 1,000 neurons with the search on text; the model refuses pictured requests as often as typed ones, 97–99%; a text-found neuron pinned at +30 jailbreaks pictures, 0.77–0.84 against 0.67–0.74 on text; the whole method run on pictures picks L13:F4787 at +30, 0.91 on HarmBench, the neuron Asim reported for text): 2026-11-20
 - **Speech, first results reported by Asim** (Qwen2.5-Omni-7B, text and spoken English; not reproduced by us): 2026-11-19
 - **Follow-ups to the 17 November meeting** (points 23–26: the one MLP direction removed in every MLP does no more than in one layer; each MLP's own direction, and Nanda's direction taken out of the MLP outputs only, remove most refusal openings but the two judges disagree on whether the answers are jailbreaks; the blind reverse route puts Apple's neuron 1st, 2nd and 5th in the whole model, and with Apple's rerank ends on Apple's neuron on Llama, a tie with L14:F1251 on Qwen3-8B and L15:F1109 on Qwen3-1.7B; under K.1 the steering peaks at 2.5–3 gaps and the answers are incoherent by 4–6, Llama stopping at 0.895; neurons pinned together on MultiJail break coherence at full pins; on Qwen3-8B four neurons at a quarter of their pins reach 0.97 under K.1 against 0.77 for the best single one, controls pending): 2026-11-18
 
 Job scripts that produced these are in `scripts/jobs/` (each says which entry it belongs to).
+
+### 2026-11-22: Images in every language, search (Qwen2.5-Omni-7B, PolyRefuse) (`omni.py phrases`, `search`, `grid`)
+
+**Question.** Part 2 on the text models, repeated on the omni model with each prompt given twice, as typed text and as a picture of the typed text: does each language's search find the English neurons?
+
+**Setup.** As `part2_search.sh`, per language of PolyRefuse (14: en ar de es fr it ja ko nl pl ru th yo zh): the model's own refusal phrases (a 48-token answer to each of the 128 harmful search prompts in text form, Qwen3Guard marks the refusals, the two most common openings among them; same rule as `refusal_phrases.py --refusal_check`), then Apple's search on that language's 128 harmful and 128 harmless prompts, once as text and once as pictures, with the same phrases for both forms. Job 474063 (`scripts/jobs/omni_ml_search.sh poly`).
+- Pictures in other scripts are drawn with Noto fonts (`scripts/get_fonts.sh`): Arabic right to left with joined letters, Chinese, Japanese and Thai wrapped between characters. English here also uses Noto Sans, so `poly_en` doubles as a check on the font.
+- Korean has no common refusal opening (its refusals start in many different ways), so its search uses the English phrase "I'm sorry, but I" as the fallback. Dutch refusals often start in English ("Sorry, but I can't").
+- "Shared" compares a language's top 5 / 10 / 100 with the English search of the same form from 20 November (text against text, pictures against pictures).
+
+| Language | Refuses (text) | Text: rank of L14:F13014 / L13:F4787 / L16:F11620 | Text: shared 5 / 10 / 100 | Pictures: rank of L14:F13014 / L13:F4787 / L16:F11620 | Pictures: shared 5 / 10 / 100 |
+|---|---|---|---|---|---|
+| English | 0.99 | 1 / 4 / 5 | 4 / 9 / 94 | 2 / 4 / 1 | 5 / 9 / 88 |
+| Spanish | 0.99 | 1 / 9 / 14 | 3 / 6 / 65 | 1 / 7 / 2 | 3 / 4 / 61 |
+| French | 0.98 | 1 / 12 / 5 | 4 / 6 / 61 | 2 / 63 / 1 | 3 / 4 / 61 |
+| Dutch | 0.91 | 1 / 5 / 9 | 3 / 7 / 55 | 2 / 3 / 5 | 4 / 4 / 61 |
+| German | 0.95 | 1 / 3 / 6 | 2 / 6 / 54 | 5 / 1 / 2 | 3 / 5 / 56 |
+| Russian | 0.95 | 1 / 13 / 8 | 3 / 6 / 58 | 2 / 24 / 4 | 3 / 4 / 58 |
+| Italian | 0.95 | 1 / 2 / 6 | 2 / 7 / 64 | 2 / 8 / 1 | 2 / 3 / 58 |
+| Chinese | 0.98 | 1 / 3 / 49 | 2 / 3 / 46 | 2 / 13 / 9 | 2 / 4 / 42 |
+| Polish | 0.91 | 1 / 12 / 4 | 4 / 5 / 57 | 8 / 30 / 3 | 1 / 2 / 41 |
+| Korean (fallback phrase) | 0.91 | 2 / 5 / 7 | 2 / 7 / 34 | 9 / 7 / 19 | 0 / 3 / 25 |
+| Arabic | 0.88 | 1 / 2 / 7 | 2 / 6 / 55 | 42 / 5 / 20 | 1 / 1 / 26 |
+| Japanese | 0.98 | 2 / 68 / 8 | 2 / 4 / 48 | 389 / 850 / 7 | 0 / 2 / 32 |
+| Thai | 0.91 | 3 / 8 / 19 | 1 / 4 / 43 | 23,019 / 7,749 / 66,174 | 0 / 0 / 7 |
+| Yoruba | 0.38 | 2,012 / out / 58,806 | 0 / 0 / 1 | 264 / 34,869 / 560 | 0 / 0 / 4 |
+
+("out" = fails the search's magnitude filter. Ranks are out of about 180,000 neurons that pass it.)
+
+- **On text, L14:F13014 is the top neuron almost everywhere:** first in 10 of the 14 languages, second in Japanese and Korean, third in Thai. Yoruba is the exception (rank 2,012), and Yoruba is also the one language the model rarely refuses in (0.38), as on the text models.
+- **On pictures, the Latin-script languages, Russian and Chinese look like English:** L14:F13014 is first to eighth in en, de, es, fr, it, nl, pl, ru and zh (ninth in Korean), and L16:F11620 is in the top 10 in all of those except Korean.
+- **Pictures in Arabic, Japanese and Thai give different lists.** L14:F13014 falls to 42nd, 389th and 23,019th. Thai pictures share nothing with English in the top 10 and its top 5 sits in layers 9–15; yet the same Thai prompts as text put L14:F13014 third. Whether the model reads those scripts off a picture at all is what the reading check in the attack jobs measures; until that is in, this cannot be told apart from the model simply not reading the picture.
+- **L13:F4787, the English pick, is less stable than L14:F13014:** top 10 on text in 9 of 14 languages (68th in Japanese), and top 10 on pictures in 7.
+- **The font does not matter for English:** with Noto Sans pictures the search shares 5 of 5, 9 of 10 and 88 of 100 with the 20 November picture search (Pillow's built-in font; a different harmless set as well).
+
+**Caveats.** One model. The search only ranks; the attack in every language (no pin, constant and anchor pins, 512 tokens, three judges, set up as `part2_attack.sh`) is running as jobs 474082–474084, with the reading check per language. MultiJail is not run yet.
 
 ### 2026-11-20: Images, typed-out pictures on Qwen2.5-Omni-7B (`omni.py`)
 
@@ -193,13 +230,13 @@ The model reads the pictures. The lower score on harmful pictures is refusal, no
 | | Text: K.1 (Llama-Guard) | Pictures: K.1 (Llama-Guard) |
 |---|---|---|
 | No pin | 0.01 (0.01) | 0.02 (0.02) |
-| Constant pin | 0.75 (0.71) | pending (0.82) |
-| Anchor, k = 1 | 0.75 (0.72) | rerunning |
-| Anchor, k = 2 | 0.75 (0.71) | rerunning |
+| Constant pin | 0.75 (0.71) | 0.86 (0.82) |
+| Anchor, k = 1 | 0.75 (0.72) | 0.85 (0.81) |
+| Anchor, k = 2 | 0.75 (0.71) | K.1 still running (0.82) |
 
-- **512 tokens give the same picture as 128** on text: 0.75 against 0.74.
+- **512 tokens give the same picture as 128:** 0.75 against 0.74 on text, 0.86 against 0.84 on pictures.
 - **The anchor equals the constant pin on harmful prompts** (0.75 at both k), as on the text models: where the neuron fires, the anchor's value reaches the cap.
-- The picture run lost its anchor runs to an out-of-memory error when reading the neuron on pictures in batches of 16 (fixed in `omni.acts`); rerun as job 474287.
+- The picture run first lost its anchor runs to an out-of-memory error when reading the neuron on pictures in batches of 16 (fixed in `omni.acts`); the picture column is from the rerun, job 474287.
 - **To check:** a word-repetition count flags 7–11% of the pinned 512-token text answers as mostly one word repeated (3% on pictures, 0% with no pin), while the K.1 judge calls all of them coherent. At 128 tokens the count was 0–1%. Not yet looked into.
 
 **The first answer run is not used** (job 472817). Two faults in how answers were generated: (1) the thinker loaded on its own has no stop token set, so 50–85% of unpinned answers ran on past the end of the turn into invented further turns, up to the 128-token limit; (2) rows padded to a longer prompt in the same batch sometimes came out garbled from the first word (8 of 100 harmless text answers, never the longest prompt of a batch). Found by reading the harmless answers and by counting on the harmful file without reading it. Fixed in `omni.py`: answers stop at `<|im_end|>`, and a batch only holds prompts of exactly one length. The faults had inflated Llama-Guard's no-pin rate to 0.23–0.29 and cut coherence to about 0.9; the string-match refusal rates were nearly the same (0.94–0.96).
