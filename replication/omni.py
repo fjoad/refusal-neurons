@@ -430,12 +430,19 @@ def cmd_rerank(args):
     t0 = time.time()
     search = json.loads((ROOT / args.search).read_text())
     candidates = search["candidates"]
+    if args.only:  # one neuron from the search's top 5 or its watched list (e.g. another form's winner)
+        layer, neuron = parse_neurons([args.only], 2)[0]
+        pool = candidates + [w for w in search.get("watched", []) if w.get("mean_act_harmful") is not None]
+        candidates = [c for c in pool if (c["layer"], c["neuron"]) == (layer, neuron)][:1]
+        if not candidates:
+            raise SystemExit(f"--only {args.only} is not among the search file's candidates or watched neurons")
     prompts = load(args.split)[:args.n or None]
     model, proc = load_omni(search["args"]["model"], args.dtype)
     out_dir = ROOT / "outputs" / "rerank"
     out_dir.mkdir(parents=True, exist_ok=True)
     stem = (ROOT / args.search).stem
-    out_path = out_dir / f"{stem}_on_{args.form}{'_' + args.tag if args.tag else ''}.json"
+    only = f"_L{candidates[0]['layer']}F{candidates[0]['neuron']}" if args.only else ""
+    out_path = out_dir / f"{stem}_on_{args.form}{only}{'_' + args.tag if args.tag else ''}.json"
     result = {"args": argd(args), "model": search["args"]["model"], "form": args.form, "prompts": prompts, "runs": []}
 
     def run(layer, neuron, pin, m):
@@ -507,6 +514,7 @@ def main():
     r = sub.add_parser("rerank", parents=[common])
     r.add_argument("--search", required=True)
     r.add_argument("--form", required=True, choices=FORMS)
+    r.add_argument("--only", default=None, metavar="L:F", help="sweep just this neuron (a candidate or a watched neuron)")
     r.add_argument("--split", default="harmbench_val")
     r.add_argument("--n", type=int, default=0)
     r.add_argument("--m", type=float, nargs="+", default=[2, 4, 6, 10, 15, 20, 30, 40, 60])
