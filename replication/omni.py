@@ -237,13 +237,26 @@ def unpadded(model, proc, form, instructions, idx):
 
 @torch.no_grad()
 def acts(model, proc, hooks, form, instructions, bs):
-    """Each hook's neuron at the scored tokens: {hook: array [prompts, 5]}."""
+    """Each hook's neuron at the scored tokens: {hook: array [prompts, 5]}. The thinker's forward computes logits
+    at every position, which is large for pictures, so a batch that runs out of memory is redone as two halves."""
     out = {h: [None] * len(instructions) for h in hooks}
-    for idx in batches(proc, form, instructions, bs):
-        batch = unpadded(model, proc, form, instructions, idx)
+    todo = batches(proc, form, instructions, min(bs, 8))
+    while todo:
+        idx = todo.pop()
+        batch = None
         for h in hooks:
             h.records.clear()
-        model(**batch, use_cache=False)
+        try:
+            batch = unpadded(model, proc, form, instructions, idx)
+            model(**batch, use_cache=False)
+        except torch.OutOfMemoryError:
+            if len(idx) == 1:
+                raise
+            del batch
+            gc.collect()
+            torch.cuda.empty_cache()
+            todo += [idx[:len(idx) // 2], idx[len(idx) // 2:]]
+            continue
         for h in hooks:
             for row, i in zip(h.records[0][:, -len(SCORE_TOKENS):], idx):
                 out[h][i] = row
