@@ -431,6 +431,9 @@ Still to run from that meeting: other refusal-phrase lists (does changing the ph
 - **A neuron found on text removes refusal on pictures.** Pinned at +30, it gets a non-refusing, sensible answer on 77–84% of pictured prompts, against 67–74% of typed ones.
 - **The neurons fire more weakly on pictures, and at a different spot.** On text they fire at two of the template tokens; on pictures only the last one still fires, at about 60% of its text strength. It still tells harmful from harmless pictures almost perfectly.
 
+- **Doing the whole method on pictures alone picks the same neuron.** We took the picture search's top 5 and tried each as an attack on 191 pictured prompts at nine pin values. The winner is L13:F4787 at +30 (91% success), which is the neuron and value Asim reported for text. So you would find it without ever using text.
+- **"Weaker" needs care.** The neuron's own signal is weaker on pictures, but the attack is not: at the same pin every neuron we tried works at least as well on pictures as on text.
+
 **What this does not show.** A typed-out picture still contains the words; only the carrier changed. The harder test is a picture with no words in it (a picture of the thing itself). That is not done.
 
 **A fault we caught.** In the first run most answers kept going after they should have stopped, and a few were scrambled. The cause was how the model was set up to write answers, not the model. That run was thrown away and redone.

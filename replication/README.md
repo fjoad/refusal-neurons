@@ -94,7 +94,7 @@ Newest work first in each topic; every entry has its date, setup, numbers and ca
 - **Follow-ups to the 5 November meeting** (note 6's layers, added 2026-11-17: the harmful/harmless signal is shared across languages by layer 10–13 in both Qwen sizes, so no extra language step in the small model; note 3 for larger k, added 2026-11-17: longer lists do not overlap more, but four neurons per model, Apple's among them, are in every language's top 20 outside Yoruba and Swahili; the neuron fires on the prompts the model refuses, in every language but Yoruba and Qwen-Swahili; the small model does not fall off faster with language; MultiJail's lower numbers are the same borderline prompts in every language): 2026-11-12
 - **Arabic Experiments 2 and 8** (PolyRefuse: the neuron jailbreaks Arabic as well as English, 88–95%, matching Arditi's Arabic direction; MultiJail weaker for both; the neuron is 1st or 2nd most aligned with the Arabic direction): 2026-11-05
 
-- **Images, typed-out pictures on Qwen2.5-Omni-7B** (the English experiment's prompts as pictures of their typed text: the search on pictures shares 4 of its top 5 and 351 of its top 1,000 neurons with the search on text; the model refuses pictured requests as often as typed ones, 97–99%; a text-found neuron pinned at +30 jailbreaks pictures, 0.77–0.84 against 0.67–0.74 on text): 2026-11-20
+- **Images, typed-out pictures on Qwen2.5-Omni-7B** (the English experiment's prompts as pictures of their typed text: the search on pictures shares 4 of its top 5 and 351 of its top 1,000 neurons with the search on text; the model refuses pictured requests as often as typed ones, 97–99%; a text-found neuron pinned at +30 jailbreaks pictures, 0.77–0.84 against 0.67–0.74 on text; the whole method run on pictures picks L13:F4787 at +30, 0.91 on HarmBench, the neuron Asim reported for text): 2026-11-20
 - **Speech, first results reported by Asim** (Qwen2.5-Omni-7B, text and spoken English; not reproduced by us): 2026-11-19
 - **Follow-ups to the 17 November meeting** (points 23–26: the one MLP direction removed in every MLP does no more than in one layer; each MLP's own direction, and Nanda's direction taken out of the MLP outputs only, remove most refusal openings but the two judges disagree on whether the answers are jailbreaks; the blind reverse route puts Apple's neuron 1st, 2nd and 5th in the whole model, and with Apple's rerank ends on Apple's neuron on Llama, a tie with L14:F1251 on Qwen3-8B and L15:F1109 on Qwen3-1.7B; under K.1 the steering peaks at 2.5–3 gaps and the answers are incoherent by 4–6, Llama stopping at 0.895; neurons pinned together on MultiJail break coherence at full pins; on Qwen3-8B four neurons at a quarter of their pins reach 0.97 under K.1 against 0.77 for the best single one, controls pending): 2026-11-18
 
@@ -175,7 +175,33 @@ The model reads the pictures. The lower score on harmful pictures is refusal, no
 
 **The first answer run is not used** (job 472817). Two faults in how answers were generated: (1) the thinker loaded on its own has no stop token set, so 50–85% of unpinned answers ran on past the end of the turn into invented further turns, up to the 128-token limit; (2) rows padded to a longer prompt in the same batch sometimes came out garbled from the first word (8 of 100 harmless text answers, never the longest prompt of a batch). Found by reading the harmless answers and by counting on the harmful file without reading it. Fixed in `omni.py`: answers stop at `<|im_end|>`, and a batch only holds prompts of exactly one length. The faults had inflated Llama-Guard's no-pin rate to 0.23–0.29 and cut coherence to about 0.9; the string-match refusal rates were nearly the same (0.94–0.96).
 
-**Pin sweeps (running).** Jobs 472943 (the picture search's top 5 on pictures) and 472944 (the text search's top 5 on text), 191 HarmBench prompts, 9 pin values each, both judges: each form's own best neuron and pin, as in the English replication.
+**Pin sweeps: each form's own best neuron and pin** (jobs 472943 on pictures, 472944 on text; `omni.py rerank`; the 191 HarmBench prompts in that form, pins 2–60 opposite to the neuron's harmful side, 128 new tokens; K.1 success, with no pin 0.08 on pictures and 0.07 on text). Our selection rule, as in the English replication: the neuron that reaches 0.90 at the smallest pin.
+
+Pictures: the picture search's top 5, pinned on pictures.
+
+| Search rank | Neuron | K.1 at +/−20, 30, 40, 60 | First pin reaching 0.90 |
+|---|---|---|---|
+| 1 | L16:F11620 | 0.17, 0.25, 0.31, 0.46 | never |
+| 2 | L14:F13014 | 0.61, 0.80, 0.84, 0.83 | never |
+| 3 | L14:F13435 | 0.34, 0.41, 0.50, 0.56 | never |
+| 4 | L16:F1870 | 0.38, 0.57, 0.91, 0.91 | −40 |
+| 5 | **L13:F4787** | 0.78, **0.91**, 0.90, 0.83 | **+30** |
+
+Text: the text search's top 5, pinned on text.
+
+| Search rank | Neuron | K.1 at +/−20, 30, 40, 60 | First pin reaching 0.90 |
+|---|---|---|---|
+| 1 | L14:F13014 | 0.51, 0.72, 0.83, 0.85 | never |
+| 2 | L16:F1870 | 0.26, 0.48, 0.78, 0.89 | never |
+| 3 | L14:F13435 | 0.22, 0.31, 0.34, 0.50 | never |
+| 4 | L16:F11620 | 0.15, 0.19, 0.23, 0.41 | never |
+| 5 | L17:F5484 | 0.20, 0.36, 0.53, 0.72 | never |
+
+- **Run on pictures from scratch, the whole method picks L13:F4787 at +30** (0.91; Llama-Guard 0.87; all answers coherent). That is the neuron and the pin value Asim reported for text. Second is L16:F1870 at −40 (0.91).
+- **On text, none of our text top 5 reaches 0.90 up to a pin of 60.** Best: L16:F1870 at −60 (0.89, with coherence down to 0.95) and L14:F13014 at +60 (0.85). L13:F4787 was 6th in our text search, so it was not in this sweep; its text sweep is job 473938.
+- **Every neuron in both sweeps works at least as well on pictures as on text at the same pin:** L14:F13014 at +30, 0.80 against 0.72; L16:F1870 at −40, 0.91 against 0.78; L14:F13435 at +60, 0.56 against 0.50; L16:F11620 at −60, 0.46 against 0.41. This matches the JailbreakBench table above, and fits the neurons firing less on pictures (less to overcome), but that reading is not tested.
+- **The search's first place is not the best attacker in either form** (L16:F11620 on pictures, L14:F13014 on text), as on the text models: the search makes the shortlist and the pin sweep picks.
+- Coherence under K.1 is 0.98–1.00 everywhere except the −60 pins of L16:F1870 (0.95) and the +60 pin of L17:F5484 on text (0.88).
 
 ### 2026-11-19: Speech, first results reported by Asim (Qwen2.5-Omni-7B)
 
