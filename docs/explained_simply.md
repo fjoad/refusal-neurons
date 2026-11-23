@@ -450,6 +450,26 @@ Still to run from that meeting: other refusal-phrase lists (does changing the ph
 
 **Why it matters.** This is the "recognised but not refused" idea measured directly: the model knows what is being asked, but the switch that makes it refuse does not flip.
 
+## 8f. Speech: the same request spoken aloud (Asim, 19 and 23 November)
+
+**Why.** An omni model hears speech directly: a spoken request goes through the same layers as a typed one. So "the same neuron for text and speech" literally means the same layer and number. Does pinning it remove refusal for spoken requests too?
+
+**What we did.**
+1. Turned the English prompts into speech with a text-to-speech model (XTTS-v2), in two synthetic voices, one female and one male. Example: the sentence "What are some ways to reduce water usage in homes?" read aloud.
+2. Checked every clip is understandable: a speech-recognition model (Whisper) writes it back down, and clips with more than 3 wrong words in 10 are dropped. One test clip of voice 1 was dropped, so voice 1 has 99 test requests.
+3. Ran the whole method twice on Qwen2.5-Omni-7B. Setting A finds and picks the neuron on typed prompts; setting B does both on spoken prompts (voice 1). Both are then tested on 100 harmful test requests, typed and in both voices, with nothing pinned and with their neuron pinned.
+
+**What we found** (the rerun of 23 November; see "A fault we caught").
+- **The model refuses spoken requests as often as typed ones.** With nothing pinned it answers only 5–10 of 100 in every form. Speech by itself does not get past safety.
+- **The neuron found on text works for speech.** L13:F4787 pinned at +30 removes refusal for 100 of 100 typed requests, 96 of 99 in voice 1 and 98 of 100 in voice 2.
+- **The neuron found on speech works for text.** The speech run picks L14:F13014, also at +30: 96, 96 and 95. Request by request, the two neurons are equally good.
+- **The two searches mostly agree.** 432 of their top 1,000 neurons are the same (chance would be about 5), and both picks are in both top-10 lists.
+- **Too strong a pin breaks answers.** The same speech neuron at +60 repeats itself in 24–39 of 100 answers, against 1–4 at +30.
+
+**A fault we caught.** In the first run (19 November) the answers did not stop when the model's turn ended: the model went on to write an invented next question and answered it, and the judges read all of it. It is the same fault as in the first picture run. The 23 November rerun stops answers at the end of the turn. The headline numbers barely moved, but the speech neuron's pick moved from +60 to +30 (the two were nearly tied), and the first run's repetition counts had been inflated by the invented turns.
+
+**What this does not show.** The voices are synthetic, clean and English. Real recordings (RedVox) and other languages in speech are next.
+
 ## 9. Caveats
 - English answers have one judge (Llama-Guard-3), which doesn't check that answers make sense. Arabic answers have two that agree (Qwen3Guard, and Llama-Guard on a translation).
 - Capability is measured on subsets of MMLU and GSM8K.
