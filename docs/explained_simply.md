@@ -438,6 +438,18 @@ Still to run from that meeting: other refusal-phrase lists (does changing the ph
 
 **A fault we caught.** In the first run most answers kept going after they should have stopped, and a few were scrambled. The cause was how the model was set up to write answers, not the model. That run was thrown away and redone.
 
+## 8e. Pictures in every language (22–23 November)
+
+**What we did.** The same as the multilingual experiments on the text models, on the omni model, with every prompt given twice: typed, and as a picture of the typed text in that language's script (Arabic right to left, Chinese and Thai without spaces, and so on). Per language: the search, a reading check, then the attack with the English neuron pinned, set up exactly as before (512-token answers, constant and anchor pins, three judges).
+
+**What we found.**
+- **As text, it is the same story in every language.** The same neuron tops the search in 13 of 14 languages, and pinning the English pick removes refusal in every language but Yoruba.
+- **As pictures, some languages get past safety with nothing pinned.** In Arabic, Korean and Thai the model gives a harmful answer to a pictured request 36–49% of the time; the same request typed gets one 3–13% of the time. The model reads those pictures fine (96% of the words), so it understood the request and answered anyway.
+- **The refusal neuron is nearly silent in exactly those cases.** Across languages, the more often pictures get through, the weaker the neuron fires on them. English and Chinese pictures: strong signal, still refused. Arabic, Korean, Thai pictures: almost no signal, often answered.
+- **Thai pictures are a real exception for the pin.** There the English neuron does nothing, and Thai's own picture search finds different neurons.
+
+**Why it matters.** This is the "recognised but not refused" idea measured directly: the model knows what is being asked, but the switch that makes it refuse does not flip.
+
 ## 9. Caveats
 - English answers have one judge (Llama-Guard-3), which doesn't check that answers make sense. Arabic answers have two that agree (Qwen3Guard, and Llama-Guard on a translation).
 - Capability is measured on subsets of MMLU and GSM8K.
