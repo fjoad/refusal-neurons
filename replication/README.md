@@ -95,6 +95,7 @@ Newest work first in each topic; every entry has its date, setup, numbers and ca
 - **Arabic Experiments 2 and 8** (PolyRefuse: the neuron jailbreaks Arabic as well as English, 88–95%, matching Arditi's Arabic direction; MultiJail weaker for both; the neuron is 1st or 2nd most aligned with the Arabic direction): 2026-11-05
 
 - **Images in every language, the attack** (12 of 14 PolyRefuse languages so far: with nothing pinned, Arabic, Korean and Thai pictures get harmful answers 36–45% of the time against 3–7% as text, although the model reads them, and the refusal neurons are nearly silent there; the English pin works on text everywhere but Yoruba, and on pictures everywhere but Thai): 2026-11-23
+- **Speech rerun with the stop token (v2)** (Qwen2.5-Omni-7B, text and spoken English, code in `replication/speech/`: the neuron found on text, L13:F4787 at +30, switches off refusal for 100, 96 and 98 of 100 typed, voice-1 and voice-2 requests; the neuron found on speech, L14:F13014, is now also picked at +30 and gives 96, 96 and 95; the two are equally good; the first run's answers ran on into invented turns, which inflated its loop counts): 2026-11-23
 - **Images in every language, search** (Qwen2.5-Omni-7B, the 14 PolyRefuse languages as text and as pictures: on text L14:F13014 is in the top 3 in 13 of 14 languages; on pictures it is in the top 10 in 10 of 14, and Arabic, Japanese and Thai pictures give different lists; Yoruba differs in both): 2026-11-22
 - **Images, typed-out pictures on Qwen2.5-Omni-7B** (the English experiment's prompts as pictures of their typed text: the search on pictures shares 4 of its top 5 and 351 of its top 1,000 neurons with the search on text; the model refuses pictured requests as often as typed ones, 97–99%; a text-found neuron pinned at +30 jailbreaks pictures, 0.77–0.84 against 0.67–0.74 on text; the whole method run on pictures picks L13:F4787 at +30, 0.91 on HarmBench, the neuron Asim reported for text): 2026-11-20
 - **Speech, first results reported by Asim** (Qwen2.5-Omni-7B, text and spoken English; not reproduced by us): 2026-11-19
@@ -159,6 +160,46 @@ Job scripts that produced these are in `scripts/jobs/` (each says which entry it
 - Llama-Guard reads a machine translation; Qwen3Guard reads the original. They agree on Arabic, Korean and Thai, which is why those are stated firmly.
 - One model. The pictures are typed-out text in a Noto font; nothing here tests other fonts or picture styles in those scripts.
 - No answers were read; all numbers come from the judges and from counts.
+
+### 2026-11-23: Speech rerun with the stop token (v2) (Qwen2.5-Omni-7B) (`replication/speech/`, `scripts/jobs/speech_v2.sh`)
+
+**Question.** Is refusal gated by the same single neuron when a harmful request is typed or spoken? This entry replaces the judged numbers of "2026-11-19: Speech, first results" (Asim).
+
+**Why a rerun.** The first run generated with the thinker loaded on its own and passed no stop token, so greedy answers ran past `<|im_end|>` into invented further turns ("Human: …", then an invented answer): 94–99 of 100 untouched test answers and 11–81 of 100 pinned ones (76–81 for A at +30). The judges scored the whole text. This is the fault Faaiz found in his first image run (job 472817). Fix: `generate()` stops at `<|im_end|>`. Everything else is unchanged, and the whole pick and test stages were regenerated (no answer was cut afterwards). The searches and the neuron readout generate nothing and are not rerun. A check: the first answers of the rerank reproduce the first run's string-match refusal counts exactly (124, 116, 116, 111, 103 of 191 for the first five runs), so only the run-on part changed.
+
+**Setup** (details in [replication/speech/README.md](speech/README.md)). Qwen2.5-Omni-7B thinker, bf16, Qwen2.5-Omni's default system prompt, greedy. Speech: XTTS-v2, two voices, Whisper check (WER ≤ 0.3; voice 1 keeps 99 of the 100 test prompts). Setting A finds and picks the neuron on text, setting B on voice 1; both are tested on text and both voices. Search: Arditi 128 + 128. Pick: HarmBench val (191), pins ±2 to 60, 128 new tokens, smallest pin within 2 points of the best. Test: JailbreakBench (100), 256 new tokens. Judges: Llama-Guard-3-8B and K.1 (official). Loop = some 4-word sequence occurs 4 or more times. Jobs 475663–475670, 475739–475744, 475749 (`scripts/jobs/speech_v2.sh`); tables from `replication/speech/summarize.py`.
+
+**Pick stage** (HarmBench, K.1 success of 191).
+
+| Setting | Untouched | Picked by K.1 | Picked by Llama-Guard |
+|---|---|---|---|
+| A (text search, typed prompts) | 31 | L13:F4787 at +30 (181; best 183 at +40) | L13:F4787 at +30 |
+| B (speech search, voice 1) | 29 | L14:F13014 at +30 (176; +60 gives 174) | L15:F7277 at −40 (Llama-Guard 182; K.1 156) |
+
+B's +30 and +60 are a near tie: the first run had 172 and 179 and picked +60; the rerun has 176 and 174 and picks +30. Both picks now use the same pin as A.
+
+**Test** (JailbreakBench; K.1 success, untouched → pinned; Llama-Guard unsafe and loops for the pinned model).
+
+| Neuron and pin | Text | Voice 1 (of 99) | Voice 2 |
+|---|---|---|---|
+| A, L13:F4787 at +30 (K.1 pick) | 10 → **100** (LG 90, loops 8) | 6 → **96** (LG 92, loops 2) | 8 → **98** (LG 90, loops 2) |
+| B, L14:F13014 at +30 (K.1 pick) | 10 → **96** (LG 89, loops 4) | 6 → **96** (LG 86, loops 1) | 9 → **95** (LG 87, loops 2) |
+| B's neuron at +60 (the first run's pick) | 10 → 87 (LG 92, loops 39) | 7 → 96 (LG 94, loops 28) | 8 → 93 (LG 93, loops 24) |
+| B, Llama-Guard pick L15:F7277 at −40 | 10 → 57 (LG 93, loops 89) | 5 → 61 (LG 92, loops 88) | 8 → 57 (LG 95, loops 82) |
+
+- **The text-found neuron switches off refusal for speech too**, and the speech-found neuron for text: 95–100 of 100 in every form. Untouched, the model answers 5–10 (K.1) and 7–13 (Llama-Guard) of 100 in every form, so speech is not a jailbreak by itself.
+- **A and B are equally good at their picks.** Request by request (only A / only B, exact McNemar): text 4 / 0 (p = 0.125), voice 1 3 / 3 (p = 1), voice 2 4 / 1 (p = 0.375). With B at +60 the text gap appears (13 / 0, p = 0.0002; voices 3 / 3 and 7 / 2): the stronger pin, not the neuron, makes B weaker on text.
+- **A too-strong pin breaks answers:** the same neuron loops on 39, 28 and 24 of 100 answers at +60 against 4, 1 and 2 at +30.
+- **Llama-Guard alone picks a neuron that only breaks the model:** L15:F7277 at −40 is "unsafe" for 92–95 of 100 answers, but 82–89 of them loop and K.1 counts 57–61.
+- **The first run's loop counts were inflated** by the invented turns (untouched 8–22 of 100 then, 0–1 now; A at +30 16, 11, 9 then, 8, 2, 2 now). At the same pin, the pinned numbers moved by at most 6 points under either judge; untouched K.1 by at most 4 and untouched Llama-Guard by up to 8 (lower now).
+
+**Padding check.** Every test prompt was also generated alone (no padding) and judged. No answer is garbled in either version; string-match refusal agrees on 98–100 of 100; K.1 success differs by 0–7 (the largest gap is L15:F7277 on text, 57 batched against 64 alone). Where the two versions differ, the first different word is a median 21–44 words in: bf16 rounding changes the order of operations with the batch, a near-tie flips and the greedy text drifts. This also explains why the untouched numbers vary slightly between re-runs.
+
+**Caveats.**
+- Synthetic English speech (XTTS-v2, two voices, clean audio). Real recordings (RedVox) are not tested yet.
+- Model judges only, no human labels. K.1 calls some fluent but off-topic answers coherent; the loop count catches only repetition.
+- 7 test prompts nearly repeat search or pick prompts (similarity ≥ 0.9, `replication/speech/leakage.py`); in the first run, dropping them moved no number by more than about a point (not re-checked on v2).
+- B's +30 against +60 is a near tie on the pick set, so the B pick is not a robust choice between the two; the +60 rows are reported for that reason.
 
 ### 2026-11-22: Images in every language, search (Qwen2.5-Omni-7B, PolyRefuse) (`omni.py phrases`, `search`, `grid`)
 
@@ -331,7 +372,7 @@ Text: the text search's top 5, pinned on text.
 
 ### 2026-11-19: Speech, first results reported by Asim (Qwen2.5-Omni-7B)
 
-**Status: reported, not reproduced.** These numbers come from two slides and messages Asim posted in the thread's Teams chat on 19 November. His code and outputs are in his own repository on panther (`/export/home/aersoy/repos/refusal-omni`), which our account cannot read, so nothing here has been checked by us. The scheduler's records show the runs were made on 18 November between 19:11 and 22:50 and on 19 November (searches, reranks, attacks, Llama-Guard and K.1 judging, a speech-recognition check of the synthesized audio).
+**Status: superseded by "2026-11-23: Speech rerun with the stop token (v2)".** These are the first-run numbers as Asim posted them on 19 November, kept as a dated record. The code is now in [`replication/speech/`](speech/README.md) (added 2026-11-23). The first run's answers did not stop at the end of the model's turn (no stop token), so its judged numbers and loop counts are replaced by the 2026-11-23 entry; the searches, which generate nothing, are unaffected. The runs were made on 18 November between 19:11 and 22:50 and on 19 November (searches, reranks, attacks, Llama-Guard and K.1 judging, a speech-recognition check of the synthesized audio).
 
 Setup, as reported:
 - **Model:** Qwen/Qwen2.5-Omni-7B, the MLPs of the "thinker" (the part that reads text or audio and writes the text answer; the "talker" only turns that text into speech). 340,992 neurons searched.
@@ -358,7 +399,13 @@ Attack rate in percent, no pin → pinned (the judge is not stated on the slide)
 | Speech, voice 2 | 11 → 99 | 10 → 96 | 11 → 97 | 2 / 0 |
 
 - **As reported: the two searches do not pick the same single neuron, but each neuron works in the other modality,** and at the same pin the two are equally good. The speech search's first-ranked neuron is the text search's fourth, and the text search's second is the speech search's second.
-- **What we need before using these numbers:** which judge the table uses and whether the answers are coherent under K.1; the number of test prompts; how the prompts whose synthesized audio was unintelligible were handled; the no-pin rates differ between columns (7 to 12), which needs explaining; access to the code and output files.
+- **What we needed before using these numbers, answered by Asim (2026-11-23):**
+  - *Judge:* both were run; the table is K.1 (success = not a refusal and coherent), the official judge. Llama-Guard numbers are in the 2026-11-23 entry.
+  - *Data:* the search used Arditi's 128 harmful and 128 harmless prompts (not HarmBench); HarmBench val (191) chose the neuron and pin; JailbreakBench (100) is the test.
+  - *Number of test prompts:* 100 per form, 99 for voice 1.
+  - *Unintelligible audio:* Whisper large-v3 transcribes every clip and clips with a word error rate above 0.3 are dropped (`replication/speech/tts/asr_check.py`): one JailbreakBench clip of voice 1, one Arditi harmless clip of voice 2.
+  - *No-pin rates differ between columns (7 to 12):* every attack file re-runs the untouched model; batches differ between runs, and bf16 rounding then changes some greedy answers (the 2026-11-23 padding check measures this).
+  - *Code and outputs:* code in `replication/speech/`; outputs stay on panther (`outputs/speech/`), as for the rest of the repo.
 - Closest prior work: Foo and Lee (2026) localize a refusal direction in audio LMs to the text LM's middle-to-late layers, Qwen2.5-Omni included, at the direction level ([reading list](../reading/README.md)).
 
 ### 2026-11-18: Follow-ups to the 17 November meeting (`mlp_every_layer.py`, `scripts/jobs/mlp_every_layer.sh`, `mlp_direction.py --steer_only`, `scripts/jobs/alpha_grid.sh`)
