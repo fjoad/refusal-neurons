@@ -32,3 +32,6 @@ logs/
 # Drive-ready folder (meeting minutes are not for the public repo)
 drive/
 assets/fonts/
+
+# speech track: synthesized clips and their manifests (replication/speech/tts)
+data/audio_speech/
