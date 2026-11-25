@@ -448,6 +448,10 @@ Still to run from that meeting: other refusal-phrase lists (does changing the ph
 - **The refusal neuron is nearly silent in exactly those cases.** Across languages, the more often pictures get through, the weaker the neuron fires on them. English and Chinese pictures: strong signal, still refused. Arabic, Korean, Thai pictures: almost no signal, often answered.
 - **Thai pictures are a real exception for the pin.** There the English neuron does nothing, and Thai's own picture search finds different neurons.
 
+**The neuron as a guard (26 November).** We read the most widely shared neuron on each prompt and asked how well that one number tells harmful from harmless, next to two guard models (Llama-Guard and Qwen3Guard) on the same 200 prompts per language. On typed prompts it is close to the guard models in 13 of 14 languages (AUROC 0.97–0.99 against 0.99–1.00), and one cut-off chosen on English gives 92–98% accuracy everywhere, the same range as the guards. On pictures it is weaker, most of all in Arabic, Korean and Thai, which are the languages where pictures get past safety. It fails in Yoruba.
+
+**Why our numbers and the speech numbers differed (25 November).** The speech runs give the model its own default system prompt; ours gave it none. With their prompt, our pipeline gets their numbers (95% against their 100%). With ours it gets 74%. The model is simply less safe under its default prompt. So results from the two setups cannot share a table until one setup is chosen.
+
 **Why it matters.** This is the "recognised but not refused" idea measured directly: the model knows what is being asked, but the switch that makes it refuse does not flip.
 
 ## 9. Caveats
