@@ -191,6 +191,8 @@ Then **writing** (December), for 4 January. After this paper: images and audio (
 
 ## Meetings and shared folder
 
+**The paper draft** is on Overleaf: project `ARR-4Jan27-OmniRefusal` (created 2026-11-25 on Faaiz's account, ACL format; Nadir and Asim invited as editors on 2026-11-26). Working title: "One Switch, Many Doors: Is Refusal Shared Across Languages and Modalities in Omni Models?". It opens with a plan section (what the paper should show, the setup to settle, open questions) that one switch in `main.tex` hides. A local copy of what was uploaded is in `drive/src/overleaf/` (gitignored); Overleaf is the working copy. Faaiz's Overleaf account has the institute's paid plan through his HBKU email.
+
 - **Next meeting: Sunday 22 November 2026, 2–3 pm** (Nadir, Asim, Faaiz), in place of the 19 November meeting, which did not take place.
 - **Weekly meeting with Nadir every Thursday.** Each meeting gets dated slides and one page of minutes: attendees, what was discussed, decisions, action items.
 - **Shared Google Drive folder** (fjoad1 account; anyone with the link can view): **[Refusal Neurons](https://drive.google.com/drive/folders/10q3hGmtRQUqM5EneyoZhL_j46phpbwy6)**

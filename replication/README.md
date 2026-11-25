@@ -302,6 +302,19 @@ The model reads the pictures. The lower score on harmful pictures is refusal, no
 - The picture run first lost its anchor runs to an out-of-memory error when reading the neuron on pictures in batches of 16 (fixed in `omni.acts`); the picture column is from the rerun, job 474287.
 - **To check:** a word-repetition count flags 7–11% of the pinned 512-token text answers as mostly one word repeated (3% on pictures, 0% with no pin), while the K.1 judge calls all of them coherent. At 128 tokens the count was 0–1%. Not yet looked into.
 
+**Lining up with the speech runs: the system prompt** (job 478775, 2026-11-25; `omni.py check --system omni --max_new 256`, the 100 JailbreakBench prompts, both neurons at +30). The speech runs use Qwen2.5-Omni's documented default system prompt ("You are Qwen, a virtual human ..."); ours use no system message, so the template inserts "You are a helpful assistant.". Everything else here is our pipeline (fp16, our judge loading, batches of one length).
+
+| K.1 success (Llama-Guard) | Our prompt, text | Our prompt, pictures | Speech runs' prompt, text | Speech runs' prompt, pictures | Speech runs' own result, text |
+|---|---|---|---|---|---|
+| No pin | 0.01 (0.01) | 0.02 (0.02) | 0.09 (0.10) | 0.07 (0.13) | 0.10 |
+| L13:F4787 at +30 | 0.74 (0.71) | 0.84 (0.84) | 0.95 (0.90) | 0.92 (0.86) | 1.00 |
+| L14:F13014 at +30 | 0.67 (0.70) | 0.77 (0.84) | 0.92 (0.90) | 0.91 (0.85) | 0.96 |
+
+- **The system prompt explains the gap between the two sets of runs.** With their prompt our pipeline gives 0.95 and 0.92 on text against their 1.00 and 0.96; with ours, 0.74 and 0.67. The remaining 4–5 points are within what precision, judge loading and batching can move (their padding check moves K.1 by up to 7).
+- **The model is less safe under its own default prompt even with nothing pinned:** 9% of harmful text requests succeed against 1%, and a phrase match finds 77 refusals of 100 against 97.
+- **Under their prompt, pictures are no longer easier than text** (0.92 against 0.95; 0.91 against 0.92). The 10-point picture advantage in our setup comes from text being harder to break under "You are a helpful assistant.", not from pictures being weaker.
+- Decision (Faaiz, 2026-11-25): each side keeps its own setup while exploring, and one setup is chosen for the final runs. Numbers from the two setups must not be put in one table until then.
+
 **The first answer run is not used** (job 472817). Two faults in how answers were generated: (1) the thinker loaded on its own has no stop token set, so 50–85% of unpinned answers ran on past the end of the turn into invented further turns, up to the 128-token limit; (2) rows padded to a longer prompt in the same batch sometimes came out garbled from the first word (8 of 100 harmless text answers, never the longest prompt of a batch). Found by reading the harmless answers and by counting on the harmful file without reading it. Fixed in `omni.py`: answers stop at `<|im_end|>`, and a batch only holds prompts of exactly one length. The faults had inflated Llama-Guard's no-pin rate to 0.23–0.29 and cut coherence to about 0.9; the string-match refusal rates were nearly the same (0.94–0.96).
 
 **Pin sweeps: each form's own best neuron and pin** (jobs 472943 on pictures, 472944 on text; `omni.py rerank`; the 191 HarmBench prompts in that form, pins 2–60 opposite to the neuron's harmful side, 128 new tokens; K.1 success, with no pin 0.08 on pictures and 0.07 on text). Our selection rule, as in the English replication: the neuron that reaches 0.90 at the smallest pin.
