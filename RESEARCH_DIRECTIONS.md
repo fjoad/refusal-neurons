@@ -67,3 +67,8 @@ One **parallel benchmark** with the same harmful and benign prompts in N languag
 - Which languages: Arabic and its dialects first, plus a high/low-resource spread?
 - Which multimodal models share a backbone with the text models we replicate?
 - Judge: Llama-Guard-3 plus an LLM judge as in Kazemi et al., and WildGuard for consistency with our EMNLP paper?
+
+## Added 2026-11-24: concept induction across languages and modalities (Nadir)
+
+Apple shows concept neurons only for suicide-related content. Pass matched inputs (the same content as text and as speech, in several languages) through the omni model's thinker and ask: do the same neurons respond to a concept such as suicide, or another safety topic, across languages and modalities? Then intervene on those neurons and test whether the concept becomes more likely to appear in the model's answers. Not started. It reuses the search's machinery with a concept as the target in place of refusal.
+

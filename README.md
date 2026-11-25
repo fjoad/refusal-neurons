@@ -139,6 +139,18 @@ Models above 8B are out of scope (decided at the start). The early Arabic pieces
 
 ## Next steps
 
+**Direction since the 22 November meeting** (Faaiz's notes from the meeting, in priority order; everything stays on omni models). This comes before the three parts below wherever they compete for time.
+
+| # | Question | What we already have | What is missing |
+|---|---|---|---|
+| 1 | Is there a language-agnostic neuron, a modality-agnostic neuron, and is it the same one? (Example: the neuron from German text is the one from English speech.) | Qwen2.5-Omni-7B: text and pictures in the 14 PolyRefuse languages (search and attack); English speech (the speech runs). L14:F13014 is in the top 3 on text in 13 of 14 languages and in the top 5 of all four English searches (text and speech, both sets of runs) | Speech in other languages; the full grid as one table; a neuron found in one cell pinned in the others (so far only the English pick is pinned everywhere); the attack with L14:F13014, the most widely shared neuron, in place of L13:F4787 |
+| 2 | Is it agnostic to task and domain, to the speaker's gender, to a human against a synthesized voice, to the omni model, and to pretrained against safety-trained? | Domains: HarmBench, JailbreakBench, PolyRefuse on the omni model; CoCoNot and base models only on the text models. Gender: two synthesized voices at test time | MultiJail on the omni model; real recordings (RedVox); other omni models (Gemma 3n, Phi-4-multimodal, LFM3-Omni); whether any omni model has a pretrained, non-safety-trained release |
+| 3 | Can the single neuron serve as a guard, with the same AUROC as a guard model? | AUROC per language and form from the attack runs (0.98–1.00 in English; 0.82–0.98 on pictures in other languages; 0.54 on Thai pictures). Text models: the neuron against Llama-Guard and Qwen3Guard with one English cut-off | The same head-to-head on the omni model. Text guards cannot read a picture or audio, so on those forms the neuron is compared with a guard given the transcript |
+| 4 | Is the neuron's average value a pattern across models? | Harmful and harmless averages and the pin for the three text models and the omni model | One table across models, forms and languages (no new runs needed for most of it) |
+| 5 | Does a male and a female voice find different neurons? | The speech search was run on one voice | The search on the second voice, and the overlap |
+
+Work split from the same notes: Faaiz the multilingual part, Asim the multimodal part. Nadir added on 24 November: concept induction across languages and modalities (do the same neurons respond to a concept such as suicide in matched text and speech inputs, and does intervening on them bring the concept into the answer); see [RESEARCH_DIRECTIONS.md](RESEARCH_DIRECTIONS.md).
+
 The project has three parts (restated by Faaiz, 2026-11-05):
 
 **Part 1: the whole Apple paper, in English and in Arabic** (current). Every experiment the paper runs, done the same way, in Arabic as well as English, finishing any English gaps. The aim is to investigate whether Arabic behaves the same, not to reproduce Apple's numbers. Checklist above. In order:
@@ -178,6 +190,7 @@ Then **writing** (December), for 4 January. After this paper: images and audio (
 
 These were settled in discussion. Don't reopen them without a new reason.
 
+- **Everything stays on omni models, and the work is split: Faaiz multilingual, Asim multimodal** (2026-11-22 meeting, Faaiz's notes). The priority order of the questions is the table at the top of Next steps. Open: which of the two owns pictures (the speech code's note of 23 November says text and speech only).
 - **The picture runs copy the text experiments' setup exactly; only the model and the form of the prompt (text or picture) change** (2026-11-22, Faaiz). So the attack uses no pin, the constant pin and the anchor pin (k = 1, 2) with 512 new tokens and Part 2's three judges, in English and in every PolyRefuse and MultiJail language. A first version with 128 tokens and no anchor was cancelled.
 - **Images start with our own typed-out pictures of the English experiment's prompts, not with Omni-SafetyBench** (2026-11-20, Faaiz). We have to make harmless pictures anyway (the dataset has none), and starting from prompts that already work in text means only the carrier changes. Omni-SafetyBench is the outside test set afterwards.
 - **The multilingual and multimodal work is one thread and aims at one combined paper** (2026-11-19, Nadir: "stronger combined"). It is run by Nadir, Faaiz and Asim, with its own Teams chat ("Multilingual-Multimodal Safety"). Next meeting: Sunday 22 November, 2–3 pm. The questions Nadir set for it: are the neurons language agnostic (yes in our text experiments; confirm on the omni model), modality agnostic, how much they overlap across languages and modalities, whether they hold across datasets, and what changes across omni models of different size and design.
