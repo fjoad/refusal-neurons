@@ -94,6 +94,7 @@ Newest work first in each topic; every entry has its date, setup, numbers and ca
 - **Follow-ups to the 5 November meeting** (note 6's layers, added 2026-11-17: the harmful/harmless signal is shared across languages by layer 10–13 in both Qwen sizes, so no extra language step in the small model; note 3 for larger k, added 2026-11-17: longer lists do not overlap more, but four neurons per model, Apple's among them, are in every language's top 20 outside Yoruba and Swahili; the neuron fires on the prompts the model refuses, in every language but Yoruba and Qwen-Swahili; the small model does not fall off faster with language; MultiJail's lower numbers are the same borderline prompts in every language): 2026-11-12
 - **Arabic Experiments 2 and 8** (PolyRefuse: the neuron jailbreaks Arabic as well as English, 88–95%, matching Arditi's Arabic direction; MultiJail weaker for both; the neuron is 1st or 2nd most aligned with the Arabic direction): 2026-11-05
 
+- **The neuron as a guard on the omni model, and its average value across models** (22 November meeting, points 3 and 4: on text L14:F13014 separates harmful from harmless with AUROC 0.97–0.99 in 13 of 14 languages against 0.99–1.00 for Llama-Guard and Qwen3Guard, and one English cut-off gives 0.92–0.98 accuracy against the guards' 0.92–0.98; on pictures it is weaker, and it fails in Yoruba; in all four models the pin is 3.6–6.5 times the harmful value, on the other side of zero): 2026-11-26
 - **Images in every language, the attack** (all 14 PolyRefuse languages: with nothing pinned, Arabic, Korean and Thai pictures get harmful answers 36–45% of the time against 3–7% as text, although the model reads them, and the refusal neurons are nearly silent there; the English pin works on text everywhere but Yoruba, and on pictures everywhere but Thai): 2026-11-23
 - **Images in every language, search** (Qwen2.5-Omni-7B, the 14 PolyRefuse languages as text and as pictures: on text L14:F13014 is in the top 3 in 13 of 14 languages; on pictures it is in the top 10 in 10 of 14, and Arabic, Japanese and Thai pictures give different lists; Yoruba differs in both): 2026-11-22
 - **Images, typed-out pictures on Qwen2.5-Omni-7B** (the English experiment's prompts as pictures of their typed text: the search on pictures shares 4 of its top 5 and 351 of its top 1,000 neurons with the search on text; the model refuses pictured requests as often as typed ones, 97–99%; a text-found neuron pinned at +30 jailbreaks pictures, 0.77–0.84 against 0.67–0.74 on text; the whole method run on pictures picks L13:F4787 at +30, 0.91 on HarmBench, the neuron Asim reported for text): 2026-11-20
@@ -101,6 +102,48 @@ Newest work first in each topic; every entry has its date, setup, numbers and ca
 - **Follow-ups to the 17 November meeting** (points 23–26: the one MLP direction removed in every MLP does no more than in one layer; each MLP's own direction, and Nanda's direction taken out of the MLP outputs only, remove most refusal openings but the two judges disagree on whether the answers are jailbreaks; the blind reverse route puts Apple's neuron 1st, 2nd and 5th in the whole model, and with Apple's rerank ends on Apple's neuron on Llama, a tie with L14:F1251 on Qwen3-8B and L15:F1109 on Qwen3-1.7B; under K.1 the steering peaks at 2.5–3 gaps and the answers are incoherent by 4–6, Llama stopping at 0.895; neurons pinned together on MultiJail break coherence at full pins; on Qwen3-8B four neurons at a quarter of their pins reach 0.97 under K.1 against 0.77 for the best single one, controls pending): 2026-11-18
 
 Job scripts that produced these are in `scripts/jobs/` (each says which entry it belongs to).
+
+### 2026-11-26: The neuron as a guard on the omni model, and its average value across models (`omni_guard.py`)
+
+**Questions** (22 November meeting, points 3 and 4). Can the single neuron be used as a guard, with the same area under the curve as a guard model? Is the neuron's average value a pattern across models?
+
+**Guard: setup.** No new runs. Per PolyRefuse language, the same 100 harmful prompts (`harmful_eval`) and 100 harmless ones (`harmless_test`; Chinese has 72), on Qwen2.5-Omni-7B with nothing pinned (the values `omni.py check` saved on 22–23 November). The neuron's score is its value on its harmful side, taken as the strongest of the five template tokens (Kazemi et al.'s rule). Its accuracy uses ONE cut-off, chosen on English text and applied unchanged to every language and to pictures. The guards are Llama-Guard-3 and Qwen3Guard on the typed prompt (`guard_detect.py`'s saved scores, the same prompts picked out by position), with their own verdicts for accuracy. A text guard cannot read a picture; the neuron can be read in any form. CPU job 479117.
+
+| Language | L14:F13014 text: AUROC (accuracy) | L14:F13014 pictures | L13:F4787 text | Llama-Guard, typed prompt | Qwen3Guard, typed prompt |
+|---|---|---|---|---|---|
+| English | 0.998 (0.98) | 0.992 (0.93) | 0.996 (0.96) | 1.000 (0.98) | 1.000 (0.98) |
+| Russian | 0.994 (0.97) | 0.973 (0.89) | 0.982 (0.85) | 0.999 (0.95) | 0.990 (0.96) |
+| Spanish | 0.993 (0.95) | 0.979 (0.88) | 0.968 (0.76) | 0.999 (0.97) | 0.995 (0.97) |
+| Japanese | 0.993 (0.95) | 0.965 (0.89) | 0.952 (0.82) | 0.997 (0.94) | 0.994 (0.97) |
+| Chinese | 0.992 (0.92) | 0.958 (0.88) | 0.984 (0.72) | 0.998 (0.94) | 0.995 (0.97) |
+| Italian | 0.991 (0.94) | 0.980 (0.84) | 0.968 (0.72) | 0.998 (0.97) | 1.000 (0.97) |
+| German | 0.987 (0.94) | 0.977 (0.86) | 0.978 (0.81) | 1.000 (0.97) | 1.000 (0.98) |
+| French | 0.986 (0.97) | 0.971 (0.85) | 0.968 (0.85) | 0.995 (0.96) | 0.990 (0.97) |
+| Arabic | 0.986 (0.94) | 0.865 (0.67) | 0.955 (0.81) | 0.998 (0.95) | 0.995 (0.97) |
+| Korean | 0.986 (0.94) | 0.871 (0.69) | 0.968 (0.89) | 0.991 (0.92) | 0.989 (0.96) |
+| Dutch | 0.979 (0.94) | 0.972 (0.84) | 0.962 (0.79) | 0.999 (0.96) | 0.994 (0.96) |
+| Polish | 0.969 (0.92) | 0.953 (0.84) | 0.925 (0.69) | 0.997 (0.96) | 0.985 (0.96) |
+| Thai | 0.969 (0.94) | 0.727 (0.51) | 0.897 (0.73) | 0.997 (0.94) | 0.989 (0.95) |
+| Yoruba | 0.369 (0.46) | 0.688 (0.51) | 0.529 (0.52) | 0.912 (0.77) | 0.655 (0.51) |
+
+- **On text, the most widely shared neuron is close to a guard model in 13 of 14 languages, not equal to it:** AUROC 0.97–0.99 against 0.99–1.00, and with one English cut-off its accuracy is 0.92–0.98 against the guards' 0.92–0.98. It costs nothing extra: the value is already computed when the model reads the prompt.
+- **L14:F13014 is the better guard of the two.** L13:F4787, the neuron the English pin sweep picks, has lower AUROC in every language (0.90–0.98), and its English cut-off transfers badly (accuracy 0.69–0.89 outside English) because its harmless values rise in other languages.
+- **On pictures it is weaker:** AUROC 0.95–0.99 for the European languages, Russian, Chinese and Japanese, 0.87 for Arabic and Korean, 0.73 for Thai. The English-text cut-off is too high for pictures, where the neuron fires less, so accuracy falls to 0.84–0.93 (0.51–0.69 in Arabic, Korean and Thai). Arabic, Korean and Thai are the languages where pictures get past safety: the neuron is weakest as a guard exactly where a guard is most needed.
+- **Yoruba fails for the neuron** (0.37–0.69) and for Qwen3Guard (0.66); only Llama-Guard keeps some signal (0.91).
+- Reading the neuron at the last template token only, in place of the strongest of the five, lowers its text AUROC in every language outside English (to 0.89–0.98 for L14:F13014); the first newline carries much of the signal on text.
+
+**Average values across models** (point 4; values at the neuron's own token on the English test prompts, from the earlier entries).
+
+| Model | Neuron | Harmless average | Harmful average | Pin | Pin as a multiple of the harmful average |
+|---|---|---|---|---|---|
+| Qwen3-8B | L14:F7924 | −0.16 | −4.41 | +20 | 4.5 times, other side of zero |
+| Llama-3.1-8B | L11:F4258 | −0.01 | +1.11 | −4 | 3.6 times, other side |
+| Qwen3-1.7B | L13:F3270 | +0.05 | −10.25 | +40 | 3.9 times, other side |
+| Qwen2.5-Omni-7B, text | L13:F4787 | −0.53 | −4.63 | +30 | 6.5 times, other side |
+| Qwen2.5-Omni-7B, pictures | L13:F4787 | −0.67 | −2.83 | +30 | 10.6 times, other side |
+
+- **The same shape in all four models:** near zero on harmless prompts, a move of 1 to 10 units to one side on harmful prompts, and a working pin on the opposite side at roughly 4 to 6 times that size.
+- **The sign and the scale are not shared:** the three Qwen-family neurons go negative on harmful prompts and Llama's goes positive; the harmful average ranges from 1.1 to 10.3. So the pattern is the ratio, not the value. Four models and one neuron each; a pattern, not a law.
 
 ### 2026-11-23: Images in every language, the attack (Qwen2.5-Omni-7B, PolyRefuse) (`omni.py check`, `evaluate`)
 
