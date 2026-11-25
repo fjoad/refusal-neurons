@@ -57,6 +57,11 @@ SCORE_TOKENS = ["<|im_end|>", "Ċ", "<|im_start|>", "assistant", "Ċ"]
 FORMS = ["text", "image", "image_follow"]
 
 
+# --system omni: Qwen2.5-Omni's documented default system prompt, which the speech runs (replication/speech/) use.
+# Default (None): no system message, so the chat template inserts "You are a helpful assistant.".
+SYSTEMS = {"omni": "You are Qwen, a virtual human developed by the Qwen Team, Alibaba Group, capable of perceiving "
+                   "auditory and visual inputs, as well as generating text and speech."}
+SYSTEM = None
 LANG = None  # set by --lang: the language of the prompts, which picks the font and the layout of the pictures
 # Noto fonts (scripts/get_fonts.sh puts them in assets/fonts). A word is drawn in its script's font when it has a
 # character of that script, otherwise in Noto Sans; the CJK font has Latin letters itself.
@@ -188,7 +193,10 @@ def chat_text(proc, form, instruction):
                "image": [{"type": "image"}],
                "image_follow": [{"type": "image"}, {"type": "text", "text": FOLLOW}],
                "read": [{"type": "image"}, {"type": "text", "text": READ}]}[form]
-    out = proc.apply_chat_template([{"role": "user", "content": content}], add_generation_prompt=True, tokenize=False)
+    msgs = [{"role": "user", "content": content}]
+    if SYSTEM:
+        msgs.insert(0, {"role": "system", "content": [{"type": "text", "text": SYSTEMS[SYSTEM]}]})
+    out = proc.apply_chat_template(msgs, add_generation_prompt=True, tokenize=False)
     return out[0] if isinstance(out, list) else out
 
 
@@ -720,6 +728,9 @@ def main():
     common.add_argument("--model", default=MODEL)
     common.add_argument("--dtype", default="float16", choices=["float16", "bfloat16", "float32"])
     common.add_argument("--tag", default="")
+    common.add_argument("--system", default=None, choices=sorted(SYSTEMS),
+                        help="system prompt: default none (the template's own 'You are a helpful assistant.'); "
+                             "'omni' = Qwen2.5-Omni's documented default, as the speech runs use")
     common.add_argument("--lang", default=None, help="language code of the prompts (ar, zh, de, ...): pictures are drawn "
                         "with Noto fonts and that script's layout. Default: the English experiment's built-in font")
     c = sub.add_parser("check", parents=[common])
@@ -782,8 +793,8 @@ def main():
     p.add_argument("--forms", nargs="+", default=FORMS, choices=FORMS)
     p.set_defaults(fn=cmd_report)
     args = ap.parse_args()
-    global LANG
-    LANG = args.lang
+    global LANG, SYSTEM
+    LANG, SYSTEM = args.lang, args.system
     args.fn(args)
 
 

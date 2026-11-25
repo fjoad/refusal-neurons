@@ -13,14 +13,16 @@
 #SBATCH --exclude=crimv3mgpu018
 #SBATCH --chdir=/export/home/fjoad/refusal-neurons
 #SBATCH -o logs/%x-%j.out
-# Usage: sbatch scripts/jobs/omni_check.sh [<pins, default "13:4787:30 14:13014:30"> [<tag> [<neurons to read, "L:F ...">]]]
+# Usage: sbatch scripts/jobs/omni_check.sh [<pins, default "13:4787:30 14:13014:30"> [<tag> [<neurons to read, "L:F ..."> [<extra options>]]]]
+#   With the speech runs' system prompt and answer length (to line the two setups up):
+#   ... "13:4787:30 14:13014:30" sysomni "" "--system omni --max_new 256 --forms text image"
 #   Our own run's neurons (both searches' top 5, and the two the picture pin sweep picked):
 #   ... "13:4787:30 16:1870:-40" ours "14:13014 16:1870 14:13435 16:11620 17:5484 13:4787"
 #   The default pins are the two neurons Asim reported (text-found and speech-found, both at +30).
 set -e
 export HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 PYTHONUNBUFFERED=1 PYTHONUTF8=1
 source ~/envs/refomni/bin/activate
-python -u replication/omni.py check --pins ${1:-13:4787:30 14:13014:30} ${2:+--tag $2} ${3:+--watch $3}
+python -u replication/omni.py check --pins ${1:-13:4787:30 14:13014:30} ${2:+--tag $2} ${3:+--watch $3} ${4:-}
 deactivate
 source ~/anaconda3/bin/activate refneu
 f=outputs/omni/Qwen2.5-Omni-7B_check_jailbreakbench${2:+_$2}.json
