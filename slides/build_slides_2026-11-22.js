@@ -3,6 +3,7 @@
 // one on speech), measured by us on text and pictures. Part 2: our own search, pin sweep and test. Every number is from the results log
 // (replication/README.md, "2026-11-20: Images, typed-out pictures on Qwen2.5-Omni-7B"). The example pictures in
 // slides/assets/2026-11-22/ are made with omni.render from mild prompts; there are no model answers in this deck.
+// Shown on 22 November with five cells pending; those were filled from the results log on 25 November (slides 5, 8, 9).
 // Run:  NODE_PATH=/opt/homebrew/lib/node_modules node slides/build_slides_2026-11-22.js
 
 const path = require("path");
@@ -219,7 +220,7 @@ const SIX = {                   // job 474042: all six neurons' averages on the 
     "Gave the 100 harmful test prompts in each form and judged the answers ourselves.",
   ], ML, 1.8, 4.6, 2.6, 13);
   label(s, "HOW TO READ THE TABLE", ML, 4.5, 4.6, AMBER);
-  para(s, "Each cell is the share of the 100 answers that are not a refusal and make sense (Apple's criterion). Answers are up to 128 tokens long; the run in the original form (512 tokens, with the anchor pin) is in progress.", ML, 4.8, 4.6, 1.2, 12.5);
+  para(s, "Each cell is the share of the 100 answers that are not a refusal and make sense (Apple's criterion). Answers are up to 128 tokens long. In the original form (512 tokens, constant and anchor pins) A gives 75% on text and 86% on pictures.", ML, 4.8, 4.6, 1.2, 12.5);
   table(s, [
     ["", "Text", "Picture", "Picture + sentence"],
     ["Nothing pinned", "1%", "2%", "3%"],
@@ -349,7 +350,7 @@ const SIX = {                   // job 474042: all six neurons' averages on the 
     ["L13:F4787 at +30", "74%", hl("84%")],
     ["L16:F1870 at −40", v(SIX && SIX.t1870), v(SIX && SIX.p1870)],
   ], 8.1, 1.85, 4.63, [2.23, 1.2, 1.2], { size: 13.5, rowH: 0.5 });
-  para(s, "Share of answers that are not a refusal and make sense. L16:F1870 at −40 is the sweep's second pick. Answers up to 128 tokens; the run in the original form (512 tokens, anchor pin) is in progress.", 8.1, 3.95, 4.6, 0.9, 12);
+  para(s, "Share of answers that are not a refusal and make sense. L16:F1870 at −40 is the sweep's second pick. Answers up to 128 tokens. In the original form (512 tokens, constant and anchor pins) L13:F4787 gives 75% on text and 86% on pictures.", 8.1, 3.95, 4.6, 0.9, 12);
   result(s, [b("Result: "), t("weaker signal, same switch. The neuron fires less on pictures, but pinning it removes refusal on pictures at least as well as on text.")]);
 }
 
