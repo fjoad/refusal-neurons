@@ -94,7 +94,7 @@ Newest work first in each topic; every entry has its date, setup, numbers and ca
 - **Follow-ups to the 5 November meeting** (note 6's layers, added 2026-11-17: the harmful/harmless signal is shared across languages by layer 10–13 in both Qwen sizes, so no extra language step in the small model; note 3 for larger k, added 2026-11-17: longer lists do not overlap more, but four neurons per model, Apple's among them, are in every language's top 20 outside Yoruba and Swahili; the neuron fires on the prompts the model refuses, in every language but Yoruba and Qwen-Swahili; the small model does not fall off faster with language; MultiJail's lower numbers are the same borderline prompts in every language): 2026-11-12
 - **Arabic Experiments 2 and 8** (PolyRefuse: the neuron jailbreaks Arabic as well as English, 88–95%, matching Arditi's Arabic direction; MultiJail weaker for both; the neuron is 1st or 2nd most aligned with the Arabic direction): 2026-11-05
 
-- **Images in every language, the attack** (12 of 14 PolyRefuse languages so far: with nothing pinned, Arabic, Korean and Thai pictures get harmful answers 36–45% of the time against 3–7% as text, although the model reads them, and the refusal neurons are nearly silent there; the English pin works on text everywhere but Yoruba, and on pictures everywhere but Thai): 2026-11-23
+- **Images in every language, the attack** (all 14 PolyRefuse languages: with nothing pinned, Arabic, Korean and Thai pictures get harmful answers 36–45% of the time against 3–7% as text, although the model reads them, and the refusal neurons are nearly silent there; the English pin works on text everywhere but Yoruba, and on pictures everywhere but Thai): 2026-11-23
 - **Images in every language, search** (Qwen2.5-Omni-7B, the 14 PolyRefuse languages as text and as pictures: on text L14:F13014 is in the top 3 in 13 of 14 languages; on pictures it is in the top 10 in 10 of 14, and Arabic, Japanese and Thai pictures give different lists; Yoruba differs in both): 2026-11-22
 - **Images, typed-out pictures on Qwen2.5-Omni-7B** (the English experiment's prompts as pictures of their typed text: the search on pictures shares 4 of its top 5 and 351 of its top 1,000 neurons with the search on text; the model refuses pictured requests as often as typed ones, 97–99%; a text-found neuron pinned at +30 jailbreaks pictures, 0.77–0.84 against 0.67–0.74 on text; the whole method run on pictures picks L13:F4787 at +30, 0.91 on HarmBench, the neuron Asim reported for text): 2026-11-20
 - **Speech, first results reported by Asim** (Qwen2.5-Omni-7B, text and spoken English; not reproduced by us): 2026-11-19
@@ -106,7 +106,7 @@ Job scripts that produced these are in `scripts/jobs/` (each says which entry it
 
 **Question.** Part 2's attack on the text models, repeated on the omni model with each prompt as typed text and as a picture: does the English pick jailbreak every language, in both forms?
 
-**Setup.** As `part2_attack.sh` and `part2_judge.sh`; the only differences are the model and the form of the prompt. Per language, the 100 held-out harmful prompts (PolyRefuse `harmful_eval`): no pin, L13:F4787 at +30 as a constant pin, and the anchor pin at k = 1 and 2 (d from that language's and form's own search); 512 new tokens. Judges: Qwen3Guard on the original text, Llama-Guard-3 on an NLLB-200 English translation (English: on the text itself), and K.1 (not a refusal and coherent, gemma-2-9b-it). Before the attack: the reading check on 100 harmful and 100 harmless pictures, and the neurons' values at the template tokens. Jobs 474082 (en ar de es fr), 474084 (ru th yo zh), 474083 (it ja ko done; nl and pl still running). `scripts/jobs/omni_ml_attack.sh`.
+**Setup.** As `part2_attack.sh` and `part2_judge.sh`; the only differences are the model and the form of the prompt. Per language, the 100 held-out harmful prompts (PolyRefuse `harmful_eval`): no pin, L13:F4787 at +30 as a constant pin, and the anchor pin at k = 1 and 2 (d from that language's and form's own search); 512 new tokens. Judges: Qwen3Guard on the original text, Llama-Guard-3 on an NLLB-200 English translation (English: on the text itself), and K.1 (not a refusal and coherent, gemma-2-9b-it). Before the attack: the reading check on 100 harmful and 100 harmless pictures, and the neurons' values at the template tokens. Jobs 474082 (en ar de es fr), 474084 (ru th yo zh), 474083 (it ja ko nl pl). All 14 languages are in (Dutch and Polish added 2026-11-25). `scripts/jobs/omni_ml_attack.sh`.
 
 **With nothing pinned: does a pictured request get past safety?**
 
@@ -120,14 +120,16 @@ Job scripts that produced these are in `scripts/jobs/` (each says which entry it
 | Italian | 1.00 | 0.89 → 0.81 | 0.06 → 0.12 | 0.08 → 0.14 | −2.61 → −0.92 |
 | Japanese | 1.00 | 0.88 → 0.79 | 0.06 → 0.14 | 0.10 → 0.19 | −2.30 → −1.03 |
 | German | 1.00 | 0.93 → 0.81 | 0.05 → 0.16 | 0.12 → 0.15 | −2.58 → −0.99 |
+| Dutch | 1.00 | 0.86 → 0.80 | 0.08 → 0.15 | 0.09 → 0.19 | −2.14 → −0.89 |
+| Polish | 0.99 | 0.84 → 0.74 | 0.10 → 0.21 | 0.10 → 0.27 | −2.48 → −0.69 |
 | Korean | 0.96 | 0.86 → 0.60 | 0.07 → **0.36** | 0.11 → **0.36** | −1.22 → −0.39 |
 | Thai | 0.96 | 0.88 → 0.70 | 0.06 → **0.42** | 0.13 → **0.49** | −1.22 → −0.16 |
 | Arabic | 0.96 | 0.90 → 0.51 | 0.03 → **0.45** | 0.08 → **0.44** | −1.70 → −0.18 |
 | Yoruba | 0.79 | 0.59 → 0.31 | 0.00 → 0.00 | 0.70 → 0.13 | −0.33 → −0.01 |
 
 - **In Arabic, Korean and Thai a pictured request gets a harmful answer 36–49% of the time with nothing pinned, against 3–13% as text.** The two guards agree. This is not a reading failure: the model reads those pictures back at 96% of words.
-- **The refusal neuron is nearly silent exactly there.** On harmful pictures L14:F13014 averages −0.16 to −0.39 in those three languages (harmless is about −0.05), against −0.9 to −2.3 in the eight languages where pictures are still refused. Ordered by how often pictures get through, the neuron's value falls in step: this is "recognised but not refused", research direction 2, seen across languages in one model.
-- **English, Chinese, Spanish, French and Russian pictures are refused nearly as often as text** (harmful answers 3–8%); Italian, Japanese and German sit in between (12–19%).
+- **The refusal neuron is nearly silent exactly there.** On harmful pictures L14:F13014 averages −0.16 to −0.39 in those three languages (harmless is about −0.05), against −0.7 to −2.3 in the ten languages where pictures are still mostly refused. Ordered by how often pictures get through, the neuron's value falls in step: this is "recognised but not refused", research direction 2, seen across languages in one model.
+- **English, Chinese, Spanish, French and Russian pictures are refused nearly as often as text** (harmful answers 3–8%); Italian, Japanese, German, Dutch and Polish sit in between (12–27%).
 - **Yoruba is not readable from these numbers:** the model reads Yoruba pictures worst (0.79), refuses little in either form, and the judges disagree by 70 points on the text answers, as on the text models.
 
 **With the English pick pinned** (L13:F4787 at +30, constant; K.1 success, no pin → pinned; Qwen3Guard's harmful rate for the pinned run in brackets).
@@ -141,20 +143,22 @@ Job scripts that produced these are in `scripts/jobs/` (each says which entry it
 | Italian | 0.08 → 0.93 (0.86) | 0.16 → 0.96 (0.90) |
 | Russian | 0.01 → 0.88 (0.85) | 0.12 → 0.97 (0.92) |
 | Chinese | 0.04 → 0.94 (0.84) | 0.10 → 0.96 (0.86) |
+| Dutch | 0.11 → 0.97 (0.90) | 0.21 → 0.94 (0.82) |
+| Polish | 0.15 → 0.94 (0.85) | 0.25 → 0.96 (0.91) |
 | Japanese | 0.08 → 0.86 (0.84) | 0.21 → 0.78 (0.76) |
 | Korean | 0.15 → 0.83 (0.84) | 0.44 → 0.88 (0.82) |
 | Arabic | 0.11 → 0.84 (0.76) | 0.54 → 0.85 (0.78) |
 | Thai | 0.14 → 0.80 (0.76) | 0.45 → **0.45** (0.46) |
 | Yoruba | 0.40 → 0.44 (0.00) | 0.51 → 0.76 (0.00) |
 
-- **On text the English pick jailbreaks every language except Yoruba** (0.80–0.98), as Apple's neurons did on the text models.
+- **On text the English pick jailbreaks every language except Yoruba** (0.80–0.98 in the other 13), as Apple's neurons did on the text models.
 - **On pictures it works everywhere except Thai**, where it changes nothing (0.45 → 0.45; refusals 0.70 → 0.68). On Thai pictures this neuron does not tell harmful from harmless at all (AUROC 0.54 at the last newline; 0.83 on Thai text), and the Thai picture search found a different list (22 November entry).
 - **The anchor pin equals the constant pin** in every language and form (within 0.03), as in English.
 - **Coherence stays at 0.98–1.00** except Thai pictures (0.93) and Yoruba text (0.71).
 - **The neurons' pattern from English holds in every language:** on pictures the first newline is silent and the last newline carries a weaker signal than on text. AUROC of L13:F4787 on pictures: 0.91–0.98 in the European languages, Chinese and Japanese; 0.85 Arabic, 0.82 Korean, 0.54 Thai, 0.59 Yoruba.
 
 **Caveats.**
-- Dutch and Polish are still running. MultiJail is not run.
+- MultiJail is not run.
 - K.1's "success" counts any coherent non-refusal, so the no-pin K.1 numbers on pictures (0.44–0.54 in Arabic, Korean, Thai) are higher than the guards' harmful rates; the first table uses the guards.
 - Llama-Guard reads a machine translation; Qwen3Guard reads the original. They agree on Arabic, Korean and Thai, which is why those are stated firmly.
 - One model. The pictures are typed-out text in a Noto font; nothing here tests other fonts or picture styles in those scripts.
