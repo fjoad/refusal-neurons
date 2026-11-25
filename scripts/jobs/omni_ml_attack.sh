@@ -19,25 +19,32 @@
 #SBATCH --chdir=/export/home/fjoad/refusal-neurons
 #SBATCH -o logs/%x-%j.out
 # Usage: sbatch scripts/jobs/omni_ml_attack.sh <poly|mj> <language> [<language> ...]
+#   Options, as environment variables in front of sbatch:
+#     FORMS="text"            only typed prompts (default "text image")
+#     PIN="14 13014 40"       another neuron and signed pin (default "13 4787 30", the English pick)
+#     SKIP_CHECK=1            skip the reading check and the neuron values (already done for a language)
+#   e.g. FORMS=text PIN="14 13014 40" SKIP_CHECK=1 sbatch scripts/jobs/omni_ml_attack.sh poly en ar de
 export HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 PYTHONUNBUFFERED=1 PYTHONUTF8=1
 track=$1; shift
 if [ $track = poly ]; then split=harmful_eval; else split=harmful_test; fi
 M=Qwen2.5-Omni-7B
+FORMS=${FORMS:-text image}
+set -- "$@"; read -r PL PF PV <<< "${PIN:-13 4787 30}"
 for l in "$@"; do
   echo "##### $track $l"
   source ~/envs/refomni/bin/activate
-  python -u replication/omni.py check --lang $l --forms text image --n 100 --skip_answers \
+  [ -n "${SKIP_CHECK:-}" ] || python -u replication/omni.py check --lang $l --forms $FORMS --n 100 --skip_answers \
     --watch 14:13014 16:1870 14:13435 16:11620 17:5484 13:4787 \
     --harmful ${track}_${l}_${split} --harmless ${track}_${l}_harmless_test || echo "FAILED check $track $l"
-  for form in text image; do
-    python -u replication/omni.py evaluate --lang $l --form $form --layer 13 --neuron 4787 --pin 30 \
+  for form in $FORMS; do
+    python -u replication/omni.py evaluate --lang $l --form $form --layer $PL --neuron $PF --pin $PV \
       --search outputs/neuron_search/${M}_float16_omni_${form}_${track}_${l}.json \
       --split ${track}_${l}_${split} --tag ${track}_${l} || echo "FAILED evaluate $track $l $form"
   done
   deactivate
   source ~/anaconda3/bin/activate refneu
-  for form in text image; do
-    f=outputs/evaluate/${M}_L13_F4787_omni_${form}_${track}_${l}.json
+  for form in $FORMS; do
+    f=outputs/evaluate/${M}_L${PL}_F${PF}_omni_${form}_${track}_${l}.json
     [ -f $f ] || { echo "missing $f"; continue; }
     J="python -u replication/judge.py $f --skip_done"; TR="--translate --src_lang $l --prompts_en ${track}_en_${split}"
     $J --judge qwen3guard --bs 8
