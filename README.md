@@ -149,6 +149,19 @@ Models above 8B are out of scope (decided at the start). The early Arabic pieces
 | 4 | Is the neuron's average value a pattern across models? | Harmful and harmless averages and the pin for the three text models and the omni model | One table across models, forms and languages (no new runs needed for most of it) |
 | 5 | Does a male and a female voice find different neurons? | The speech search was run on one voice | The search on the second voice, and the overlap |
 
+Also asked for in the thread's group chat (Nadir, 19–24 November), not in the notes above:
+
+| Ask | What we already have | What is missing |
+|---|---|---|
+| One more language in both text and speech, then 2–3 | Text and pictures in 14 languages | Speech in any language but English |
+| The RedVox (real voices) and Omni-SafetyBench sets | Omni-SafetyBench's image forms looked at (reading list); neither set run | Both runs; RedVox access has to be requested |
+| Nanda's difference-of-means direction on the omni model | Done on the three text models only | The direction on the omni model for text, speech and pictures, and whether it is shared across them |
+| What sits in the parts the modalities do not share (the audio and picture encoders) | Nothing: every search is in the thinker's decoder | A first look at the encoders |
+| Which template token carries the signal, and how text and audio tokens line up | On text both newlines fire; on pictures only the last one (all six neurons). The speech runs report the first newline for the text-found neuron and the second for the speech-found one | The same per-token table for speech, to see whether speech behaves like pictures |
+| Concept induction across languages and modalities (24 November) | Nothing | See [RESEARCH_DIRECTIONS.md](RESEARCH_DIRECTIONS.md) |
+
+Nadir's framing in that chat (19 November): five questions, each a possible research question: language agnostic, modality agnostic, the overlap across both, dataset and domain agnostic, and what changes across omni models of different size and design. Venue: a general AI/ML venue if all modalities work, and out as soon as possible.
+
 Work split from the same notes: Faaiz the multilingual part, Asim the multimodal part. Nadir added on 24 November: concept induction across languages and modalities (do the same neurons respond to a concept such as suicide in matched text and speech inputs, and does intervening on them bring the concept into the answer); see [RESEARCH_DIRECTIONS.md](RESEARCH_DIRECTIONS.md).
 
 The project has three parts (restated by Faaiz, 2026-11-05):
