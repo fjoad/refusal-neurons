@@ -94,6 +94,7 @@ Newest work first in each topic; every entry has its date, setup, numbers and ca
 - **Follow-ups to the 5 November meeting** (note 6's layers, added 2026-11-17: the harmful/harmless signal is shared across languages by layer 10–13 in both Qwen sizes, so no extra language step in the small model; note 3 for larger k, added 2026-11-17: longer lists do not overlap more, but four neurons per model, Apple's among them, are in every language's top 20 outside Yoruba and Swahili; the neuron fires on the prompts the model refuses, in every language but Yoruba and Qwen-Swahili; the small model does not fall off faster with language; MultiJail's lower numbers are the same borderline prompts in every language): 2026-11-12
 - **Arabic Experiments 2 and 8** (PolyRefuse: the neuron jailbreaks Arabic as well as English, 88–95%, matching Arditi's Arabic direction; MultiJail weaker for both; the neuron is 1st or 2nd most aligned with the Arabic direction): 2026-11-05
 
+- **The refusal direction across languages on the omni model** (RQ1; English done: removing Nanda's direction gives 0.96 against 0.03 unchanged; the other 13 languages, each also tested with the English direction, are running): 2026-11-26
 - **Languages on the omni model: the most shared neuron pinned everywhere, and the MultiJail search** (typed prompts: L14:F13014 at +40 gives 0.87–0.97 in 12 of the 14 PolyRefuse languages, 0.79 in Thai, 0.32 in Yoruba; on MultiJail it is first in the search for 5 of 10 languages and in the top 4 for 7, and lost in Bengali, Javanese and Swahili): 2026-11-26
 - **The neuron as a guard on the omni model, and its average value across models** (22 November meeting, points 3 and 4: on text L14:F13014 separates harmful from harmless with AUROC 0.97–0.99 in 13 of 14 languages against 0.99–1.00 for Llama-Guard and Qwen3Guard, and one English cut-off gives 0.92–0.98 accuracy against the guards' 0.92–0.98; on pictures it is weaker, and it fails in Yoruba; in all four models the pin is 3.6–6.5 times the harmful value, on the other side of zero): 2026-11-26
 - **Images in every language, the attack** (all 14 PolyRefuse languages: with nothing pinned, Arabic, Korean and Thai pictures get harmful answers 36–45% of the time against 3–7% as text, although the model reads them, and the refusal neurons are nearly silent there; the English pin works on text everywhere but Yoruba, and on pictures everywhere but Thai): 2026-11-23
@@ -103,6 +104,24 @@ Newest work first in each topic; every entry has its date, setup, numbers and ca
 - **Follow-ups to the 17 November meeting** (points 23–26: the one MLP direction removed in every MLP does no more than in one layer; each MLP's own direction, and Nanda's direction taken out of the MLP outputs only, remove most refusal openings but the two judges disagree on whether the answers are jailbreaks; the blind reverse route puts Apple's neuron 1st, 2nd and 5th in the whole model, and with Apple's rerank ends on Apple's neuron on Llama, a tie with L14:F1251 on Qwen3-8B and L15:F1109 on Qwen3-1.7B; under K.1 the steering peaks at 2.5–3 gaps and the answers are incoherent by 4–6, Llama stopping at 0.895; neurons pinned together on MultiJail break coherence at full pins; on Qwen3-8B four neurons at a quarter of their pins reach 0.97 under K.1 against 0.77 for the best single one, controls pending): 2026-11-18
 
 Job scripts that produced these are in `scripts/jobs/` (each says which entry it belongs to).
+
+### 2026-11-26: The refusal direction across languages (Qwen2.5-Omni-7B) (`omni_direction.py`)
+
+**Question** (RQ1 of the proposal). Is the refusal direction shared across languages? Everything else on the omni model so far is about neurons.
+
+**Setup.** `arditi.py`'s recipe on the thinker, typed prompts, our setup, as it was run for Arabic on the text models. Per PolyRefuse language: the difference of means of the residual stream between that language's 128 harmful and 128 harmless prompts (after Arditi's filter: harmful prompts the model starts to refuse, harmless ones it does not), at each of the 28 layers and 5 template tokens; Arditi's selection on the first 32 rerank and 32 harmless-test prompts (lowest refusal score when removed everywhere, among candidates that pass his filters); then the 100 held-out harmful prompts with nothing changed, with the language's own direction removed at every layer and token, and with the English direction removed (transfer), 512 new tokens, three judges. The refusal score uses the first tokens of that language's own refusal openings. `scripts/jobs/omni_ml_direction.sh`; jobs 479377 (English), 479378 and 479379 (the other 13, running).
+
+**English** (job 479377). Selected: layer 21, the last template token (the newline before the answer); the refusal score on the validation prompts falls from +0.84 to −4.05. 108 of 128 harmful and 125 of 128 harmless training prompts pass the filter.
+
+| 100 held-out harmful prompts, English | K.1 success | Qwen3Guard harmful | Llama-Guard |
+|---|---|---|---|
+| Nothing changed | 0.03 | 0.03 | 0.03 |
+| Direction removed everywhere | 0.96 | 0.93 | 0.87 |
+| For comparison, L14:F13014 pinned at +40 | 0.89 | 0.85 | 0.84 |
+| For comparison, L13:F4787 pinned at +30 | 0.81 | 0.80 | 0.77 |
+
+- **Nanda's ablation works on the omni model as on the text models**, and a little better than one pinned neuron (0.96 against 0.81–0.89), with every answer coherent.
+- The other languages, the transfer of the English direction, and the cosine similarities between languages' directions are added here when jobs 479378 and 479379 finish.
 
 ### 2026-11-26: Languages on the omni model: the most shared neuron pinned everywhere, and the MultiJail search
 
