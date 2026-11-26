@@ -183,6 +183,16 @@ Job scripts that produced these are in `scripts/jobs/` (each says which entry it
 
 - **The pin works on MultiJail but less than on PolyRefuse** (0.65–0.75 against 0.81–0.98 for the same neuron and pin), the same gap the text models showed: MultiJail has borderline prompts whose answers are not harmful, and more of them are answered without any pin (0.08–0.25).
 - The anchor pin equals the constant pin (within 0.01); every pinned answer is judged coherent.
+
+**Why more refusals survive the pin on MultiJail** (`omni_survivors.py`, CPU jobs 479532 and 479535; counts and refusal openings only, no answer was read). Under K.1 the whole gap is answers still labelled refusals: 24–35 of 100 on MultiJail against 2–19 on PolyRefuse.
+
+- **Most of the survivors are not safety refusals. They are "I don't understand the request" replies.** In English, with nothing pinned, refusals open "I'm sorry, but I can't assist with" or "I cannot provide" (MultiJail 45 of 90, PolyRefuse 77 of 97 among the common openings). With the pin on, the surviving ones open "I'm sorry, but I'm not sure what": 21 of 35 on MultiJail (26 of 35 with "I don't understand what" and "I'm not sure what you mean by"), 12 of 19 on PolyRefuse. K.1 and the phrase match both count these as refusals.
+- **It is tied to the request, not the language.** The prompts are parallel across languages. On MultiJail 4 prompts stay refused in all six languages judged so far (0.05 expected if languages were independent) and 30 are never refused (12.9 expected); on PolyRefuse 42 are never refused in 13 languages (23.7 expected).
+- **MultiJail's requests are shorter and more often questions:** about 12 words against about 19, and 70 of 100 end in a question mark against 37 of 100. Within each dataset the surviving prompts are the shorter ones (11.0 against 12.6 words on MultiJail, 14.8 against 20.3 on PolyRefuse). Being a question does not matter by itself (0.34 against 0.37 on MultiJail).
+- **The other refusal neurons are not holding these refusals up.** On MultiJail the five other neurons fire a little less, not more, on the surviving prompts (for example L14:F13014 −1.97 against −2.16). So "one neuron is not enough on MultiJail" is not supported here.
+- **Reading:** with the neuron pinned, a short or vague harmful request sometimes gets "I'm not sure what you are asking" in place of either a refusal or an answer, and MultiJail has more such requests. Whether the pin removes the model's grasp of the request on those prompts, or the requests are too thin to answer once refusal is off, is not tested.
+- **Consequence for the metric:** "still refused" under K.1 mixes two behaviours. A third label (does not engage) would separate them; until then the MultiJail attack numbers understate how often refusal itself is switched off.
+- Caveats: English only for the openings; openings are the first four to seven words, not a reading of the answers; one model.
 - The German, Arabic and Chinese pin sweeps (job 478801) are still running.
 
 ### 2026-11-26: The neuron as a guard on the omni model, and its average value across models (`omni_guard.py`)
