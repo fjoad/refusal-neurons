@@ -113,7 +113,20 @@ def select_direction(model, candidates, harmful, harmless, token_ids, n_h, n_s):
     for r in valid[:5]:
         print(f"  candidate token [{r['post_token_index']}] layer {r['layer']:2d}: bypass {r['bypass_score']:+.3f}  "
               f"induce {r['induce_score']:+.3f}  KL {r['kl_score']:.4f}", flush=True)
-    return (valid[0] if valid else None), records, baseline
+    if valid:
+        return valid[0], records, baseline
+    # Fallback, a deviation from Arditi's selection (German, 26 November: all 140 candidates fail the induce check,
+    # so adding the direction to harmless prompts never makes one of that language's own refusal tokens the likely
+    # first token, although removing it lowers the refusal score as elsewhere). Keep the KL and layer filters, drop
+    # the induce check, and say so in the saved record.
+    relaxed = sorted((r for r in records if r["rejection_reasons"] == ["induce_below_0"]), key=lambda r: r["bypass_score"])
+    if not relaxed:
+        return None, records, baseline
+    chosen = dict(relaxed[0], fallback="induce check dropped: no candidate passed all of Arditi's filters")
+    print(f"  NO candidate passes all filters; induce check dropped. token [{chosen['post_token_index']}] layer "
+          f"{chosen['layer']}: bypass {chosen['bypass_score']:+.3f}  induce {chosen['induce_score']:+.3f}  "
+          f"KL {chosen['kl_score']:.4f}", flush=True)
+    return chosen, records, baseline
 
 
 def refusal_token_ids(proc, phrases_json, key):
