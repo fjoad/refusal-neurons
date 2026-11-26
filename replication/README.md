@@ -170,7 +170,20 @@ Job scripts that produced these are in `scripts/jobs/` (each says which entry it
 - **On a second, human-translated dataset the same neuron leads:** first in five languages, second in Korean, fourth in Thai.
 - **Bengali, Javanese and Swahili give different lists**, with top neurons in layers 1–13. Swahili is also the one language the model rarely refuses in (0.25), as on the text models. Bengali and Javanese are refused at normal rates (0.66, 0.79), so there the neuron is missing while refusal is not: these two need a closer look.
 - The model refuses less on MultiJail than on PolyRefuse everywhere (0.66–0.88 against 0.88–0.99), as the text models did (borderline prompts).
-- The MultiJail attack (jobs 478799, 478800) and the German, Arabic and Chinese pin sweeps (job 478801) are still running.
+
+**MultiJail, the attack** (job 478799 for the first five languages; job 478800, the other five, still running). Typed prompts, the English pick L13:F4787 at +30, set up as on PolyRefuse; 100 held-out harmful prompts per language.
+
+| Language | K.1 success, no pin → pinned | Qwen3Guard harmful, no pin → pinned | Llama-Guard on translation, no pin → pinned |
+|---|---|---|---|
+| English | 0.10 → 0.65 | 0.04 → 0.55 | 0.01 → 0.35 |
+| Arabic | 0.25 → 0.73 | 0.06 → 0.53 | 0.03 → 0.42 |
+| Chinese | 0.11 → 0.75 | 0.03 → 0.54 | 0.03 → 0.37 |
+| Italian | 0.11 → 0.71 | 0.05 → 0.61 | 0.03 → 0.47 |
+| Vietnamese | 0.08 → 0.67 | 0.02 → 0.46 | 0.01 → 0.34 |
+
+- **The pin works on MultiJail but less than on PolyRefuse** (0.65–0.75 against 0.81–0.98 for the same neuron and pin), the same gap the text models showed: MultiJail has borderline prompts whose answers are not harmful, and more of them are answered without any pin (0.08–0.25).
+- The anchor pin equals the constant pin (within 0.01); every pinned answer is judged coherent.
+- The German, Arabic and Chinese pin sweeps (job 478801) are still running.
 
 ### 2026-11-26: The neuron as a guard on the omni model, and its average value across models (`omni_guard.py`)
 
