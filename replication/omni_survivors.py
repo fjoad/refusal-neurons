@@ -86,6 +86,10 @@ def main():
             covered = sum(k for _, k in top)
             print(f"4. openings, {name} ({int(mask.sum())}): " + "; ".join(f"{o!r} x{k}" for o, k in top)
                   + f"  [other openings: {int(mask.sum()) - covered}]")
+            c7 = collections.Counter(opening(t.strip(), 7) for t, m in zip(run["responses"], mask) if m)
+            top7 = [(o, k) for o, k in c7.most_common(8) if k >= 2 and o]
+            print(f"   first seven words, shared by 2 or more: " + "; ".join(f"{o!r} x{k}" for o, k in top7)
+                  + f"  [other: {int(mask.sum()) - sum(k for _, k in top7)}]")
 
 
 if __name__ == "__main__":
