@@ -7,6 +7,7 @@ the model says it does not understand the request, which is neither a safety ref
           answers, the does-not-engage ones. Does it grow with the size of the pin?
   method: the same count for evaluate files (pin and anchor) and direction files (direction removed), so the pin
           and Nanda's ablation can be compared on the same prompts.
+  control: harmless English prompts with a neuron pinned: does the pin make the model unsure of any request?
 Usage: sbatch scripts/cpu.sh replication/omni_noengage.py
 """
 import glob
@@ -52,6 +53,18 @@ def main():
             print(f"{tag}  [{name}]")
             for r in d["runs"]:
                 line(r, r["mode"] + (f" k={r['k']:g}" if r.get("k") else ""))
+
+    print("\n===== control: harmless English prompts with a neuron pinned (omni_harmless_pin.sh)")
+    for f in sorted(glob.glob(str(ROOT / "outputs/evaluate/Qwen2.5-Omni-7B_L*_omni_text_harmless_*.json"))):
+        d = json.loads(open(f).read())
+        words = [len(p.split()) for p in d["prompts"]]
+        cut = sorted(words)[len(words) // 2]
+        print(f"{f.split('/')[-1]}  ({len(words)} prompts, median {cut} words)")
+        for r in d["runs"]:
+            ne = [noengage(t) for t in r["responses"]]
+            short = sum(n for n, w in zip(ne, words) if w <= cut)
+            print(f"  {r['mode']:10} pin {r['pin']}: does not engage {sum(ne):3d} of {len(ne)}  (among the {sum(w <= cut for w in words)} "
+                  f"shortest prompts: {short})  string-match refusal {r['refusal_rate_stringmatch']:.2f}")
 
 
 if __name__ == "__main__":
