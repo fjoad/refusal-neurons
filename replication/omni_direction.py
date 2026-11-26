@@ -15,6 +15,7 @@ Subcommands:
            language switch refusal off in another?). Answers go to outputs/evaluate/<model>_arditi_omni_<form>_<tag>.json.
   compare  no GPU: cosine similarity between the sets' directions, at each set's own selected place and at the
            English set's place in every set.
+  align    Appendix G: how far each refusal neuron's write vector points along the direction, and its rank in its layer.
 Usage:
   python replication/omni_direction.py run --tag poly_en --lang en --harmful poly_en_harmful_train ...
   python replication/omni_direction.py compare --tags poly_en poly_de poly_ar
@@ -246,6 +247,49 @@ def cmd_compare(args):
         print(f"\noff-diagonal: mean {sum(off) / len(off):+.3f}, lowest {min(off):+.3f}, highest {max(off):+.3f}")
 
 
+def cmd_align(args):
+    """Kazemi et al. Appendix G on the thinker: how far each watched neuron's write vector (its column of
+    down_proj) points along the refusal direction, and its rank by |cosine| among the 18,944 neurons of its layer.
+    Three versions of the direction: the set's selected one, and the difference of means right after the neuron's
+    own layer (candidate layer + 1 is the residual stream that layer writes into) at the last and first newline.
+    'along' = the cosine times the sign of the neuron's harmful-minus-harmless value: positive means that when the
+    neuron takes its harmful value it pushes the residual stream towards refusal."""
+    from arditi import cosine_ranking, gaussian_alignment_null, write_cosines
+    short = args.model.split("/")[-1]
+    data = torch.load(ROOT / "outputs" / "arditi" / f"{short}_omni_{args.form}_{args.tag}.pt", map_location="cpu")
+    search = json.loads((ROOT / args.search).read_text())
+    gap = {(c["layer"], c["neuron"]): c["mean_act_harmful"] - c["mean_act_harmless"]
+           for c in search["candidates"] + search.get("watched", []) if "mean_act_harmful" in c}
+    model, _ = omni.load_omni(args.model, args.dtype)
+    cand, sel = data["candidate_directions"], data["selected"]
+    out = {"args": {k: v for k, v in vars(args).items() if k != "fn"}, "selected": sel, "neurons": []}
+    print(f"{args.tag}: selected direction at token [{sel['post_token_index']}] layer {sel['layer']}")
+    for item in args.watch:
+        layer, neuron = (int(x) for x in item.split(":"))
+        weight = model.model.layers[layer].mlp.down_proj.weight
+        d = gap.get((layer, neuron))
+        sign = 0.0 if d is None else math.copysign(1.0, d)
+        null = gaussian_alignment_null(0.0, *weight.shape)
+        row = {"layer": layer, "neuron": neuron, "d": d, "expected_max_abs_cosine": null["expected_max"], "versions": {}}
+        print(f"L{layer}:F{neuron}  (harmful minus harmless value {d if d is None else round(d, 2)}; largest |cosine| "
+              f"expected by chance in this layer {null['expected_max']:.3f})")
+        versions = [("selected", data["direction"])]
+        if layer + 1 < cand.shape[1]:
+            versions += [("after own layer, last newline", cand[-1, layer + 1]), ("after own layer, first newline", cand[1, layer + 1])]
+        for name, vec in versions:
+            cosines, _ = write_cosines(weight, vec)
+            top, watched = cosine_ranking(cosines, neuron)
+            c = float(cosines[neuron])
+            rank = int((cosines.abs() > abs(c)).sum()) + 1
+            row["versions"][name] = {"cosine": c, "along": sign * c, "rank": rank, "top5": top}
+            print(f"  {name:32} cosine {c:+.3f}  along {sign * c:+.3f}  rank {rank:5d} of {weight.shape[1]}   "
+                  f"layer's top: F{top[0]['neuron']} {top[0]['cosine']:+.3f}, F{top[1]['neuron']} {top[1]['cosine']:+.3f}, F{top[2]['neuron']} {top[2]['cosine']:+.3f}")
+        out["neurons"].append(row)
+    path = ROOT / "outputs" / "arditi" / f"{short}_omni_{args.form}_{args.tag}_align.json"
+    path.write_text(json.dumps(out, indent=1), encoding="utf-8")
+    print(f"saved outputs/arditi/{path.name}")
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -277,6 +321,12 @@ def main():
     c.add_argument("--tags", nargs="+", required=True)
     c.add_argument("--ref", default="poly_en")
     c.set_defaults(fn=cmd_compare)
+    a = sub.add_parser("align", parents=[common])
+    a.add_argument("--tag", default="poly_en")
+    a.add_argument("--dtype", default="float16")
+    a.add_argument("--search", default="outputs/neuron_search/Qwen2.5-Omni-7B_float16_omni_text_poly_en.json")
+    a.add_argument("--watch", nargs="+", default=["13:4787", "14:13014", "16:1870", "14:13435", "16:11620", "17:5484"])
+    a.set_defaults(fn=cmd_align)
     args = ap.parse_args()
     args.fn(args)
 
