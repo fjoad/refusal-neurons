@@ -254,6 +254,21 @@ Job scripts that produced these are in `scripts/jobs/` (each says which entry it
 - A side cost of the other neuron: with L14:F13014 at +40, 5 and 8 of 100 harmless answers are mostly one word repeated, against 2 with nothing pinned and 1 and 3 with L13:F4787 (the script's own check for broken generations; these answers were not judged).
 - Limits: English, typed prompts, opening words only.
 
+**The neurons against the direction** (Kazemi et al. Appendix G on the omni model; `omni_direction.py align`, `scripts/jobs/omni_align.sh`, job 480952). For each of the six English neurons: the cosine between its write vector (its column of the MLP's output matrix) and the English refusal direction, and its rank by that cosine among the 18,944 neurons of its layer. Two versions of the direction: the difference of means in the residual stream right after the neuron's own layer (last template token), and the selected direction (layer 21). The largest cosine expected by chance in a layer is 0.08. In every row the sign agrees: at its harmful value the neuron pushes towards refusal.
+
+| Neuron | Cosine with the direction right after its layer | Rank in its layer | Cosine with the selected direction (layer 21) | Rank in its layer |
+|---|---|---|---|---|
+| L13:F4787 | 0.32 | 1 | 0.11 | 1 |
+| L14:F13014 | 0.29 | 1 | 0.13 | 2 |
+| L16:F1870 | 0.21 | 1 | 0.13 | 2 |
+| L14:F13435 | 0.25 | 3 | 0.08 | 12 |
+| L16:F11620 | 0.17 | 6 | 0.05 | 143 |
+| L17:F5484 | 0.20 | 2 | 0.11 | 2 |
+
+- **Apple's search and Nanda's direction pick the same neurons on the omni model.** The three neurons that work as a pin are each first of 18,944 in their layer by alignment with the direction, at three to four times the chance level. This is Appendix G's result, reproduced on a fourth model. At the first newline the same three are again first (0.33, 0.39, 0.29).
+- **It does not separate L13:F4787 from the others.** The hypothesis expected L13:F4787 to write less along the direction than the "decision" neurons. It writes as much (0.32, first in its layer, and first against the layer-21 direction too). So by what it writes, L13:F4787 is a refusal neuron like the other two; whatever makes its pin produce "not sure" replies is not visible in this measure.
+- What the measure cannot see: what each neuron reads (its input side), and what else it writes besides the refusal direction. Those are the next checks (where each neuron fires in the prompt; the pinned neuron's effect on the harmful-against-harmless separation in later layers).
+
 **German pin sweep** (job 478801, still running for Arabic and Chinese; the German text search's top 5 on the 191 German rerank prompts, typed, pins ±2 to ±60). Best score of each neuron and the pin that gives it:
 
 | Neuron | K.1 success | Qwen3Guard harmful | Llama-Guard on translation |

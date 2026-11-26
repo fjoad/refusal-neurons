@@ -102,7 +102,7 @@ The prompts concerned are the shorter ones, and the same prompts in every langua
 | MultiJail with L14:F13014 pinned | Fewer "not sure" replies, and a score closer to PolyRefuse's | Done, 26 November: 27 → 1 of 100 in English; K.1 success up 11–15 points in four of five languages (0.75–0.88). About 10 points under PolyRefuse remain, as ordinary refusals. L13:F4787 leaves fewer ordinary refusals than L14:F13014 (9 against 20 of 100), as a reading-side neuron would |
 | Short harmless prompts with L13:F4787 pinned | Few "not sure" replies: the effect is about harmful content, not short prompts in general. Many would mean the pin simply damages reading | Done, 26 November: 0 of 200 harmless prompts (median 10–11 words), against 13 and 27 of 100 harmful ones. The pin does not damage reading in general |
 | Where the neurons fire | L13:F4787 fires on the harmful words of the request; the decision neurons only at the template tokens | Not run (the text models' token-level script can be reused) |
-| Each neuron's share of Nanda's direction | The decision neurons write along it; L13:F4787 less so | Not run |
+| Each neuron's share of Nanda's direction | The decision neurons write along it; L13:F4787 less so | Done, 26 November, **not supported**: all three are first of 18,944 in their layer by alignment with the direction (cosine 0.32, 0.29, 0.21), L13:F4787 included. By what it writes, it is a refusal neuron like the others |
 | A third judge label, "does not engage", in every language | The same pattern outside English | Not run; the current count only matches English phrases |
 | Text models | Apple's neurons there may split the same way (Qwen3-8B's L14:F7924 against the other top-5 neurons) | Not run |
 
