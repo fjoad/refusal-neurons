@@ -72,3 +72,39 @@ One **parallel benchmark** with the same harmful and benign prompts in N languag
 
 Apple shows concept neurons only for suicide-related content. Pass matched inputs (the same content as text and as speech, in several languages) through the omni model's thinker and ask: do the same neurons respond to a concept such as suicide, or another safety topic, across languages and modalities? Then intervene on those neurons and test whether the concept becomes more likely to appear in the model's answers. Not started. It reuses the search's machinery with a concept as the target in place of refusal.
 
+## Added 2026-11-26: one neuron reads the request, others decide (hypothesis)
+
+**What we saw.** On Qwen2.5-Omni-7B, when L13:F4787 is pinned, some harmful requests get neither a refusal nor an answer. The model replies that it is not sure what is being asked. The judge counts these as refusals, which is why MultiJail looked weak (65–75%) next to PolyRefuse (81–98%).
+
+**The evidence so far** (English, counted from the answers' first words; results log, 26 November):
+
+| Intervention | "Not sure what you are asking" replies |
+|---|---|
+| Nothing changed | 0 to 2 of 100 |
+| L13:F4787 pinned at +30, PolyRefuse | 13 of 100 |
+| L13:F4787 pinned at +30, MultiJail | 27 of 100 |
+| L14:F13014 pinned at +40, the same PolyRefuse prompts | 1 of 100 |
+| Nanda's direction removed, the same PolyRefuse prompts | 0 of 100 |
+| L13:F4787 at +2 to +6 / +10 / +20 / +30 (HarmBench, 191) | 0 / 2 / 12 / 21 |
+| L16:F1870 at any pin (HarmBench, 191) | 0 |
+
+The prompts concerned are the shorter ones, and the same prompts in every language.
+
+**The hypothesis.** The refusal neurons do not all do the same job. L13:F4787 carries part of the model's reading of the request ("this asks for something harmful"), and L14:F13014 and L16:F1870 sit on the decision side ("so refuse"). Pin a decision neuron and the model still knows what was asked and answers it. Pin the reading neuron far to the other side and, for a request whose harmful act is most of its content, the model no longer has a request to answer. This is the "is *this is harmful* separate from *how the model responds*?" question from the 17 November meeting, now with a behaviour that tells the two apart.
+
+**What would support it, and what would not.**
+
+| Test | If the hypothesis holds | State |
+|---|---|---|
+| The same prompts with another neuron pinned, or the direction removed | They get answered | Seen on PolyRefuse English (1 and 0 of 100) |
+| MultiJail with L14:F13014 pinned | Fewer "not sure" replies, and a score closer to PolyRefuse's | Queued |
+| Short harmless prompts with L13:F4787 pinned | Few "not sure" replies: the effect is about harmful content, not short prompts in general. Many would mean the pin simply damages reading | Not run |
+| Where the neurons fire | L13:F4787 fires on the harmful words of the request; the decision neurons only at the template tokens | Not run (the text models' token-level script can be reused) |
+| Each neuron's share of Nanda's direction | The decision neurons write along it; L13:F4787 less so | Not run |
+| A third judge label, "does not engage", in every language | The same pattern outside English | Not run; the current count only matches English phrases |
+| Text models | Apple's neurons there may split the same way (Qwen3-8B's L14:F7924 against the other top-5 neurons) | Not run |
+
+**Why it matters for the paper.** It gives a reason to prefer L14:F13014 as "the" neuron on this model (also the most shared across languages and the better guard). It says the attack numbers for L13:F4787 understate how often refusal itself is switched off. And it is a small, concrete version of Nadir's RQ3: different neurons contribute different things to one refusal behaviour.
+
+**Not yet ruled out.** That a pin of +30 on L13:F4787 is simply too strong and breaks comprehension in general (the harmless-prompt test separates this); that "not sure what you are asking" is itself a soft refusal the model falls back to.
+

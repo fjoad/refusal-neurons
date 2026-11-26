@@ -192,8 +192,11 @@ Job scripts that produced these are in `scripts/jobs/` (each says which entry it
 - **The other refusal neurons are not holding these refusals up.** On MultiJail the five other neurons fire a little less, not more, on the surviving prompts (for example L14:F13014 −1.97 against −2.16). So "one neuron is not enough on MultiJail" is not supported here.
 - **Reading:** with the neuron pinned, a short or vague harmful request sometimes gets "I'm not sure what you are asking" in place of either a refusal or an answer, and MultiJail has more such requests. Whether the pin removes the model's grasp of the request on those prompts, or the requests are too thin to answer once refusal is off, is not tested.
 - **Consequence for the metric:** "still refused" under K.1 mixes two behaviours. A third label (does not engage) would separate them; until then the MultiJail attack numbers understate how often refusal itself is switched off.
-- Caveats: English only for the openings; openings are the first four to seven words, not a reading of the answers; one model.
-- The German, Arabic and Chinese pin sweeps (job 478801) are still running.
+- **It is one neuron's side effect, not a property of the prompts** (`omni_noengage.py`, CPU job 479554; an answer counts as "does not engage" when its first 12 words say it is not sure what is asked or does not understand). On the same 100 PolyRefuse English prompts: L13:F4787 at +30 gives 13 such replies, L14:F13014 at +40 gives 1, and removing Nanda's direction gives 0. On MultiJail English, L13:F4787 at +30 gives 27. With nothing pinned there are 0 to 2.
+- **It grows with the size of that neuron's pin.** HarmBench, 191 typed prompts, L13:F4787: 0 up to +6, then 2, 6, 12, 21, 11, 14 at +10, +15, +20, +30, +40, +60; at +30 they are 21 of the 31 answers K.1 still calls refusals. On pictures: 1, 5, 6, 11, 11 at +15 to +60. L14:F13014 gives 0 to 3 at every pin, L16:F1870 none at any pin.
+- **So the picture changes:** the requests are answerable (another neuron or the direction gets an answer from them); pinning L13:F4787 hard makes the model say it does not understand them, most often for short requests. The hypothesis and its tests are written out in RESEARCH_DIRECTIONS.md ("One neuron reads the request, others decide").
+- Caveats: the count matches English phrases, so the zeros for other languages mean nothing; openings are the first words, not a reading of the answers; one model. A language-independent third judge label is the fix.
+- The German, Arabic and Chinese pin sweeps (job 478801) are still running. MultiJail with L14:F13014 at +40 is queued as a test of the hypothesis.
 
 ### 2026-11-26: The neuron as a guard on the omni model, and its average value across models (`omni_guard.py`)
 
