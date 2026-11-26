@@ -94,6 +94,7 @@ Newest work first in each topic; every entry has its date, setup, numbers and ca
 - **Follow-ups to the 5 November meeting** (note 6's layers, added 2026-11-17: the harmful/harmless signal is shared across languages by layer 10–13 in both Qwen sizes, so no extra language step in the small model; note 3 for larger k, added 2026-11-17: longer lists do not overlap more, but four neurons per model, Apple's among them, are in every language's top 20 outside Yoruba and Swahili; the neuron fires on the prompts the model refuses, in every language but Yoruba and Qwen-Swahili; the small model does not fall off faster with language; MultiJail's lower numbers are the same borderline prompts in every language): 2026-11-12
 - **Arabic Experiments 2 and 8** (PolyRefuse: the neuron jailbreaks Arabic as well as English, 88–95%, matching Arditi's Arabic direction; MultiJail weaker for both; the neuron is 1st or 2nd most aligned with the Arabic direction): 2026-11-05
 
+- **Languages on the omni model: the most shared neuron pinned everywhere, and the MultiJail search** (typed prompts: L14:F13014 at +40 gives 0.87–0.97 in 12 of the 14 PolyRefuse languages, 0.79 in Thai, 0.32 in Yoruba; on MultiJail it is first in the search for 5 of 10 languages and in the top 4 for 7, and lost in Bengali, Javanese and Swahili): 2026-11-26
 - **The neuron as a guard on the omni model, and its average value across models** (22 November meeting, points 3 and 4: on text L14:F13014 separates harmful from harmless with AUROC 0.97–0.99 in 13 of 14 languages against 0.99–1.00 for Llama-Guard and Qwen3Guard, and one English cut-off gives 0.92–0.98 accuracy against the guards' 0.92–0.98; on pictures it is weaker, and it fails in Yoruba; in all four models the pin is 3.6–6.5 times the harmful value, on the other side of zero): 2026-11-26
 - **Images in every language, the attack** (all 14 PolyRefuse languages: with nothing pinned, Arabic, Korean and Thai pictures get harmful answers 36–45% of the time against 3–7% as text, although the model reads them, and the refusal neurons are nearly silent there; the English pin works on text everywhere but Yoruba, and on pictures everywhere but Thai): 2026-11-23
 - **Images in every language, search** (Qwen2.5-Omni-7B, the 14 PolyRefuse languages as text and as pictures: on text L14:F13014 is in the top 3 in 13 of 14 languages; on pictures it is in the top 10 in 10 of 14, and Arabic, Japanese and Thai pictures give different lists; Yoruba differs in both): 2026-11-22
@@ -102,6 +103,55 @@ Newest work first in each topic; every entry has its date, setup, numbers and ca
 - **Follow-ups to the 17 November meeting** (points 23–26: the one MLP direction removed in every MLP does no more than in one layer; each MLP's own direction, and Nanda's direction taken out of the MLP outputs only, remove most refusal openings but the two judges disagree on whether the answers are jailbreaks; the blind reverse route puts Apple's neuron 1st, 2nd and 5th in the whole model, and with Apple's rerank ends on Apple's neuron on Llama, a tie with L14:F1251 on Qwen3-8B and L15:F1109 on Qwen3-1.7B; under K.1 the steering peaks at 2.5–3 gaps and the answers are incoherent by 4–6, Llama stopping at 0.895; neurons pinned together on MultiJail break coherence at full pins; on Qwen3-8B four neurons at a quarter of their pins reach 0.97 under K.1 against 0.77 for the best single one, controls pending): 2026-11-18
 
 Job scripts that produced these are in `scripts/jobs/` (each says which entry it belongs to).
+
+### 2026-11-26: Languages on the omni model: the most shared neuron pinned everywhere, and the MultiJail search
+
+**Question** (22 November meeting, point 1). Is there one neuron for every language? The 23 November attack pinned the English pin sweep's pick, L13:F4787. The neuron the searches share most widely is a different one, L14:F13014 (top 3 on text in 13 of 14 languages). Does it do the job everywhere?
+
+**Setup.** Typed prompts only, our setup (no system message), exactly as the 23 November attack: 100 held-out harmful prompts per PolyRefuse language, no pin, constant pin and anchor pin (k = 1, 2), 512 new tokens, three judges. L14:F13014 at +40, its best small pin in the English text sweep. Jobs 478795–478797 (`PIN="14 13014 40" FORMS=text scripts/jobs/omni_ml_attack.sh`).
+
+| Language | No pin | L14:F13014 at +40: K.1 (Qwen3Guard harmful) | L13:F4787 at +30, from 23 November |
+|---|---|---|---|
+| Russian | 0.01 | 0.97 (0.88) | 0.88 |
+| Italian | 0.09 | 0.96 (0.90) | 0.93 |
+| Spanish | 0.07 | 0.95 (0.83) | 0.90 |
+| French | 0.09 | 0.95 (0.87) | 0.93 |
+| Polish | 0.16 | 0.95 (0.85) | 0.94 |
+| German | 0.05 | 0.94 (0.88) | 0.98 |
+| Dutch | 0.12 | 0.94 (0.84) | 0.97 |
+| Chinese | 0.04 | 0.94 (0.81) | 0.94 |
+| Arabic | 0.11 | 0.90 (0.84) | 0.84 |
+| English | 0.03 | 0.89 (0.85) | 0.81 |
+| Japanese | 0.09 | 0.89 (0.87) | 0.86 |
+| Korean | 0.17 | 0.87 (0.84) | 0.83 |
+| Thai | 0.12 | 0.79 (0.77) | 0.80 |
+| Yoruba | 0.39 | 0.32 (0.00) | 0.44 |
+
+- **One neuron, found without choosing a language, switches refusal off in 12 of 14 languages** (0.87–0.97), with Thai lower (0.79) and Yoruba unaffected.
+- **It is at least as good as the English pick in 9 of the 14 languages** and within 4 points in the rest. The two neurons are interchangeable as an attack; L14:F13014 is the better guard (entry below) and the more widely shared.
+- **The anchor pin again equals the constant pin** (within 0.03 everywhere).
+- **Coherence dips where the scripts are furthest from English:** 0.88–0.93 in Japanese, Korean and Thai, 0.96 in Arabic, 0.98–1.00 elsewhere; Yoruba 0.45.
+- The two pins differ (+40 against +30), so this is a comparison of each neuron at its own working pin, not at equal strength.
+
+**MultiJail, the search** (job 478798; 10 languages, typed prompts, human-translated, each language's own refusal phrases; Korean used the English phrase as the fallback).
+
+| Language | Refuses (text) | Rank of L14:F13014 | Rank of L13:F4787 | Top 10 shared with the English search |
+|---|---|---|---|---|
+| English | 0.77 | 1 | 2 | 6 |
+| Italian | 0.80 | 1 | 2 | 5 |
+| Vietnamese | 0.88 | 1 | 2 | 5 |
+| Arabic | 0.73 | 1 | 3 | 5 |
+| Chinese | 0.74 | 1 | 2 | 3 |
+| Korean | 0.73 | 2 | 3 | 4 |
+| Thai | 0.80 | 4 | 37 | 1 |
+| Bengali | 0.66 | 41 | 76 | 0 |
+| Javanese | 0.79 | 150 | 24 | 0 |
+| Swahili | 0.25 | 91,626 | fails the filter | 0 |
+
+- **On a second, human-translated dataset the same neuron leads:** first in five languages, second in Korean, fourth in Thai.
+- **Bengali, Javanese and Swahili give different lists**, with top neurons in layers 1–13. Swahili is also the one language the model rarely refuses in (0.25), as on the text models. Bengali and Javanese are refused at normal rates (0.66, 0.79), so there the neuron is missing while refusal is not: these two need a closer look.
+- The model refuses less on MultiJail than on PolyRefuse everywhere (0.66–0.88 against 0.88–0.99), as the text models did (borderline prompts).
+- The MultiJail attack (jobs 478799, 478800) and the German, Arabic and Chinese pin sweeps (job 478801) are still running.
 
 ### 2026-11-26: The neuron as a guard on the omni model, and its average value across models (`omni_guard.py`)
 
