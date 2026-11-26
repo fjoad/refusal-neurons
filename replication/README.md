@@ -241,6 +241,19 @@ Job scripts that produced these are in `scripts/jobs/` (each says which entry it
 - **The guard judges stay low on MultiJail with either neuron** (Qwen3Guard 0.51–0.69 against 0.81–0.90 on PolyRefuse with the same pin; Llama-Guard 0.41–0.54): this part of the gap is the dataset. Many MultiJail requests are borderline, so an answer to them is not harmful content.
 - The anchor pin is a little weaker than the constant pin here: k = 2 is within 0.04 under K.1, k = 1 is 3 to 7 points lower (Vietnamese 0.74 against 0.81). "No pin" was generated again in this job and differs from the earlier run by at most 0.01.
 
+**Harmless prompts with the neurons pinned, the control** (`scripts/jobs/omni_harmless_pin.sh`, job 480599; count by `omni_noengage.py`, CPU job 480937). 100 harmless English prompts from PolyRefuse's test set and 100 from MultiJail's (typed, 512 new tokens, about 10 and 11 words at the median, so as short as MultiJail's harmful ones), with nothing pinned, L13:F4787 at +30 and L14:F13014 at +40.
+
+| Harmless prompts, 100 per set | "Does not engage" replies: PolyRefuse | MultiJail | Phrase-match refusals |
+|---|---|---|---|
+| Nothing pinned | 0 | 0 | 2 and 1 |
+| L13:F4787 at +30 | 0 | 0 | 2 and 1 |
+| L14:F13014 at +40 | 0 | 0 | 2 and 1 |
+
+- **The pin does not make the model unsure of requests in general.** Not one of 200 harmless prompts gets a "not sure what you are asking" reply with L13:F4787 pinned, the shortest prompts included (0 of 57 and 0 of 51 in the shorter half). The same pin gives 13 and 27 such replies on 100 harmful prompts.
+- **So "the pin is too strong and breaks reading" is ruled out for English text.** The effect needs a harmful request: with this neuron pinned the model loses its hold on what a harmful request asks, and reads a harmless one as before.
+- A side cost of the other neuron: with L14:F13014 at +40, 5 and 8 of 100 harmless answers are mostly one word repeated, against 2 with nothing pinned and 1 and 3 with L13:F4787 (the script's own check for broken generations; these answers were not judged).
+- Limits: English, typed prompts, opening words only.
+
 **German pin sweep** (job 478801, still running for Arabic and Chinese; the German text search's top 5 on the 191 German rerank prompts, typed, pins ±2 to ±60). Best score of each neuron and the pin that gives it:
 
 | Neuron | K.1 success | Qwen3Guard harmful | Llama-Guard on translation |

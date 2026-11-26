@@ -88,6 +88,7 @@ Apple shows concept neurons only for suicide-related content. Pass matched input
 | Nanda's direction removed, the same PolyRefuse prompts | 0 of 100 |
 | L13:F4787 at +2 to +6 / +10 / +20 / +30 (HarmBench, 191) | 0 / 2 / 12 / 21 |
 | L16:F1870 at any pin (HarmBench, 191) | 0 |
+| L13:F4787 pinned at +30, 200 harmless prompts | 0 |
 
 The prompts concerned are the shorter ones, and the same prompts in every language.
 
@@ -99,7 +100,7 @@ The prompts concerned are the shorter ones, and the same prompts in every langua
 |---|---|---|
 | The same prompts with another neuron pinned, or the direction removed | They get answered | Seen on PolyRefuse English (1 and 0 of 100) |
 | MultiJail with L14:F13014 pinned | Fewer "not sure" replies, and a score closer to PolyRefuse's | Done, 26 November: 27 → 1 of 100 in English; K.1 success up 11–15 points in four of five languages (0.75–0.88). About 10 points under PolyRefuse remain, as ordinary refusals. L13:F4787 leaves fewer ordinary refusals than L14:F13014 (9 against 20 of 100), as a reading-side neuron would |
-| Short harmless prompts with L13:F4787 pinned | Few "not sure" replies: the effect is about harmful content, not short prompts in general. Many would mean the pin simply damages reading | Not run |
+| Short harmless prompts with L13:F4787 pinned | Few "not sure" replies: the effect is about harmful content, not short prompts in general. Many would mean the pin simply damages reading | Done, 26 November: 0 of 200 harmless prompts (median 10–11 words), against 13 and 27 of 100 harmful ones. The pin does not damage reading in general |
 | Where the neurons fire | L13:F4787 fires on the harmful words of the request; the decision neurons only at the template tokens | Not run (the text models' token-level script can be reused) |
 | Each neuron's share of Nanda's direction | The decision neurons write along it; L13:F4787 less so | Not run |
 | A third judge label, "does not engage", in every language | The same pattern outside English | Not run; the current count only matches English phrases |
@@ -107,5 +108,5 @@ The prompts concerned are the shorter ones, and the same prompts in every langua
 
 **Why it matters for the paper.** It gives a reason to prefer L14:F13014 as "the" neuron on this model (also the most shared across languages and the better guard). It says the attack numbers for L13:F4787 understate how often refusal itself is switched off. And it is a small, concrete version of Nadir's RQ3: different neurons contribute different things to one refusal behaviour.
 
-**Not yet ruled out.** That a pin of +30 on L13:F4787 is simply too strong and breaks comprehension in general (the harmless-prompt test separates this); that "not sure what you are asking" is itself a soft refusal the model falls back to.
+**Not yet ruled out.** That "not sure what you are asking" is itself a soft refusal the model falls back to when its usual refusal is blocked (the harmless-prompt control rules out the other alternative, that the pin breaks comprehension in general).
 
