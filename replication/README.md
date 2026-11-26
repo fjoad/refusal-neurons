@@ -109,7 +109,7 @@ Job scripts that produced these are in `scripts/jobs/` (each says which entry it
 
 **Question** (RQ1 of the proposal). Is the refusal direction shared across languages? Everything else on the omni model so far is about neurons.
 
-**Setup.** `arditi.py`'s recipe on the thinker, typed prompts, our setup, as it was run for Arabic on the text models. Per PolyRefuse language: the difference of means of the residual stream between that language's 128 harmful and 128 harmless prompts (after Arditi's filter: harmful prompts the model starts to refuse, harmless ones it does not), at each of the 28 layers and 5 template tokens; Arditi's selection on the first 32 rerank and 32 harmless-test prompts (lowest refusal score when removed everywhere, among candidates that pass his filters); then the 100 held-out harmful prompts with nothing changed, with the language's own direction removed at every layer and token, and with the English direction removed (transfer), 512 new tokens, three judges. The refusal score uses the first tokens of that language's own refusal openings. `scripts/jobs/omni_ml_direction.sh`; jobs 479377 (English), 479378 and 479379 (the other 13, running).
+**Setup.** `arditi.py`'s recipe on the thinker, typed prompts, our setup, as it was run for Arabic on the text models. Per PolyRefuse language: the difference of means of the residual stream between that language's 128 harmful and 128 harmless prompts (after Arditi's filter: harmful prompts the model starts to refuse, harmless ones it does not), at each of the 28 layers and 5 template tokens; Arditi's selection on the first 32 rerank and 32 harmless-test prompts (lowest refusal score when removed everywhere, among candidates that pass his filters); then the 100 held-out harmful prompts with nothing changed, with the language's own direction removed at every layer and token, and with the English direction removed (transfer), 512 new tokens, three judges. The refusal score uses the first tokens of that language's own refusal openings. `scripts/jobs/omni_ml_direction.sh`; jobs 479377 (English), 479378 (Arabic, Chinese, Spanish, French, Italian; German found no direction, see below), 479379 (Japanese, Korean, Dutch, Polish done; Russian, Thai and Yoruba still running), 480594 (German again).
 
 **English** (job 479377). Selected: layer 21, the last template token (the newline before the answer); the refusal score on the validation prompts falls from +0.84 to −4.05. 108 of 128 harmful and 125 of 128 harmless training prompts pass the filter.
 
@@ -121,7 +121,30 @@ Job scripts that produced these are in `scripts/jobs/` (each says which entry it
 | For comparison, L13:F4787 pinned at +30 | 0.81 | 0.80 | 0.77 |
 
 - **Nanda's ablation works on the omni model as on the text models**, and a little better than one pinned neuron (0.96 against 0.81–0.89), with every answer coherent.
-- The other languages, the transfer of the English direction, and the cosine similarities between languages' directions are added here when jobs 479378 and 479379 finish.
+**The other languages, and the English direction used in them** (ten of fourteen so far). K.1 success on each language's 100 held-out harmful prompts; Qwen3Guard harmful in brackets. "Cosine with English" compares the two languages' difference-of-means vectors at the same place, layer 21 at the last template token, where the English direction was selected (`omni_direction.py compare`, CPU job 480595).
+
+| Language | Place selected (layer, template token) | Nothing changed | Its own direction removed | The English direction removed | Cosine with English, same place |
+|---|---|---|---|---|---|
+| English | 21, last newline | 0.03 | 0.96 (0.93) | the same direction | 1.00 |
+| Spanish | 18, `<\|im_end\|>` | 0.07 | 0.99 (0.83) | 0.96 (0.86) | 0.94 |
+| French | 17, last newline | 0.09 | 0.99 (0.84) | 0.94 (0.82) | 0.94 |
+| Japanese | 19, `<\|im_end\|>` | 0.09 | 0.98 (0.77) | 0.87 (0.81) | 0.87 |
+| Dutch | 17, last newline | 0.12 | 0.98 (0.83) | 0.93 (0.81) | 0.92 |
+| Polish | 17, last newline | 0.16 | 0.98 (0.87) | 0.89 (0.84) | 0.91 |
+| Arabic | 17, last newline | 0.11 | 0.97 (0.91) | 0.91 (0.83) | 0.91 |
+| Italian | 15, first newline | 0.09 | 0.97 (0.89) | 1.00 (0.90) | 0.93 |
+| Chinese | 21, last newline | 0.04 | 0.89 (0.80) | 0.88 (0.80) | 0.90 |
+| Korean | 17, `<\|im_end\|>` | 0.17 | 0.85 (0.77) | 0.78 (0.72) | 0.88 |
+| German | none passed the filters (below) | 0.05 | rerun, job 480594 | rerun | 0.93 |
+
+- **Each language's own direction switches refusal off:** 0.85–0.99 under K.1 in all ten languages, answers coherent (0.98–1.00). Llama-Guard on the translated answers agrees (0.76–0.91 with the own direction, 0.72–0.87 with the English one).
+- **The English direction does nearly the same job in the other nine languages:** 0.78–1.00, on average 5 points under the language's own direction (largest gap Japanese, 0.98 against 0.87; in Italian and Spanish it is equal or better under one judge or the other). One vector, found on English prompts only, removes refusal in every language tested.
+- **The directions are close to parallel.** At one fixed place (layer 21, last template token) the cosine between any two of the eleven languages' vectors is 0.86–0.99, mean 0.93. European languages sit closest together (Spanish, French, Italian, Dutch, German 0.97–0.99 with each other); Japanese and Korean pair up (0.97); Chinese is the furthest from the others (0.86–0.90).
+- **The place Arditi's selection picks is not stable across languages** (layers 15–21, three different template tokens), and the selected vectors' cosine with the English one is then only 0.33–0.50 (Chinese, same place as English: 0.90). This is a difference of place, not of direction: compared at the same place they are parallel, and the English vector works when removed in those languages. For a cross-language claim, compare at a fixed place.
+- **Against one neuron** (entry below, the same 100 prompts): the direction gives 0.85–0.99 in these ten languages, L14:F13014 pinned at +40 gives 0.87–0.96. They are level; neither is clearly the stronger attack on this model.
+- **German found no direction at first** (job 479378): all 140 candidates failed Arditi's induce check, which asks that adding the vector to harmless prompts make a refusal token the likely first token. The German refusal tokens are "Es" and "Ich" (from "Es tut mir leid", "Ich kann"); the best candidate reached −0.14 where the check needs above 0. Removing the vector lowers the refusal score as in other languages (from +0.63 to −4.5 at best), and German's vector is 0.93 parallel to English's, so the direction is there and the check is what fails. `omni_direction.py` now falls back, only when no candidate passes, to the best candidate that passes the KL and layer filters, and records this in the output (a deviation from Arditi's selection, used for German only so far).
+- **Fewer training prompts pass the filter where openings vary:** Polish keeps 40 of 128 harmful prompts, Korean 70, Japanese 88, against 100–116 elsewhere. The refusal score looks only at the first token of each language's common openings.
+- Still to come: Russian, Thai, Yoruba, and the German rerun.
 
 ### 2026-11-26: Languages on the omni model: the most shared neuron pinned everywhere, and the MultiJail search
 
@@ -196,7 +219,41 @@ Job scripts that produced these are in `scripts/jobs/` (each says which entry it
 - **It grows with the size of that neuron's pin.** HarmBench, 191 typed prompts, L13:F4787: 0 up to +6, then 2, 6, 12, 21, 11, 14 at +10, +15, +20, +30, +40, +60; at +30 they are 21 of the 31 answers K.1 still calls refusals. On pictures: 1, 5, 6, 11, 11 at +15 to +60. L14:F13014 gives 0 to 3 at every pin, L16:F1870 none at any pin.
 - **So the picture changes:** the requests are answerable (another neuron or the direction gets an answer from them); pinning L13:F4787 hard makes the model say it does not understand them, most often for short requests. The hypothesis and its tests are written out in RESEARCH_DIRECTIONS.md ("One neuron reads the request, others decide").
 - Caveats: the count matches English phrases, so the zeros for other languages mean nothing; openings are the first words, not a reading of the answers; one model. A language-independent third judge label is the fix.
-- The German, Arabic and Chinese pin sweeps (job 478801) are still running. MultiJail with L14:F13014 at +40 is queued as a test of the hypothesis.
+**MultiJail with L14:F13014 pinned at +40, the test of that hypothesis** (job 479557; the same 100 held-out prompts per language, typed, 512 tokens, three judges; `omni_noengage.py`, CPU job 480580). The hypothesis predicted fewer "not sure what you are asking" replies and a score closer to PolyRefuse's.
+
+| Language | K.1 success: no pin | L13:F4787 at +30 | L14:F13014 at +40 | Qwen3Guard harmful: L13:F4787 → L14:F13014 | Llama-Guard: L13:F4787 → L14:F13014 |
+|---|---|---|---|---|---|
+| English | 0.10 | 0.65 | 0.79 | 0.55 → 0.64 | 0.35 → 0.46 |
+| Arabic | 0.24 | 0.73 | 0.88 | 0.53 → 0.69 | 0.42 → 0.54 |
+| Chinese | 0.11 | 0.75 | 0.75 | 0.54 → 0.51 | 0.37 → 0.41 |
+| Italian | 0.10 | 0.71 | 0.82 | 0.61 → 0.69 | 0.47 → 0.51 |
+| Vietnamese | 0.08 | 0.67 | 0.81 | 0.46 → 0.58 | 0.34 → 0.48 |
+
+| MultiJail English, 100 prompts | Still labelled refusal by K.1 | of which "does not engage" | Ordinary refusals left |
+|---|---|---|---|
+| Nothing pinned | 90 | 2 | 88 |
+| L13:F4787 at +30 | 35 | 26 | 9 |
+| L14:F13014 at +40 | 21 | 1 | 20 |
+
+- **The first prediction holds:** the "not sure what you are asking" replies go from 27 of 100 to 1 of 100 when the other neuron is pinned, on the same prompts. They belong to L13:F4787, not to MultiJail.
+- **The second holds in part:** K.1 success rises in four of five languages (by 11–15 points; Chinese unchanged), to 0.75–0.88. PolyRefuse with the same neuron and pin gives 0.87–0.97, so a gap of about 10 points remains.
+- **What remains is ordinary refusal:** 20 of 100 on MultiJail English against 10 of 100 on PolyRefuse English with the same pin. And L13:F4787 leaves fewer ordinary refusals (9) than L14:F13014 (20): it removes more of the refusing and adds the "not sure" replies. That is what the hypothesis expects of a neuron on the reading side, but it is one model, one language and a count of opening words.
+- **The guard judges stay low on MultiJail with either neuron** (Qwen3Guard 0.51–0.69 against 0.81–0.90 on PolyRefuse with the same pin; Llama-Guard 0.41–0.54): this part of the gap is the dataset. Many MultiJail requests are borderline, so an answer to them is not harmful content.
+- The anchor pin is a little weaker than the constant pin here: k = 2 is within 0.04 under K.1, k = 1 is 3 to 7 points lower (Vietnamese 0.74 against 0.81). "No pin" was generated again in this job and differs from the earlier run by at most 0.01.
+
+**German pin sweep** (job 478801, still running for Arabic and Chinese; the German text search's top 5 on the 191 German rerank prompts, typed, pins ±2 to ±60). Best score of each neuron and the pin that gives it:
+
+| Neuron | K.1 success | Qwen3Guard harmful | Llama-Guard on translation |
+|---|---|---|---|
+| L13:F4787 | 0.94 at +30 | 0.90 at +30 | 0.90 at +30 |
+| L16:F1870 | 0.91 at −40 | 0.91 at −60 | 0.83 at −40 |
+| L14:F13014 | 0.89 at +40 | 0.90 at +60 | 0.84 at +40 |
+| L16:F8383 | 0.64 at +40 | 0.85 at +60 | 0.81 at +60 |
+| L15:F6964 | judging not finished | 0.80 at −60 | 0.70 at −60 |
+
+- **A sweep run entirely in German picks the same neuron and pin as the English sweep:** L13:F4787 at +30. It is the best under K.1 and Llama-Guard and the first to reach 0.90 under Qwen3Guard (the selection rule). With no pin, K.1 gives 0.09.
+- The three neurons that work in English (L13:F4787, L14:F13014, L16:F1870) are the three that work in German, at the same pins (+30, +40, −40).
+- L16:F1870 at −60 and L13:F4787 at +60 lose coherence (0.63 and 0.91), as in English.
 
 ### 2026-11-26: The neuron as a guard on the omni model, and its average value across models (`omni_guard.py`)
 
