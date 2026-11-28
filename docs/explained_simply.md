@@ -454,6 +454,24 @@ Still to run from that meeting: other refusal-phrase lists (does changing the ph
 
 **Why it matters.** This is the "recognised but not refused" idea measured directly: the model knows what is being asked, but the switch that makes it refuse does not flip.
 
+## 8f. Languages on the omni model: one neuron, one direction (26–28 November)
+
+Everything here is typed text on Qwen2.5-Omni-7B. Numbers are the share of 100 harmful test prompts that get a real answer (the K.1 judge).
+
+**One neuron for every language.** The neuron the searches agree on most, L14:F13014, was pinned at one value (+40) in all 14 PolyRefuse languages. It switches refusal off in 12 of them (0.87–0.97), less in Thai (0.79), and not in Yoruba, where the model hardly refuses in the first place.
+
+**One direction for every language.** Nanda's direction was computed separately in each language. Removing a language's own direction gives 0.85–0.99 in 13 languages. Removing the *English* direction in the other languages gives 0.77–1.00. Measured at the same place in the model, the languages' directions are almost the same arrow (similarity 0.86–0.99, where 1 is identical). Yoruba again has none.
+
+**The neuron and the direction are the same thing seen two ways.** Each of the three working neurons is the single neuron in its layer (of 18,944) that points most along the direction.
+
+**Pin sweeps in German, Arabic and Chinese** pick one of the same two neurons as English (L13:F4787 or L14:F13014) at the same pin. No language has a better neuron of its own.
+
+**A second dataset, MultiJail.** The search finds the same neuron in 7 of 10 languages. Where it does, the pin works (0.65–0.88); in Bengali, Javanese and Swahili the search does not find it and the pin does almost nothing. Scores are lower than on PolyRefuse for two reasons: many MultiJail requests are borderline, and one of the two neurons has a side effect (next paragraph).
+
+**A side effect of one neuron.** With L13:F4787 pinned, some harmful requests get neither a refusal nor an answer: the model says it is not sure what is being asked (27 of 100 on MultiJail English). The judge counts that as a refusal. With L14:F13014 pinned this almost never happens (1 of 100), and it never happens on harmless requests (0 of 200). We guessed that L13:F4787 "reads" the request while the others "decide". Five tests later the guess is only partly right: all the neurons read harm in the request and all push towards refusal; L13:F4787 is the earliest and the most tied to the request's words. Why its pin produces "not sure" replies is still open.
+
+**The neuron as a guard** is in section 8e.
+
 ## 9. Caveats
 - English answers have one judge (Llama-Guard-3), which doesn't check that answers make sense. Arabic answers have two that agree (Qwen3Guard, and Llama-Guard on a translation).
 - Capability is measured on subsets of MMLU and GSM8K.
