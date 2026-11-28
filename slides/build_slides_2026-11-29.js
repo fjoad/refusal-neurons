@@ -22,24 +22,25 @@ const PENDING = {
   // slide 12: larger pins. Each: { "+20": "success / makes sense", "+40": ..., "+60", "+80", "+100", "+120" }, as strings.
   hipin_mj_en: { "+20": "45% / 100%", "+40": "66% / 100%", "+60": "69% / 98%", "+80": "68% / 82%", "+100": "30% / 33%", "+120": "5% / 6%" },   // job 484299
   hipin_mj_ar: { "+20": "62% / 100%", "+40": "76% / 98%", "+60": "70% / 90%", "+80": "53% / 69%", "+100": "37% / 49%", "+120": "5% / 8%" },    // job 484301
-  hipin_poly_en: { "+20": "51% / 100%", "+40": "80% / 100%", "+60": "83% / 97%" },   // job 484302; +80 to +120 still being judged
+  hipin_poly_en: { "+20": "51% / 100%", "+40": "80% / 100%", "+60": "83% / 97%", "+80": "63% / 74%", "+100": "16% / 19%", "+120": "3% / 3%" },   // job 484302
   hipin_result: "no. Success levels off between +50 and +60 (69% on MultiJail English, 79% on MultiJail Arabic, 84% on PolyRefuse English) and the answers start to break at +60 to +80, before refusal reaches zero. At +80 on MultiJail English 16% are still refused and only 82% of the answers make sense.",
   // slides 9 and 13: L14:F13014 at +40 in the other five MultiJail languages, jobs 484320 to 484324
-  mj_n1: { ko: null, th: null, bn: null, jv: null, sw: null },
-  mj_n1_result: null,
+  mj_n1: { ko: "76%", th: "72%", bn: "46%", jv: "68%", sw: "36%" },
+  mj_n1_result: "with the picked neuron pinned, Javanese goes from 24% to 68% and Thai from 13% to 72%, where the other neuron's pin did little. So the neuron is the switch there too, although those languages' own searches rank it low. Bengali stays at 46%.",
   // other omni models: Gemma 4 E4B (job to be noted in the results log) and Qwen2.5-Omni-3B (job 484319)
-  gemma4: null,           // { winner, top5, exceptions, runner, boot }
+  gemma4: { winner: "L22:F8998 = L27:F359 (0.59)", top5: "10 and 8 of 13", exceptions: "German, Japanese, Polish",
+            runner: "L16:F2096 (0.46)", boot: "38%, 44%" },   // job 484426. Exceptions are L22:F8998's: ranks 10, 6, 6
   model2: null,           // Qwen2.5-Omni-3B, same fields
-  model2_result: null,
+  model2_result: "on Gemma 4 the languages share their neurons too, but two neurons tie in the vote. L22:F8998 is the only neuron in every language's top 10 (near zero on harmless prompts, −3.1 on harmful ones). Their pin sweeps and the guard table are running.",
   // mix-and-match slide
-  jbb_n1_40: null,        // L14:F13014 at +40 on JailbreakBench, job 484340
+  jbb_n1_40: "78% (1% with nothing pinned)",        // L14:F13014 at +40 on JailbreakBench, job 484340
   mix: {                  // from omni_mix.py (CPU job 484339): pooled AUROC, and K.1 success over all prompts together
     guard: [["PolyRefuse, 13 languages", "0.985", "0.998", "0.993"],
             ["MultiJail, 9 languages", "0.902", "0.909", "0.943"],
             ["Both datasets, 22 sets", "0.954", "0.972", "0.973"]],
     switch: [["PolyRefuse, 13 languages", "9%", "92%"],
-             ["MultiJail, 5 languages so far", "13%", "81%"],
-             ["Both datasets, 18 sets", "10%", "89%"]],
+             ["MultiJail, 9 languages", "17%", "74%"],
+             ["Both datasets, 22 sets", "12%", "85%"]],
   },
 };
 
@@ -159,11 +160,11 @@ const SUCCESS = "Success = share of the held-out harmful prompts whose answer is
       "One model so far; speech is the other track", "Our half was shown on 22 November: text against pictures of the text"],
     ["The neurons intersect across languages", good("Done for text"), "Slides 4, 7 and 9"],
     ["One neuron that is language agnostic", good("New"), "Slides 4 to 9"],
-    ["The findings hold across omni models", { text: "Started tonight", options: { fill: { color: AMBER_SOFT } } }, "Slide 16 (pending)"],
+    ["The findings hold across omni models", { text: "First result on a non-Qwen model", options: { fill: { color: AMBER_SOFT } } }, "Slide 16"],
     ["The findings hold across kinds of harm: currently the negative result", { text: "Partly; new numbers", options: { fill: { color: AMBER_SOFT } } }, "Slides 10 to 14"],
     ["Concept induction in the output", bad("Not started"), "Slide 23"],
   ], ML, 1.6, CW, [5.6, 2.9, 3.633], { size: 14, rowH: 0.58, left: [1, 2] });
-  result(s, [b("Today: "), t("one neuron is picked for every language by a rule that one language cannot veto; the negative result is narrowed down; three runs are still going.")], { y: 6.05 });
+  result(s, [b("Today: "), t("one neuron is picked for every language by a rule that one language cannot veto; the negative result is narrowed down; a first non-Qwen omni model shares its neurons across languages too.")], { y: 6.05 });
   foot(s, "Everything in this deck is typed text on Qwen2.5-Omni-7B unless a slide says otherwise.");
 }
 
@@ -316,10 +317,10 @@ const SUCCESS = "Success = share of the held-out harmful prompts whose answer is
     "This is the main use: the neuron is picked on one dataset or language set and then used, unchanged and at one pin value, on data it was not picked on, as a switch (pinned) and as a guard (read with nothing pinned). The vote returns the same neuron whichever set it is run on, so the first three rows have the same test numbers. The last row is the original method's pick from an English pin sweep, for contrast.");
   table(s, [
     ["Picked on", "Neuron it gives", "Tested on PolyRefuse (13 languages): switch / guard", "Tested on MultiJail: switch / guard", "Tested on English JailbreakBench: switch"],
-    ["PolyRefuse only: vote over 13 languages", good(N1), "79 to 97%  /  0.97 to 0.99", "75 to 88% (5 languages; 5 running)  /  0.89 to 0.96", v(PENDING.jbb_n1_40)],
+    ["PolyRefuse only: vote over 13 languages", good(N1), "79 to 97%  /  0.97 to 0.99", "68 to 88% in 8 of 9, Bengali 46%  /  0.89 to 0.96", v(PENDING.jbb_n1_40)],
     ["MultiJail only: vote over 9 languages", good(N1), dim("same neuron, same numbers"), dim("same neuron, same numbers"), dim("same")],
     ["Everything mixed: all 24 lists together", good(N1), dim("same neuron, same numbers"), dim("same neuron, same numbers"), dim("same")],
-    ["English only: the original method's pin sweep", N2, "80 to 98%  /  0.90 to 0.98", "65 to 75% in 6, fails in 4  /  0.75 to 0.97", "75%"],
+    ["English only: the original method's pin sweep", N2, "80 to 98%  /  0.90 to 0.98", "65 to 75% in 6 of 9, 34 to 53% in 3  /  0.75 to 0.97", "75%"],
   ], ML, 1.45, CW, [3.3, 1.4, 2.5, 3.2, 1.733], { size: 11.5, rowH: 0.4, left: [2, 3] });
   const w = (CW - 0.4) / 2;
   label(s, "EVERYTHING IN ONE POOL: THE GUARD (ONE CUT-OFF FOR ALL)", ML, 4.05, w, AMBER, 10.5);
@@ -331,7 +332,7 @@ const SUCCESS = "Success = share of the held-out harmful prompts whose answer is
     (mx ? mx.switch : [["PolyRefuse, 13 languages", P(), P()], ["MultiJail, 5 languages so far", P(), P()], ["Both datasets", P(), P()]])),
     ML + w + 0.4, 4.35, w, [2.8, 1.5, 1.5].map((c) => c * w / 5.8), { size: 11, rowH: 0.34 });
   result(s, [b("Result: "), t("whichever dataset the neuron is picked on, the vote gives the same neuron, and it works as a switch and as a guard on the dataset it was not picked on. Across models the neuron has to be found again in each model.")], { y: 6.05, h: 0.66, size: 13.5 });
-  foot(s, "Switch = success with the neuron pinned (" + N1 + " at +40, " + N2 + " at +30). Guard = AUROC, harmful against harmless, nothing pinned. Pooled = all languages' prompts scored together: 4,363 for the guard, 1,800 for the switch.", 6.8);
+  foot(s, "Switch = success with the neuron pinned (" + N1 + " at +40, " + N2 + " at +30). Guard = AUROC, harmful against harmless, nothing pinned. Pooled = all languages' prompts scored together: 4,363 for the guard, 2,200 for the switch (the other neuron: 78% on the same 2,200).", 6.8);
 }
 
 // ------------------------------------------------------------------ 9. the negative result
@@ -344,8 +345,8 @@ const SUCCESS = "Success = share of the held-out harmful prompts whose answer is
     ["English", "1", "10%", "65%", "79%"], ["Arabic", "1", "25%", "73%", "88%"], ["Chinese", "1", "11%", "75%", "75%"],
     ["Italian", "1", "11%", "71%", "82%"], ["Vietnamese", "1", "8%", "67%", "81%"],
     ["Korean", "2", "21%", "74%", v(m.ko)], ["Thai", "4", "13%", "53%", v(m.th)],
-    ["Bengali", bad("41"), "34%", bad("46%"), v(m.bn)], ["Javanese", bad("150"), "24%", bad("34%"), v(m.jv)],
-    ["Swahili", bad("91,626"), "42%", bad("38%"), v(m.sw)],
+    ["Bengali", bad("41"), "34%", bad("46%"), bad(m.bn)], ["Javanese", bad("150"), "24%", bad("34%"), good(m.jv)],
+    ["Swahili", bad("91,626"), "42%", bad("38%"), bad(m.sw)],
   ], ML, 1.5, 7.6, [1.9, 1.9, 1.2, 1.3, 1.3], { size: 12.5, rowH: 0.385 });
   const x = 8.5, w = SW - ML - x;
   label(s, "FOR COMPARISON, POLYREFUSE", x, 1.5, w, SLATE);
@@ -358,9 +359,9 @@ const SUCCESS = "Success = share of the held-out harmful prompts whose answer is
     "Are MultiJail's prompts borderline? Slide 11.",
     "Are the refusals that are left real refusals? Slide 12.",
     "Is the pin too small? Slide 13.",
-    "Where the search does not find the neuron: slide 14.",
+    "Where the search ranks the neuron low: slide 14.",
   ], x, 3.32, w, 2.3, 13);
-  result(s, [b("The gap: "), t("about 10 points under PolyRefuse in the languages where the search finds the neuron, and no effect where it does not.")], { y: 6.05, color: FIRE, bg: FIRE_SOFT });
+  result(s, [b("The gap: "), t("with the picked neuron, 68 to 88% in 8 of 10 languages, about 10 points under PolyRefuse. Bengali stays at 46%. In Swahili the model rarely refuses, so there is nothing to switch off.")], { y: 6.05, color: FIRE, bg: FIRE_SOFT });
   foot(s, SUCCESS + " 100 prompts per language.");
 }
 
@@ -455,22 +456,22 @@ const SUCCESS = "Success = share of the held-out harmful prompts whose answer is
 // ------------------------------------------------------------------ 13. bengali and javanese
 {
   const m = PENDING.mj_n1;
-  const s = newSlide("Bengali and Javanese: the neuron fires, but the search and the pin miss it", "bneg",
-    "New from the guard table: with nothing pinned, the neuron separates harmful from harmless prompts in Bengali and Javanese as well as in English. So it does respond to harm there. The search ranks it low and the other neuron's pin does nothing. The picked neuron's pin in these languages is running.");
+  const s = newSlide("Where the search ranks the neuron low, it can still be the switch", "bneg",
+    "With nothing pinned, the neuron separates harmful from harmless prompts in Bengali and Javanese as well as in English, so it responds to harm there. Pinned, it switches refusal off in Javanese and Thai although those languages' own searches rank it low. Bengali is the one language where the model refuses and the pin does not get far.");
   table(s, [
     ["MultiJail language", "Model refuses (search prompts)", "Search rank of " + N1, N1 + " as a guard (AUROC)", "Success: nothing pinned → " + N2 + " at +30", N1 + " at +40"],
     ["English, for comparison", "77%", "1", "0.96", "10% → 65%", "79%"],
-    ["Thai", "80%", "4", "0.89", "13% → 53%", v(m.th)],
-    ["Bengali", "66%", bad("41"), good("0.96"), bad("34% → 46%"), v(m.bn)],
-    ["Javanese", "79%", bad("150"), good("0.92"), bad("24% → 34%"), v(m.jv)],
-    ["Swahili", bad("25%"), bad("91,626"), "0.75", bad("42% → 38%"), v(m.sw)],
+    ["Thai", "80%", "4", "0.89", "13% → 53%", good(m.th)],
+    ["Bengali", "66%", bad("41"), good("0.96"), bad("34% → 46%"), bad(m.bn)],
+    ["Javanese", "79%", bad("150"), good("0.92"), bad("24% → 34%"), good(m.jv)],
+    ["Swahili", bad("25%"), bad("91,626"), "0.75", bad("42% → 38%"), bad(m.sw)],
   ], ML, 1.45, CW, [2.6, 1.9, 1.7, 1.9, 2.4, 1.633], { size: 12, rowH: 0.42 });
   bullets(s, [
     "Swahili: the model rarely refuses, and half its answers are incoherent with or without a pin. Nothing to switch off.",
-    "Bengali and Javanese: the model refuses, and the neuron tells harmful from harmless (0.96, 0.92). Yet the search ranks it 41st and 150th, and pinning the other neuron changes little. In Javanese 62 of 100 answers are still refusals with that pin.",
-    "Two readings to separate: the model refuses there by another route, or its \"refusals\" are replies that it does not understand the request. Running: the picked neuron pinned in these languages; next: a pin sweep on their own top five.",
+    "Javanese and Thai: the search ranks the picked neuron 150th and 4th, yet with nothing pinned it tells harmful from harmless (0.92, 0.89), and pinned it switches refusal off. The search was the weak step there, not the neuron.",
+    "Bengali: the neuron tells harmful from harmless (0.96), but the pin only reaches 46%, and only 71% of those answers make sense. Still open; a pin sweep on Bengali's own top five is queued.",
   ], ML, 4.55, CW, 1.45, 11.5);
-  resultOrPending(s, PENDING.mj_n1_result, "pending for the last column (five runs queued tonight).", { y: 6.05 });
+  resultOrPending(s, PENDING.mj_n1_result, "pending for the last column (five runs queued tonight).", { y: 5.95, h: 0.85, size: 13.5 });
 }
 
 // ------------------------------------------------------------------ 14. each dataset on its own
@@ -495,16 +496,16 @@ const SUCCESS = "Success = share of the held-out harmful prompts whose answer is
 // ------------------------------------------------------------------ other omni models (pending)
 {
   const g = PENDING.gemma4, d = PENDING.model2;
-  const s = newSlide("Other omni models: the same search in 14 languages", "pend",
+  const s = newSlide("Other omni models: the same search in 14 languages", "c",
     "The priority is omni models from other makers at about the same size, not more Qwen models. Gemma 4 E4B is the one open model of that size that is not built on a Qwen backbone and loads with standard code. MiniCPM-o 4.5 is built on Qwen3-8B, and Kimi-Audio on a Qwen backbone too. The models for the paper are still to be chosen together.");
   label(s, "OPEN OMNI MODELS OF ABOUT THE SAME SIZE", ML, 1.45, CW, AMBER);
   table(s, [
     ["Model", "Maker; language backbone", "Size", "Takes in", "State for the languages"],
     ["Qwen2.5-Omni-7B", "Alibaba; Qwen2.5", "8B (thinker)", "text, image, audio, video", good("done: this deck")],
-    [b("Gemma 4 E4B").text, "Google; Gemma 4 (not Qwen)", "8.0B", "text, image, audio", { text: "first in line: being set up", options: { fill: { color: AMBER_SOFT } } }],
+    [b("Gemma 4 E4B").text, "Google; Gemma 4 (not Qwen)", "8.0B", "text, image, audio", { text: "search and vote done; pin sweeps running", options: { fill: { color: AMBER_SOFT } } }],
     ["MiniCPM-o 4.5", "OpenBMB; built on Qwen3-8B", "9.4B", "text, image, audio", "not started"],
     ["Gemma 3n E4B", "Google; Gemma 3n", "7.9B", "text, image, audio", "access to be requested"],
-    ["Qwen2.5-Omni-3B", "Alibaba; Qwen2.5", "5.5B", "text, image, audio, video", "queued, lower priority"],
+    ["Qwen2.5-Omni-3B", "Alibaba; Qwen2.5", "5.5B", "text, image, audio, video", "search running"],
   ], ML, 1.75, CW, [2.3, 3.3, 1.3, 2.7, 2.533], { size: 12, rowH: 0.38, left: [1, 2, 3, 4] });
   label(s, "THE VOTE, PER MODEL (POLYREFUSE TEXT, LANGUAGES THE MODEL REFUSES IN)", ML, 4.25, CW, SLATE);
   table(s, [
@@ -512,8 +513,8 @@ const SUCCESS = "Success = share of the held-out harmful prompts whose answer is
     ["Qwen2.5-Omni-7B", good(N1 + " (0.94)"), "13 of 13", "none", "L16:F8383 (0.51)", "100%"],
     ["Gemma 4 E4B", v(g && g.winner), v(g && g.top5), v(g && g.exceptions), v(g && g.runner), v(g && g.boot)],
     ["Qwen2.5-Omni-3B", v(d && d.winner), v(d && d.top5), v(d && d.exceptions), v(d && d.runner), v(d && d.boot)],
-  ], ML, 4.55, CW, [2.3, 2.7, 1.5, 2.4, 2.1, 1.133], { size: 12, rowH: 0.34 });
-  resultOrPending(s, PENDING.model2_result, "pending. A neuron's number means nothing in another model, so each model gets its own search, its own vote, then its own pin and guard tables.", { y: 6.2, h: 0.62 });
+  ], ML, 4.5, CW, [2.3, 2.9, 1.5, 2.4, 1.9, 1.133], { size: 12, rowH: 0.34 });
+  resultOrPending(s, PENDING.model2_result, "pending. A neuron's number means nothing in another model, so each model gets its own search, its own vote, then its own pin and guard tables.", { y: 6.08, h: 0.82, size: 13 });
 }
 
 // ------------------------------------------------------------------ 16. the direction
@@ -648,17 +649,18 @@ const SUCCESS = "Success = share of the held-out harmful prompts whose answer is
     "In the story's priority order. The first three rows were started on Saturday evening and have a slide waiting for their numbers.");
   table(s, [
     ["Experiment", "Part of the story", "State", "Ready"],
-    ["Gemma 4 E4B (a non-Qwen omni model): the search in 14 languages and the vote (slide 16)", "Across omni models", { text: "Setting up", options: { fill: { color: AMBER_SOFT } } }, "Sunday, if it runs on our cards"],
+    ["Gemma 4 E4B (a non-Qwen omni model): the search in 14 languages and the vote (slide 16)", "Across omni models", good("Done"), "In this deck"],
+    ["Gemma 4 E4B: pin sweeps for its two front-runners; the guard table", "Across omni models", { text: "Running", options: { fill: { color: AMBER_SOFT } } }, "Sunday"],
     ["Larger pins on MultiJail and PolyRefuse (slide 13)", "Kinds of harm", good("Done"), "In this deck"],
-    ["The picked neuron pinned in the other five MultiJail languages (slides 10, 14)", "Kinds of harm", { text: "Running", options: { fill: { color: AMBER_SOFT } } }, "Sunday"],
+    ["The picked neuron pinned in the other five MultiJail languages (slides 10, 14)", "Kinds of harm", good("Done"), "In this deck"],
     ["Each new model: the picked neuron pinned in every language; the guard table", "Across omni models", "After its search", "About 2 days per model"],
-    ["Qwen2.5-Omni-3B: the same search (slide 16)", "Across omni models", { text: "Queued, lower priority", options: { fill: { color: AMBER_SOFT } } }, "Sunday or Monday"],
+    ["Qwen2.5-Omni-3B: the same search (slide 16)", "Across omni models", { text: "Running", options: { fill: { color: AMBER_SOFT } } }, "Sunday"],
     ["Bengali and Javanese: pin sweeps on their own top five", "Kinds of harm", { text: "Queued", options: { fill: { color: AMBER_SOFT } } }, "Monday"],
     ["Results split by harm category; AdvBench as a third dataset", "Kinds of harm", "Not started", "This week"],
     ["The languages as speech", "Language and modality agnostic", "Needs the speech pipeline", "To agree"],
     ["Concept induction across languages", "Last in the story", "Not started", "After the above"],
-  ], ML, 1.5, CW, [6.0, 2.6, 2.0, 1.533], { size: 12, rowH: 0.44, left: [1, 2, 3] });
-  result(s, [b("The paper draft "), t("on Overleaf follows this story and already holds every result above, with what is missing marked as pending. Submission: 4 January.")], { y: 6.1 });
+  ], ML, 1.5, CW, [6.0, 2.6, 2.0, 1.533], { size: 11.5, rowH: 0.38, left: [1, 2, 3] });
+  result(s, [b("The paper draft "), t("on Overleaf follows this story and already holds every result above, with what is missing marked as pending. Submission: 4 January.")], { y: 6.3, h: 0.6 });
 }
 
 // ------------------------------------------------------------------ 23. to decide
