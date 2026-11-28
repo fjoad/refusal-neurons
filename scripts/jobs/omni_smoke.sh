@@ -11,9 +11,10 @@
 #SBATCH --exclude=crimv3mgpu018
 #SBATCH --chdir=/export/home/fjoad/refusal-neurons
 #SBATCH -o logs/%x-%j.out
-# Usage: sbatch scripts/jobs/omni_smoke.sh <Hugging Face model> [dtype, default bfloat16] [conda env, default refomni5]
+# Usage: sbatch scripts/jobs/omni_smoke.sh <Hugging Face model> [dtype, default bfloat16] [conda env, default refomni5; 'venv' = the refomni venv]
+#   From a second checkout (to test a change before the queued jobs see it): sbatch --chdir=<that checkout> ...
 export HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 PYTHONUNBUFFERED=1 PYTHONUTF8=1
-source ~/anaconda3/bin/activate ${3:-refomni5}
+if [ "${3:-}" = venv ]; then source ~/envs/refomni/bin/activate; else source ~/anaconda3/bin/activate ${3:-refomni5}; fi
 nvidia-smi --query-gpu=name,memory.total --format=csv,noheader
 python -u replication/omni.py search --model $1 --dtype ${2:-bfloat16} --n 32 --forms text --tag smoke \
   --harmful poly_en_harmful_train --harmless poly_en_harmless_train
