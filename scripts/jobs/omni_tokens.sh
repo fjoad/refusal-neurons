@@ -14,5 +14,8 @@
 #SBATCH -o logs/%x-%j.out
 export HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 PYTHONUNBUFFERED=1 PYTHONUTF8=1
 source ~/envs/refomni/bin/activate
+# With arguments, they are passed to omni_tokens.py as they are (e.g. other pin values):
+#   sbatch scripts/jobs/omni_tokens.sh --tag poly_en_off --pins 13:4787:-0.63 14:13014:-0.04 16:1870:-0.01
+if [ $# -gt 0 ]; then python -u replication/omni_tokens.py "$@"; exit; fi
 python -u replication/omni_tokens.py --harmful poly_en_harmful_eval --harmless poly_en_harmless_test --tag poly_en || echo "FAILED poly"
 python -u replication/omni_tokens.py --harmful mj_en_harmful_test --harmless mj_en_harmless_test --tag mj_en || echo "FAILED mj"
