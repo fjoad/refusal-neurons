@@ -62,6 +62,7 @@ FORMS = ["text", "image", "image_follow"]
 SYSTEMS = {"omni": "You are Qwen, a virtual human developed by the Qwen Team, Alibaba Group, capable of perceiving "
                    "auditory and visual inputs, as well as generating text and speech."}
 SYSTEM = None
+FAMILY = "qwen_omni"  # set by load_omni from the checkpoint's name
 LANG = None  # set by --lang: the language of the prompts, which picks the font and the layout of the pictures
 # Noto fonts (scripts/get_fonts.sh puts them in assets/fonts). A word is drawn in its script's font when it has a
 # character of that script, otherwise in Noto Sans; the CJK font has Latin letters itself.
@@ -176,14 +177,62 @@ def render(text, width=672, size=28, margin=28, lang="default"):
     return img
 
 
+def dtype_kw(dtype):
+    """transformers 5 takes dtype=, transformers 4 takes torch_dtype=."""
+    import transformers
+    key = "dtype" if int(transformers.__version__.split(".")[0]) >= 5 else "torch_dtype"
+    return {key: getattr(torch, dtype)}
+
+
+def family_of(name):
+    """Which omni family a checkpoint belongs to. qwen_omni: Qwen2.5-Omni (the thinker). gemma4: Gemma 4 E2B/E4B
+    (text, image and audio in, text out; needs transformers 5.5 or later, env refomni5)."""
+    return "gemma4" if "gemma-4" in name.lower() else "qwen_omni"
+
+
+def layers_of(model):
+    """The text decoder's layers: the longest list of blocks that each have mlp.down_proj. Qwen2.5-Omni's thinker:
+    model.model.layers. Found by shape, so another family's decoder is picked up without naming its path."""
+    if getattr(model, "_decoder_layers", None) is None:
+        best = None
+        for name, mod in model.named_modules():
+            if isinstance(mod, torch.nn.ModuleList) and len(mod) and all(
+                    hasattr(l, "mlp") and hasattr(l.mlp, "down_proj") for l in mod):
+                if best is None or len(mod) > len(best[1]):
+                    best = (name, mod)
+        if best is None:
+            raise RuntimeError("no list of decoder layers with mlp.down_proj found in this model")
+        print(f"decoder layers: {best[0]} ({len(best[1])} layers, MLP width {best[1][0].mlp.down_proj.in_features})", flush=True)
+        model.__dict__["_decoder_layers"] = best[1]
+    return model.__dict__["_decoder_layers"]
+
+
 def load_omni(name, dtype):
-    from transformers import Qwen2_5OmniProcessor, Qwen2_5OmniThinkerForConditionalGeneration
-    proc = Qwen2_5OmniProcessor.from_pretrained(name, local_files_only=True)
+    global FAMILY
+    FAMILY = family_of(name)
+    if FAMILY == "gemma4":
+        from transformers import AutoModelForMultimodalLM, AutoProcessor
+        proc = AutoProcessor.from_pretrained(name, local_files_only=True)
+        model = AutoModelForMultimodalLM.from_pretrained(name, device_map="auto", local_files_only=True, **dtype_kw(dtype))
+    else:
+        from transformers import Qwen2_5OmniProcessor, Qwen2_5OmniThinkerForConditionalGeneration
+        proc = Qwen2_5OmniProcessor.from_pretrained(name, local_files_only=True)
+        model = Qwen2_5OmniThinkerForConditionalGeneration.from_pretrained(
+            name, device_map="auto", local_files_only=True, **dtype_kw(dtype))
     proc.tokenizer.padding_side = "left"
     proc.tokenizer.pad_token = proc.tokenizer.pad_token or proc.tokenizer.eos_token
-    model = Qwen2_5OmniThinkerForConditionalGeneration.from_pretrained(
-        name, torch_dtype=getattr(torch, dtype), device_map="auto", local_files_only=True)
     model.eval()
+    # The scored tokens are whatever the chat template puts after the user's turn. For Qwen2.5-Omni these are the
+    # five in SCORE_TOKENS; for another family they are read off its own template here.
+    mark = "QQQQ"
+    suffix = chat_text(proc, "text", mark).split(mark)[-1]
+    toks = proc.tokenizer.convert_ids_to_tokens(proc.tokenizer(suffix, add_special_tokens=False).input_ids)
+    if FAMILY == "qwen_omni" and toks != SCORE_TOKENS:
+        raise ValueError(f"the template's tokens after the user's turn are {toks}, expected {SCORE_TOKENS}")
+    if not 2 <= len(toks) <= 8:
+        raise ValueError(f"unexpected tokens after the user's turn: {toks}")
+    SCORE_TOKENS[:] = toks
+    print(f"family {FAMILY}; scored tokens after the user's turn: {SCORE_TOKENS}", flush=True)
     return model, proc
 
 
@@ -196,13 +245,18 @@ def chat_text(proc, form, instruction):
     msgs = [{"role": "user", "content": content}]
     if SYSTEM:
         msgs.insert(0, {"role": "system", "content": [{"type": "text", "text": SYSTEMS[SYSTEM]}]})
-    out = proc.apply_chat_template(msgs, add_generation_prompt=True, tokenize=False)
+    extra = {"enable_thinking": False} if FAMILY == "gemma4" else {}  # Gemma 4: no thinking block before the answer
+    out = proc.apply_chat_template(msgs, add_generation_prompt=True, tokenize=False, **extra)
     return out[0] if isinstance(out, list) else out
 
 
 def inputs_for(model, proc, form, instructions):
     texts = [chat_text(proc, form, x) for x in instructions]
     images = None if form == "text" else [render(x) for x in instructions]
+    if FAMILY == "gemma4":  # the template's text already starts with <bos>; do not add a second one
+        if form != "text":
+            raise NotImplementedError("pictures are only wired up for Qwen2.5-Omni so far")
+        return proc.tokenizer(texts, return_tensors="pt", padding=True, add_special_tokens=False).to(model.device)
     return proc(text=texts, images=images, return_tensors="pt", padding=True).to(model.device)
 
 
@@ -277,7 +331,9 @@ def generate(model, proc, hooks, form, instructions, bs, max_new, before=None):
     set, so without eos_token_id every answer runs on into invented further turns. `before(idx)` is called with a
     batch's prompt indices just before it is generated (the anchor pin sets one value per prompt there)."""
     tok = proc.tokenizer
-    stop = [tok.convert_tokens_to_ids("<|im_end|>"), tok.convert_tokens_to_ids("<|endoftext|>")]
+    stop = [tok.convert_tokens_to_ids(SCORE_TOKENS[0]), tok.eos_token_id]  # the end-of-turn token, and end of text
+    if FAMILY == "qwen_omni":
+        stop = [tok.convert_tokens_to_ids("<|im_end|>"), tok.convert_tokens_to_ids("<|endoftext|>")]
     texts, todo = [None] * len(instructions), batches(proc, form, instructions, bs)
     while todo:
         idx = todo.pop()
@@ -351,7 +407,7 @@ def cmd_check(args):
     pins = parse_neurons(args.pins, 3)
     watch = list(dict.fromkeys(parse_neurons(args.watch, 2) + [p[:2] for p in pins]))
     model, proc = load_omni(args.model, args.dtype)
-    layers = model.model.layers
+    layers = layers_of(model)
     hooks = {}
     for layer, neuron in watch:
         hooks[(layer, neuron)] = NeuronHook(neuron)
@@ -517,8 +573,8 @@ def cmd_phrases(args):
     torch.cuda.empty_cache()
     jtok = AutoTokenizer.from_pretrained(JUDGES["qwen3guard"], padding_side="left", local_files_only=True)
     jtok.pad_token = jtok.pad_token or jtok.eos_token
-    judge = AutoModelForCausalLM.from_pretrained(JUDGES["qwen3guard"], torch_dtype=getattr(torch, args.dtype),
-                                                 device_map="auto", local_files_only=True).eval()
+    judge = AutoModelForCausalLM.from_pretrained(JUDGES["qwen3guard"], device_map="auto", local_files_only=True,
+                                                 **dtype_kw("float16" if args.dtype == "bfloat16" else args.dtype)).eval()
     out = ROOT / "outputs" / "refusal_phrases"
     out.mkdir(parents=True, exist_ok=True)
     path = out / f"{args.model.split('/')[-1]}_omni.json"
@@ -560,7 +616,7 @@ def cmd_search(args):
         if not args.refusal_phrases:
             raise SystemExit("the model gave no common refusal opening; pass --refusal_phrases")
     prefixes = refusal_prefixes(proc.tokenizer, args.refusal_phrases)
-    layers = model.model.layers
+    layers = layers_of(model)
     n_layers = 2 * len(layers) // 3
     out = ROOT / "outputs" / "neuron_search"
     out.mkdir(parents=True, exist_ok=True)
@@ -620,7 +676,7 @@ def cmd_rerank(args):
     def run(layer, neuron, pin, m):
         hook = PinHook(neuron or 0)
         hook.value = pin
-        handle = model.model.layers[layer or 0].mlp.down_proj.register_forward_pre_hook(hook)
+        handle = layers_of(model)[layer or 0].mlp.down_proj.register_forward_pre_hook(hook)
         try:
             texts = generate(model, proc, [hook], args.form, prompts, args.bs, args.max_new)
         finally:
@@ -647,7 +703,7 @@ def cmd_evaluate(args):
     d = neuron_gap(args.search, args.layer, args.neuron)
     model, proc = load_omni(args.model, args.dtype)
     pin = Pin(args.neuron)
-    model.model.layers[args.layer].mlp.down_proj.register_forward_pre_hook(pin)
+    layers_of(model)[args.layer].mlp.down_proj.register_forward_pre_hook(pin)
     raw = load(args.split)[:args.n or None]
     out_dir = ROOT / "outputs" / "evaluate"
     out_dir.mkdir(parents=True, exist_ok=True)
