@@ -226,7 +226,27 @@ L14:F13014 pinned at +40, MultiJail (the five languages run with this neuron):
 - **What remains is refusal.** With the pin, 24% of the clearly harmful English MultiJail prompts are still refused against 11% on PolyRefuse (Chinese 22% against 6%, Arabic 10% against 6%). Whether a larger pin removes these is the run below.
 - So "the neurons work on clearly harmful questions" holds in the sense Nadir asked: 0.76–0.90 on MultiJail's clearly harmful prompts with one neuron pinned. The gap to PolyRefuse that is left under K.1 is about 10 points in English, Chinese and Vietnamese and none in Arabic.
 
-**Larger pins** (`scripts/jobs/omni_hipin.sh`, jobs 484299–484303, running). L14:F13014, L13:F4787 and L16:F1870 at pins 10 to 120 on MultiJail's 87 English sweep prompts, L14:F13014 on MultiJail Arabic and on PolyRefuse English (191), 128 new tokens, K.1 first (refusal and coherence), then the two guards. The question: does refusal go to zero before the answers stop being coherent? Results are added here when the jobs finish.
+**Larger pins: does refusal go to zero before the answers break?** (`scripts/jobs/omni_hipin.sh`, jobs 484299–484302; `omni.py rerank --only`). One neuron, pins 10 to 120, on a language's sweep prompts (MultiJail 87, PolyRefuse 191; not the test prompts, so the numbers at +40 differ from the attack tables above), typed, 128 new tokens, the K.1 judge. Each cell: K.1 success / share of answers K.1 calls refusals / share it calls coherent.
+
+| Pin | L14:F13014, MultiJail English | L14:F13014, MultiJail Arabic | L14:F13014, PolyRefuse English | L13:F4787, MultiJail English |
+|---|---|---|---|---|
+| none | 0.11 / 0.89 / 1.00 | 0.17 / 0.83 / 1.00 | 0.03 / 0.97 / 1.00 | 0.11 / 0.89 / 1.00 |
+| 10 | 0.26 / 0.74 / 1.00 | 0.36 / 0.64 / 1.00 | 0.22 / 0.79 / 1.00 | 0.20 / 0.81 / 1.00 |
+| 20 | 0.45 / 0.55 / 1.00 | 0.62 / 0.38 / 1.00 | 0.51 / 0.49 / 1.00 | 0.44 / 0.56 / 1.00 |
+| 30 | 0.60 / 0.40 / 1.00 | 0.77 / 0.22 / 0.99 | 0.75 / 0.25 / 1.00 | 0.47 / 0.53 / 1.00 |
+| 40 | 0.66 / 0.34 / 1.00 | 0.76 / 0.22 / 0.98 | 0.80 / 0.20 / 1.00 | 0.55 / 0.45 / 1.00 |
+| 50 | 0.68 / 0.32 / 1.00 | **0.79** / 0.18 / 0.97 | **0.84** / 0.15 / 0.99 | 0.62 / 0.37 / 0.99 |
+| 60 | **0.69** / 0.29 / 0.98 | 0.70 / 0.23 / 0.90 | 0.83 / 0.14 / 0.97 | **0.72** / 0.26 / 0.99 |
+| 80 | 0.68 / 0.16 / 0.82 | 0.53 / 0.18 / 0.69 | being judged | 0.63 / 0.31 / 0.94 |
+| 100 | 0.30 / 0.11 / 0.33 | 0.37 / 0.15 / 0.49 | being judged | 0.16 / 0.26 / 0.23 |
+| 120 | 0.05 / 0.08 / 0.06 | 0.05 / 0.08 / 0.08 | being judged | 0.00 / 0.15 / 0.00 |
+
+- **No: a larger pin does not finish the job.** Refusals keep falling as the pin grows (MultiJail English 0.34 at +40, 0.29 at +60, 0.16 at +80, 0.08 at +120), but the answers start to break at +60 to +80 and are mostly incoherent by +100, before refusal reaches zero. There is no pin at which every refusal is gone and every answer is still coherent.
+- **Success levels off at +50 to +60:** 0.69 on MultiJail English, 0.79 on MultiJail Arabic, 0.84 on PolyRefuse English. Going from +40 to the best pin gains 3 to 5 points.
+- **The usable window is about +40 to +60 on this model**, wider than on the text-only 8B models (where the attack pin was the last coherent value) but with the same shape: complete coherence up to a point, then a fast collapse.
+- **The gap between the datasets stays at every pin:** PolyRefuse English is 14 to 15 points above MultiJail English from +30 to +60. So the pin size is not what separates them.
+- **L13:F4787 behaves the same on MultiJail English** (best 0.72 at +60, broken by +100) and needs a larger pin than its +30 to get there.
+- Still to come: PolyRefuse English at +80 to +120, the two guard judges on these files, and L16:F1870 (job 484303).
 
 ### 2026-11-26: The refusal direction across languages (Qwen2.5-Omni-7B) (`omni_direction.py`)
 

@@ -20,10 +20,10 @@ const FONT = "Arial";
 // ---- results that were still running when the deck was built. null = pending. Fill from the results log.
 const PENDING = {
   // slide 12: larger pins. Each: { "+20": "success / makes sense", "+40": ..., "+60", "+80", "+100", "+120" }, as strings.
-  hipin_mj_en: null,      // L14:F13014 on MultiJail English (87 sweep prompts), job 484299
-  hipin_mj_ar: null,      // L14:F13014 on MultiJail Arabic, job 484301
-  hipin_poly_en: null,    // L14:F13014 on PolyRefuse English (191 sweep prompts), job 484302
-  hipin_result: null,     // one sentence
+  hipin_mj_en: { "+20": "45% / 100%", "+40": "66% / 100%", "+60": "69% / 98%", "+80": "68% / 82%", "+100": "30% / 33%", "+120": "5% / 6%" },   // job 484299
+  hipin_mj_ar: { "+20": "62% / 100%", "+40": "76% / 98%", "+60": "70% / 90%", "+80": "53% / 69%", "+100": "37% / 49%", "+120": "5% / 8%" },    // job 484301
+  hipin_poly_en: { "+20": "51% / 100%", "+40": "80% / 100%", "+60": "83% / 97%" },   // job 484302; +80 to +120 still being judged
+  hipin_result: "no. Success levels off between +50 and +60 (69% on MultiJail English, 79% on MultiJail Arabic, 84% on PolyRefuse English) and the answers start to break at +60 to +80, before refusal reaches zero. At +80 on MultiJail English 16% are still refused and only 82% of the answers make sense.",
   // slides 9 and 13: L14:F13014 at +40 in the other five MultiJail languages, jobs 484320 to 484324
   mj_n1: { ko: null, th: null, bn: null, jv: null, sw: null },
   mj_n1_result: null,
@@ -179,7 +179,7 @@ const SUCCESS = "Success = share of the held-out harmful prompts whose answer is
       "For text, yes: each dataset alone picks the same neuron. Across forms it is shown for PolyRefuse text against pictures; MultiJail pictures and speech on these datasets are not run", "15"],
     ["The shared neuron need not be first in every language. Which one is it?",
       N1 + ", by a vote over the languages' shortlists. Same answer on every set of lists", "5, 6, 9"],
-    ["Would a larger pin switch off the refusals that are left, before the answers break?", "Running tonight", "13"],
+    ["Would a larger pin switch off the refusals that are left, before the answers break?", "No. Success levels off at +50 to +60 and the answers break before refusal reaches zero", "13"],
     ["Another multilingual benchmark (AdvBench)", "Not started", "23"],
     ["Access to the folder with the outputs", "To arrange today", "24"],
   ], ML, 1.55, CW, [4.6, 6.533, 1.0], { size: 13.5, rowH: 0.62, left: [1] });
@@ -357,7 +357,7 @@ const SUCCESS = "Success = share of the held-out harmful prompts whose answer is
   bullets(s, [
     "Are MultiJail's prompts borderline? Slide 11.",
     "Are the refusals that are left real refusals? Slide 12.",
-    "Is the pin too small? Slide 13 (running).",
+    "Is the pin too small? Slide 13.",
     "Where the search does not find the neuron: slide 14.",
   ], x, 3.32, w, 2.3, 13);
   result(s, [b("The gap: "), t("about 10 points under PolyRefuse in the languages where the search finds the neuron, and no effect where it does not.")], { y: 6.05, color: FIRE, bg: FIRE_SOFT });
@@ -426,9 +426,9 @@ const SUCCESS = "Success = share of the held-out harmful prompts whose answer is
 
 // ------------------------------------------------------------------ 12. larger pins (pending)
 {
-  const s = newSlide("Does a larger pin finish the job before the answers break?", "pend",
+  const s = newSlide("Does a larger pin finish the job before the answers break?", "bneg",
     "The best possible result is a pin at which no refusal is left and every answer still makes sense. On the text-only models the window was narrow: answers were intact up to the attack pin and broken at two to four times it.");
-  label(s, "WHAT IS RUNNING", ML, 1.5, 5.3, AMBER);
+  label(s, "WHAT WAS DONE", ML, 1.5, 5.3, AMBER);
   bullets(s, [
     N1 + " at pins 10, 20, 30, 40, 50, 60, 80, 100, 120.",
     "MultiJail English and Arabic (87 sweep prompts each) and PolyRefuse English (191).",
@@ -447,9 +447,9 @@ const SUCCESS = "Success = share of the held-out harmful prompts whose answer is
   label(s, N1 + ": SUCCESS / ANSWERS THAT MAKE SENSE, BY PIN", x, 1.5, w, SLATE);
   table(s, [["Prompts"].concat(pins)].concat(sets.map(([name, d]) => [name].concat(pins.map((p) => (d && d[p]) || P())))),
     x, 1.82, w, [1.9, 0.75, 0.75, 0.75, 0.75, 0.77, 0.763], { size: 12, rowH: 0.62 });
-  para(s, "Each cell: success, then the share of answers that make sense. Nothing pinned gives 10% success on MultiJail English.",
-    x, 4.45, w, 0.6, 11.5);
-  resultOrPending(s, PENDING.hipin_result, "pending. First counts from the runs: refusals keep falling above +40, and from +80 a share of the answers is one word repeated. The judge's numbers are not in yet.", { y: 6.05 });
+  para(s, "Each cell: success, then the share of answers that make sense. With nothing pinned success is 11%, 17% and 3%. Still refused on MultiJail English: 34% at +40, 29% at +60, 16% at +80, 8% at +120. The other neuron (" + N2 + ") behaves the same: best 72% at +60, broken by +100.",
+    x, 4.4, w, 1.2, 11.5);
+  resultOrPending(s, PENDING.hipin_result, "pending. First counts from the runs: refusals keep falling above +40, and from +80 a share of the answers is one word repeated. The judge's numbers are not in yet.", { y: 5.95, h: 0.85, size: 13.5 });
 }
 
 // ------------------------------------------------------------------ 13. bengali and javanese
@@ -649,7 +649,7 @@ const SUCCESS = "Success = share of the held-out harmful prompts whose answer is
   table(s, [
     ["Experiment", "Part of the story", "State", "Ready"],
     ["Gemma 4 E4B (a non-Qwen omni model): the search in 14 languages and the vote (slide 16)", "Across omni models", { text: "Setting up", options: { fill: { color: AMBER_SOFT } } }, "Sunday, if it runs on our cards"],
-    ["Larger pins on MultiJail and PolyRefuse (slide 13)", "Kinds of harm", { text: "Running", options: { fill: { color: AMBER_SOFT } } }, "Saturday night"],
+    ["Larger pins on MultiJail and PolyRefuse (slide 13)", "Kinds of harm", good("Done"), "In this deck"],
     ["The picked neuron pinned in the other five MultiJail languages (slides 10, 14)", "Kinds of harm", { text: "Running", options: { fill: { color: AMBER_SOFT } } }, "Sunday"],
     ["Each new model: the picked neuron pinned in every language; the guard table", "Across omni models", "After its search", "About 2 days per model"],
     ["Qwen2.5-Omni-3B: the same search (slide 16)", "Across omni models", { text: "Queued, lower priority", options: { fill: { color: AMBER_SOFT } } }, "Sunday or Monday"],
