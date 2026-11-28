@@ -8,6 +8,14 @@ neuron the languages agree on, in four ways:
                does not decide everything.
   pooled       the saved means averaged over the languages and scored once: one search on all languages together.
   left out     for each language, the worst-rank winner chosen WITHOUT that language, and its rank in that language.
+  shortlist vote  THE PICKER (28 November). In each list a neuron gets K points for 1st place, K-1 for 2nd, ...,
+               1 point for K-th place and nothing below that (K = 5, the size of Kazemi et al.'s shortlist); its
+               score is its points averaged over the lists and divided by K, so 1.0 = first in every list. One
+               list can cost a neuron at most that list's own points however far down the neuron is there, so an
+               outlying language cannot veto a neuron that is at the top everywhere else. Printed with it: in how
+               many lists the winner is in the top K and WHICH lists it is not (the exceptions are named, not
+               hidden); the winner for K = 3, 5, 10, 20; the winner with each list left out; and how often the
+               same neuron wins when the lists are resampled with replacement (2,000 resamples, fixed seed).
 Languages count when the model refuses at least --min_refusal of that language's harmful prompts with nothing
 pinned (the rate the search saved); the others are listed and left out, and every table is also printed with all
 languages. Scopes: PolyRefuse text, MultiJail text, both, PolyRefuse pictures, PolyRefuse text and pictures.
@@ -56,6 +64,34 @@ def rank_of(means):
     return rank
 
 
+def points(R, k):
+    """Shortlist-vote score of every neuron: mean over lists of max(0, k + 1 - rank) / k."""
+    return (k + 1 - R).clamp(min=0).mean(0) / k
+
+
+def vote(R, tags, name, k=5, n_boot=2000):
+    sc = points(R, k)
+    order = torch.argsort(-sc)[:5]
+    w = int(order[0])
+    print(f"SHORTLIST VOTE (K = {k}): " + "  ".join(f"{name(i)} {sc[i]:.3f}" for i in order))
+    inside = R[:, w] <= k
+    print(f"  winner {name(w)}: in the top {k} of {int(inside.sum())}/{len(tags)} lists; median rank {int(R[:, w].median())}; "
+          f"not in the top {k} in: " + (", ".join(f"{t} (rank {int(R[j, w])})" for j, t in enumerate(tags) if not inside[j]) or "none"))
+    print("  winner for other K: " + "  ".join(f"K={kk}: {name(int(torch.argmax(points(R, kk))))} {points(R, kk).max():.3f}" for kk in (3, 5, 10, 20)))
+    print(f"  runner-up {name(order[1])}: in the top {k} of {int((R[:, order[1]] <= k).sum())}/{len(tags)} lists; margin {sc[order[0]] - sc[order[1]]:.3f}")
+    cand = torch.nonzero((R <= 20).any(0)).squeeze(1)  # only neurons in some list's top 20 can score
+    P = (k + 1 - R[:, cand]).clamp(min=0) / k
+    loo = [int(cand[torch.argmax(torch.cat([P[:j], P[j + 1:]]).mean(0))]) for j in range(len(tags))]
+    print(f"  one list left out: the same winner in {sum(x == w for x in loo)}/{len(tags)} folds"
+          + "".join(f"; without {tags[j]}: {name(x)}" for j, x in enumerate(loo) if x != w))
+    g = torch.Generator().manual_seed(0)
+    idx = torch.randint(len(tags), (n_boot, len(tags)), generator=g)
+    wins = torch.stack([P[i].mean(0) for i in idx]).argmax(1)
+    top = torch.bincount(wins, minlength=len(cand))
+    best = torch.argsort(-top)[:3]
+    print(f"  lists resampled {n_boot} times: " + "  ".join(f"{name(cand[i])} wins {100 * int(top[i]) / n_boot:.1f}%" for i in best if top[i] > 0))
+
+
 def analyse(title, sets, min_refusal, width):
     name = lambda i: f"L{int(i) // width}:F{int(i) % width}"
     for label, tags in (("languages that count", [t for t in sets if sets[t]["counts"]]), ("all languages", list(sets))):
@@ -83,6 +119,7 @@ def analyse(title, sets, min_refusal, width):
         champ = int(torch.argsort(worst - 0.5 * mrr)[0])
         print(f"  the worst-rank winner {name(champ)} is number {int(pooled[champ])} in the pooled search")
         print(f"  ranks of {name(champ)} per list: " + "  ".join(f"{t} {int(R[j, champ])}" for j, t in enumerate(tags)))
+        vote(R, tags, name)
         if label == "languages that count" and len(tags) > 2:
             print("one list left out: winner chosen from the others, and its rank in the list left out")
             same = 0
