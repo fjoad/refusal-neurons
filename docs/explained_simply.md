@@ -466,7 +466,7 @@ Everything here is typed text on Qwen2.5-Omni-7B. Numbers are the share of 100 h
 
 **Pin sweeps in German, Arabic and Chinese** pick one of the same two neurons as English (L13:F4787 or L14:F13014) at the same pin. No language has a better neuron of its own.
 
-**A second dataset, MultiJail.** The search finds the same neuron in 7 of 10 languages. Where it does, the pin works (0.65–0.88); in Bengali, Javanese and Swahili the search does not find it and the pin does almost nothing. Scores are lower than on PolyRefuse for two reasons: many MultiJail requests are borderline, and one of the two neurons has a side effect (next paragraph).
+**A second dataset, MultiJail.** The search finds the same neuron in 7 of 10 languages. In six of them the pin works (0.65–0.88) and in Thai it works half the time (0.53); in Bengali, Javanese and Swahili the search does not find the neuron and the pin does almost nothing. Scores are lower than on PolyRefuse for two reasons: many MultiJail requests are borderline, and one of the two neurons has a side effect (next paragraph).
 
 **A side effect of one neuron.** With L13:F4787 pinned, some harmful requests get neither a refusal nor an answer: the model says it is not sure what is being asked (27 of 100 on MultiJail English). The judge counts that as a refusal. With L14:F13014 pinned this almost never happens (1 of 100), and it never happens on harmless requests (0 of 200). We guessed that L13:F4787 "reads" the request while the others "decide". Five tests later the guess is only partly right: all the neurons read harm in the request and all push towards refusal; L13:F4787 is the earliest and the most tied to the request's words. Why its pin produces "not sure" replies is still open.
 
