@@ -170,6 +170,32 @@ A language counts when the model refuses at least half of its 128 harmful search
 - **In Bengali and Javanese the neuron separates harmful from harmless as well as in English** (0.96 and 0.92), although those languages' searches rank it 41st and 150th and the pin of L13:F4787 does almost nothing there. So the neuron does respond to harm in those languages; "not found by the search" is not "does not fire".
 - **Of the six shortlist neurons, L14:F13014 is the best or equal-best guard in its worst language** (languages the model refuses in): PolyRefuse text 0.97 (the others 0.90–0.97), MultiJail text 0.89 (0.57–0.75), PolyRefuse pictures 0.73 (0.41–0.58). The vote and the function agree.
 
+**Everything mixed together: one neuron over every language and both datasets in one pool** (`omni_mix.py`, CPU job 484339; no GPU). Asked by Faaiz on 28 November: mix and match dataset and language, and what happens with everything mixed at once.
+
+*Mix and match.* The vote gives the same neuron whichever set it is run on (PolyRefuse alone, MultiJail alone, both, or all 24 lists), so a neuron picked on one dataset is tested on the other by the numbers already in this log: L14:F13014 picked on PolyRefuse gives 0.75–0.88 pinned and AUROC 0.89–0.96 on MultiJail; picked on MultiJail it gives 0.79–0.97 pinned and AUROC 0.97–0.99 on PolyRefuse (13 languages). The pick of the original method (an English pin sweep, L13:F4787 at +30) transfers worse to MultiJail (0.65–0.75 in six languages, no effect in four) and is the worse guard.
+
+*The guard, everything in one pool.* The neuron's value for the harmful and harmless test prompts of every language, scored together, so that one cut-off has to serve every language (pooled AUROC; accuracy at the one best pooled cut-off in brackets).
+
+| Pool | Prompts (harmful + harmless) | L14:F13014 | Best of the other five shortlist neurons | Llama-Guard | Qwen3Guard |
+|---|---|---|---|---|---|
+| PolyRefuse, 13 languages | 1,300 + 1,272 | 0.985 (0.948) | 0.983 (L16:F11620) | 0.998 (0.982) | 0.993 (0.988) |
+| MultiJail, 9 languages | 900 + 891 | 0.902 (0.833) | 0.890 (L16:F1870) | 0.909 (0.831) | 0.943 (0.933) |
+| Both datasets, 22 language sets | 2,200 + 2,163 | 0.954 (0.901) | 0.945 (L16:F11620) | 0.972 (0.917) | 0.973 (0.965) |
+| Both, all 24 (Yoruba and Swahili kept in) | 2,400 + 2,363 | 0.934 (0.865) | 0.922 (L16:F1870) | 0.965 (0.905) | 0.951 (0.942) |
+
+- **With every language and both datasets in one pool the neuron keeps most of its per-language quality:** 0.954 pooled against a mean of 0.966 per language, so one cut-off serves the 22 language sets. It stays 2 points of AUROC under the guard models (0.972, 0.973).
+- **It is the best of the six shortlist neurons in every pool.** L13:F4787 is clearly worse pooled (0.917 on both datasets) because its harmless values differ between languages.
+
+*The switch, everything in one pool.* K.1 success over all prompts of all languages together, from the pinned runs already judged.
+
+| Pool | L14:F13014 at +40: nothing pinned → pinned | L13:F4787 at +30 |
+|---|---|---|
+| PolyRefuse, 13 languages (1,300 prompts) | 0.09 → 0.92 | 0.09 → 0.89 |
+| MultiJail | 0.13 → 0.81 (5 languages, 500 prompts; the other five are running) | 0.17 → 0.62 (9 languages, 900 prompts) |
+| Both datasets, languages the model refuses in | 0.10 → 0.89 (18 sets, 1,800 prompts) | 0.12 → 0.78 (22 sets, 2,200 prompts) |
+
+- **One neuron at one pin, over 18 language-and-dataset sets at once: 10% → 89%.** The two neurons are not compared on the same MultiJail languages yet (5 against 9).
+
 **Started on 28 November for the 29 November meeting** (results are added to this entry as they finish):
 - Larger pins: jobs 484299–484303 (below).
 - L14:F13014 at +40 in the five MultiJail languages not yet run (Korean, Thai, Bengali, Javanese, Swahili): jobs 484320–484324 (`omni_ml_attack.sh`).

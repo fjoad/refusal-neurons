@@ -27,9 +27,20 @@ const PENDING = {
   // slides 9 and 13: L14:F13014 at +40 in the other five MultiJail languages, jobs 484320 to 484324
   mj_n1: { ko: null, th: null, bn: null, jv: null, sw: null },
   mj_n1_result: null,
-  // slide 15: the second omni model, job 484319
-  model2: null,           // { winner, score, top5, exceptions, runner, boot }
+  // other omni models: Gemma 4 E4B (job to be noted in the results log) and Qwen2.5-Omni-3B (job 484319)
+  gemma4: null,           // { winner, top5, exceptions, runner, boot }
+  model2: null,           // Qwen2.5-Omni-3B, same fields
   model2_result: null,
+  // mix-and-match slide
+  jbb_n1_40: null,        // L14:F13014 at +40 on JailbreakBench, job 484340
+  mix: {                  // from omni_mix.py (CPU job 484339): pooled AUROC, and K.1 success over all prompts together
+    guard: [["PolyRefuse, 13 languages", "0.985", "0.998", "0.993"],
+            ["MultiJail, 9 languages", "0.902", "0.909", "0.943"],
+            ["Both datasets, 22 sets", "0.954", "0.972", "0.973"]],
+    switch: [["PolyRefuse, 13 languages", "9%", "92%"],
+             ["MultiJail, 5 languages so far", "13%", "81%"],
+             ["Both datasets, 18 sets", "10%", "89%"]],
+  },
 };
 
 const b = (text) => ({ text, options: { bold: true } });
@@ -146,11 +157,11 @@ const SUCCESS = "Success = share of the held-out harmful prompts whose answer is
     ["Part of the story", "State", "In this deck"],
     [[b("Main result: "), t("on 2 to 3 omni models the neurons found on speech and on text intersect, and one neuron is the champion for both")].map(x => x.text).join(""),
       "One model so far; speech is the other track", "Our half was shown on 22 November: text against pictures of the text"],
-    ["The neurons intersect across languages", good("Done for text"), "Slides 4 and 7"],
-    ["One neuron that is language agnostic", good("New"), "Slides 4 to 8"],
-    ["The findings hold across omni models", { text: "Started tonight", options: { fill: { color: AMBER_SOFT } } }, "Slide 15 (pending)"],
-    ["The findings hold across kinds of harm: currently the negative result", { text: "Partly; new numbers", options: { fill: { color: AMBER_SOFT } } }, "Slides 9 to 13"],
-    ["Concept induction in the output", bad("Not started"), "Slide 22"],
+    ["The neurons intersect across languages", good("Done for text"), "Slides 4, 7 and 9"],
+    ["One neuron that is language agnostic", good("New"), "Slides 4 to 9"],
+    ["The findings hold across omni models", { text: "Started tonight", options: { fill: { color: AMBER_SOFT } } }, "Slide 16 (pending)"],
+    ["The findings hold across kinds of harm: currently the negative result", { text: "Partly; new numbers", options: { fill: { color: AMBER_SOFT } } }, "Slides 10 to 14"],
+    ["Concept induction in the output", bad("Not started"), "Slide 23"],
   ], ML, 1.6, CW, [5.6, 2.9, 3.633], { size: 14, rowH: 0.58, left: [1, 2] });
   result(s, [b("Today: "), t("one neuron is picked for every language by a rule that one language cannot veto; the negative result is narrowed down; three runs are still going.")], { y: 6.05 });
   foot(s, "Everything in this deck is typed text on Qwen2.5-Omni-7B unless a slide says otherwise.");
@@ -163,14 +174,14 @@ const SUCCESS = "Success = share of the held-out harmful prompts whose answer is
   table(s, [
     ["Question", "Short answer", "Slide"],
     ["Do the neurons work on the clearly harmful questions of each dataset?",
-      "Yes. On MultiJail's clearly harmful prompts one pinned neuron gives 76 to 90%. Borderline prompts lower the guard judges' numbers, not the success rate", "10"],
+      "Yes. On MultiJail's clearly harmful prompts one pinned neuron gives 76 to 90%. Borderline prompts lower the guard judges' numbers, not the success rate", "11"],
     ["Do the findings hold on each dataset on its own?",
-      "For text, yes: each dataset alone picks the same neuron. Across forms it is shown for PolyRefuse text against pictures; MultiJail pictures and speech on these datasets are not run", "14"],
+      "For text, yes: each dataset alone picks the same neuron. Across forms it is shown for PolyRefuse text against pictures; MultiJail pictures and speech on these datasets are not run", "15"],
     ["The shared neuron need not be first in every language. Which one is it?",
-      N1 + ", by a vote over the languages' shortlists. Same answer on every set of lists", "5, 6"],
-    ["Would a larger pin switch off the refusals that are left, before the answers break?", "Running tonight", "12"],
-    ["Another multilingual benchmark (AdvBench)", "Not started", "22"],
-    ["Access to the folder with the outputs", "To arrange today", "23"],
+      N1 + ", by a vote over the languages' shortlists. Same answer on every set of lists", "5, 6, 9"],
+    ["Would a larger pin switch off the refusals that are left, before the answers break?", "Running tonight", "13"],
+    ["Another multilingual benchmark (AdvBench)", "Not started", "23"],
+    ["Access to the folder with the outputs", "To arrange today", "24"],
   ], ML, 1.55, CW, [4.6, 6.533, 1.0], { size: 13.5, rowH: 0.62, left: [1] });
 }
 
@@ -298,6 +309,31 @@ const SUCCESS = "Success = share of the held-out harmful prompts whose answer is
   foot(s, "The neuron's score: its value on its harmful side at the strongest of the five template tokens. Worst language is taken over the languages the model refuses in (Yoruba and Swahili left out).");
 }
 
+// ------------------------------------------------------------------ mix and match
+{
+  const mx = PENDING.mix;
+  const s = newSlide("Mix and match: pick the neuron on one set, use it on the others", "a",
+    "This is the main use: the neuron is picked on one dataset or language set and then used, unchanged and at one pin value, on data it was not picked on, as a switch (pinned) and as a guard (read with nothing pinned). The vote returns the same neuron whichever set it is run on, so the first three rows have the same test numbers. The last row is the original method's pick from an English pin sweep, for contrast.");
+  table(s, [
+    ["Picked on", "Neuron it gives", "Tested on PolyRefuse (13 languages): switch / guard", "Tested on MultiJail: switch / guard", "Tested on English JailbreakBench: switch"],
+    ["PolyRefuse only: vote over 13 languages", good(N1), "79 to 97%  /  0.97 to 0.99", "75 to 88% (5 languages; 5 running)  /  0.89 to 0.96", v(PENDING.jbb_n1_40)],
+    ["MultiJail only: vote over 9 languages", good(N1), dim("same neuron, same numbers"), dim("same neuron, same numbers"), dim("same")],
+    ["Everything mixed: all 24 lists together", good(N1), dim("same neuron, same numbers"), dim("same neuron, same numbers"), dim("same")],
+    ["English only: the original method's pin sweep", N2, "80 to 98%  /  0.90 to 0.98", "65 to 75% in 6, fails in 4  /  0.75 to 0.97", "75%"],
+  ], ML, 1.45, CW, [3.3, 1.4, 2.5, 3.2, 1.733], { size: 11.5, rowH: 0.4, left: [2, 3] });
+  const w = (CW - 0.4) / 2;
+  label(s, "EVERYTHING IN ONE POOL: THE GUARD (ONE CUT-OFF FOR ALL)", ML, 4.05, w, AMBER, 10.5);
+  table(s, [["Pool of prompts", N1, "Llama-Guard", "Qwen3Guard"]].concat(
+    (mx ? mx.guard : [["PolyRefuse, 13 languages", P(), P(), P()], ["MultiJail, 9 languages", P(), P(), P()], ["Both datasets, 22 sets", P(), P(), P()]])),
+    ML, 4.35, w, [2.2, 1.2, 1.15, 1.25].map((c) => c * w / 5.8), { size: 11, rowH: 0.34 });
+  label(s, "EVERYTHING IN ONE POOL: THE SWITCH (" + N1 + " AT +40)", ML + w + 0.4, 4.05, w, SLATE, 10.5);
+  table(s, [["Pool of prompts", "Nothing pinned", "Pinned"]].concat(
+    (mx ? mx.switch : [["PolyRefuse, 13 languages", P(), P()], ["MultiJail, 5 languages so far", P(), P()], ["Both datasets", P(), P()]])),
+    ML + w + 0.4, 4.35, w, [2.8, 1.5, 1.5].map((c) => c * w / 5.8), { size: 11, rowH: 0.34 });
+  result(s, [b("Result: "), t("whichever dataset the neuron is picked on, the vote gives the same neuron, and it works as a switch and as a guard on the dataset it was not picked on. Across models the neuron has to be found again in each model.")], { y: 6.05, h: 0.66, size: 13.5 });
+  foot(s, "Switch = success with the neuron pinned (" + N1 + " at +40, " + N2 + " at +30). Guard = AUROC, harmful against harmless, nothing pinned. Pooled = all languages' prompts scored together: 4,363 for the guard, 1,800 for the switch.", 6.8);
+}
+
 // ------------------------------------------------------------------ 9. the negative result
 {
   const m = PENDING.mj_n1;
@@ -319,10 +355,10 @@ const SUCCESS = "Success = share of the held-out harmful prompts whose answer is
   ], x, 1.82, w, 1.1, 13);
   label(s, "WHERE WE LOOKED FOR THE REASON", x, 3.0, w, AMBER);
   bullets(s, [
-    "Are MultiJail's prompts borderline? Slide 10.",
-    "Are the refusals that are left real refusals? Slide 11.",
-    "Is the pin too small? Slide 12 (running).",
-    "Where the search does not find the neuron: slide 13.",
+    "Are MultiJail's prompts borderline? Slide 11.",
+    "Are the refusals that are left real refusals? Slide 12.",
+    "Is the pin too small? Slide 13 (running).",
+    "Where the search does not find the neuron: slide 14.",
   ], x, 3.32, w, 2.3, 13);
   result(s, [b("The gap: "), t("about 10 points under PolyRefuse in the languages where the search finds the neuron, and no effect where it does not.")], { y: 6.05, color: FIRE, bg: FIRE_SOFT });
   foot(s, SUCCESS + " 100 prompts per language.");
@@ -456,26 +492,28 @@ const SUCCESS = "Success = share of the held-out harmful prompts whose answer is
   result(s, [b("Answer: "), t("for text, yes, each dataset alone picks "), hl(N1), t(". For the cross-modal half of the question, MultiJail pictures and speech from these datasets are still to be made.")], { y: 6.05 });
 }
 
-// ------------------------------------------------------------------ 15. second omni model (pending)
+// ------------------------------------------------------------------ other omni models (pending)
 {
-  const d = PENDING.model2;
-  const s = newSlide("A second omni model: the same search in 14 languages", "pend",
-    "This is the first step of \"the findings hold across omni models\" on the languages side. The models for the paper are not chosen yet; this one was the quickest to run because the same code loads it.");
-  label(s, "WHAT IS RUNNING", ML, 1.5, CW, AMBER);
-  bullets(s, [
-    "Qwen2.5-Omni-3B: the same family, about half the size. Its own refusal openings per language, then the search in the 14 PolyRefuse languages on typed text, then the same vote.",
-    "The question: does this model also have one neuron that its languages agree on?",
-  ], ML, 1.82, CW, 1.2, 13.5);
+  const g = PENDING.gemma4, d = PENDING.model2;
+  const s = newSlide("Other omni models: the same search in 14 languages", "pend",
+    "The priority is omni models from other makers at about the same size, not more Qwen models. Gemma 4 E4B is the one open model of that size that is not built on a Qwen backbone and loads with standard code. MiniCPM-o 4.5 is built on Qwen3-8B, and Kimi-Audio on a Qwen backbone too. The models for the paper are still to be chosen together.");
+  label(s, "OPEN OMNI MODELS OF ABOUT THE SAME SIZE", ML, 1.45, CW, AMBER);
+  table(s, [
+    ["Model", "Maker; language backbone", "Size", "Takes in", "State for the languages"],
+    ["Qwen2.5-Omni-7B", "Alibaba; Qwen2.5", "8B (thinker)", "text, image, audio, video", good("done: this deck")],
+    [b("Gemma 4 E4B").text, "Google; Gemma 4 (not Qwen)", "8.0B", "text, image, audio", { text: "first in line: being set up", options: { fill: { color: AMBER_SOFT } } }],
+    ["MiniCPM-o 4.5", "OpenBMB; built on Qwen3-8B", "9.4B", "text, image, audio", "not started"],
+    ["Gemma 3n E4B", "Google; Gemma 3n", "7.9B", "text, image, audio", "access to be requested"],
+    ["Qwen2.5-Omni-3B", "Alibaba; Qwen2.5", "5.5B", "text, image, audio, video", "queued, lower priority"],
+  ], ML, 1.75, CW, [2.3, 3.3, 1.3, 2.7, 2.533], { size: 12, rowH: 0.38, left: [1, 2, 3, 4] });
+  label(s, "THE VOTE, PER MODEL (POLYREFUSE TEXT, LANGUAGES THE MODEL REFUSES IN)", ML, 4.25, CW, SLATE);
   table(s, [
     ["Model", "Winner of the vote (score)", "In the top 5 of", "Not in the top 5 in", "Runner-up (score)", "Wins on redraw"],
     ["Qwen2.5-Omni-7B", good(N1 + " (0.94)"), "13 of 13", "none", "L16:F8383 (0.51)", "100%"],
+    ["Gemma 4 E4B", v(g && g.winner), v(g && g.top5), v(g && g.exceptions), v(g && g.runner), v(g && g.boot)],
     ["Qwen2.5-Omni-3B", v(d && d.winner), v(d && d.top5), v(d && d.exceptions), v(d && d.runner), v(d && d.boot)],
-  ], ML, 3.0, CW, [2.3, 2.7, 1.5, 2.4, 2.1, 1.133], { size: 12.5, rowH: 0.5 });
-  bullets(s, [
-    "After the search, per model: the picked neuron pinned in every language, and the guard table. About two days of cluster time per model.",
-    "The models for the paper are still to be chosen together; this run does not decide that.",
-  ], ML, 5.0, CW, 0.95, 12.5);
-  resultOrPending(s, PENDING.model2_result, "pending. The model is downloaded and the search is queued.", { y: 6.05 });
+  ], ML, 4.55, CW, [2.3, 2.7, 1.5, 2.4, 2.1, 1.133], { size: 12, rowH: 0.34 });
+  resultOrPending(s, PENDING.model2_result, "pending. A neuron's number means nothing in another model, so each model gets its own search, its own vote, then its own pin and guard tables.", { y: 6.2, h: 0.62 });
 }
 
 // ------------------------------------------------------------------ 16. the direction
@@ -610,15 +648,16 @@ const SUCCESS = "Success = share of the held-out harmful prompts whose answer is
     "In the story's priority order. The first three rows were started on Saturday evening and have a slide waiting for their numbers.");
   table(s, [
     ["Experiment", "Part of the story", "State", "Ready"],
-    ["Larger pins on MultiJail and PolyRefuse (slide 12)", "Kinds of harm", { text: "Running", options: { fill: { color: AMBER_SOFT } } }, "Saturday night"],
-    ["The picked neuron pinned in the other five MultiJail languages (slides 9, 13)", "Kinds of harm", { text: "Queued", options: { fill: { color: AMBER_SOFT } } }, "Sunday"],
-    ["Second omni model: the search in 14 languages and the vote (slide 15)", "Across omni models", { text: "Queued", options: { fill: { color: AMBER_SOFT } } }, "Sunday"],
+    ["Gemma 4 E4B (a non-Qwen omni model): the search in 14 languages and the vote (slide 16)", "Across omni models", { text: "Setting up", options: { fill: { color: AMBER_SOFT } } }, "Sunday, if it runs on our cards"],
+    ["Larger pins on MultiJail and PolyRefuse (slide 13)", "Kinds of harm", { text: "Running", options: { fill: { color: AMBER_SOFT } } }, "Saturday night"],
+    ["The picked neuron pinned in the other five MultiJail languages (slides 10, 14)", "Kinds of harm", { text: "Running", options: { fill: { color: AMBER_SOFT } } }, "Sunday"],
+    ["Each new model: the picked neuron pinned in every language; the guard table", "Across omni models", "After its search", "About 2 days per model"],
+    ["Qwen2.5-Omni-3B: the same search (slide 16)", "Across omni models", { text: "Queued, lower priority", options: { fill: { color: AMBER_SOFT } } }, "Sunday or Monday"],
     ["Bengali and Javanese: pin sweeps on their own top five", "Kinds of harm", { text: "Queued", options: { fill: { color: AMBER_SOFT } } }, "Monday"],
-    ["Second model: the picked neuron pinned in every language; the guard table", "Across omni models", "After its search", "About 2 days"],
     ["Results split by harm category; AdvBench as a third dataset", "Kinds of harm", "Not started", "This week"],
     ["The languages as speech", "Language and modality agnostic", "Needs the speech pipeline", "To agree"],
     ["Concept induction across languages", "Last in the story", "Not started", "After the above"],
-  ], ML, 1.5, CW, [6.0, 2.6, 2.0, 1.533], { size: 12.5, rowH: 0.5, left: [1, 2, 3] });
+  ], ML, 1.5, CW, [6.0, 2.6, 2.0, 1.533], { size: 12, rowH: 0.44, left: [1, 2, 3] });
   result(s, [b("The paper draft "), t("on Overleaf follows this story and already holds every result above, with what is missing marked as pending. Submission: 4 January.")], { y: 6.1 });
 }
 
@@ -627,13 +666,13 @@ const SUCCESS = "Success = share of the held-out harmful prompts whose answer is
   const s = newSlide("To decide today", "next", "Each of these blocks a set of final runs.");
   const cols = [
     { h: "For the final runs", c: AMBER, body: [
-      "Which two or three omni models go in the paper.",
-      "One setup for both halves: the system prompt, the rule for picking the pin, the answer length (slide 19).",
+      "Which two or three omni models go in the paper. Proposed: one non-Qwen model of the same size first (Gemma 4 E4B).",
+      "One setup for both halves: the system prompt, the rule for picking the pin, the answer length (slide 20).",
     ] },
     { h: "For the claims", c: TEAL, body: [
-      "The rule for naming the shared neuron: the vote over shortlists, with the exceptions named (slides 5, 6).",
+      "The rule for naming the shared neuron: the vote over shortlists, with the exceptions named (slides 5, 6, 9).",
       "What counts as the vision result: pictures of typed text, real images, or none.",
-      "Whether the three text-only models stay in the paper (slides 20, 21).",
+      "Whether the three text-only models stay in the paper (slides 21, 22).",
     ] },
     { h: "For working together", c: SLATE, body: [
       "Where everyone can read the outputs and run their own analysis.",
