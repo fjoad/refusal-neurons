@@ -191,17 +191,23 @@ def family_of(name):
 
 
 def layers_of(model):
-    """The text decoder's layers: the longest list of blocks that each have mlp.down_proj. Qwen2.5-Omni's thinker:
-    model.model.layers. Found by shape, so another family's decoder is picked up without naming its path."""
+    """The text decoder's layers. Qwen2.5-Omni's thinker: model.model.layers. For another family the path is not
+    hard-wired: it is the longest list of blocks that each have mlp.down_proj, outside the picture and audio
+    encoders (Qwen2.5-Omni's picture encoder also has such blocks, 32 of them, so the encoders must be left out)."""
     if getattr(model, "_decoder_layers", None) is None:
-        best = None
-        for name, mod in model.named_modules():
-            if isinstance(mod, torch.nn.ModuleList) and len(mod) and all(
-                    hasattr(l, "mlp") and hasattr(l.mlp, "down_proj") for l in mod):
-                if best is None or len(mod) > len(best[1]):
-                    best = (name, mod)
-        if best is None:
-            raise RuntimeError("no list of decoder layers with mlp.down_proj found in this model")
+        if FAMILY == "qwen_omni":
+            best = ("model.layers", model.model.layers)
+        else:
+            best = None
+            for name, mod in model.named_modules():
+                if re.search(r"vis|audio|image|tower|encoder|embed", name, re.I):
+                    continue
+                if isinstance(mod, torch.nn.ModuleList) and len(mod) and all(
+                        hasattr(l, "mlp") and hasattr(l.mlp, "down_proj") for l in mod):
+                    if best is None or len(mod) > len(best[1]):
+                        best = (name, mod)
+            if best is None:
+                raise RuntimeError("no list of decoder layers with mlp.down_proj found in this model")
         print(f"decoder layers: {best[0]} ({len(best[1])} layers, MLP width {best[1][0].mlp.down_proj.in_features})", flush=True)
         model.__dict__["_decoder_layers"] = best[1]
     return model.__dict__["_decoder_layers"]
