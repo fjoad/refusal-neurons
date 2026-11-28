@@ -472,6 +472,10 @@ Everything here is typed text on Qwen2.5-Omni-7B. Numbers are the share of 100 h
 
 **The neuron as a guard** is in section 8e.
 
+**Which neuron is "the" neuron? (28 November)** The shared neuron does not have to be number one in every language; it has to be near the top in all of them. Every language's search ranks all 340,992 neurons, so we asked which neuron the rankings agree on, in four ways: its worst rank over the languages (smallest wins); the average of 1/rank; one search on all languages mixed together; and choosing with one language left out, then checking it in that language. Languages the model hardly refuses in (Yoruba, Swahili) are left out, because there is no refusal to find. On PolyRefuse text all four agree: L14:F13014 is the only neuron in the top 20 of all 13 languages, and when any language is left out it is chosen again and is 1st to 3rd in that language. On MultiJail the worst rank is spoiled by Bengali and Javanese, but the mixed search still returns L14:F13014 first, as it does on pictures and on every combination we tried.
+
+**Is MultiJail lower because its requests are borderline? (28 November)** We called a request clearly harmful when two guard models both call its English text unsafe. That is 93 of 100 PolyRefuse test requests but only 58 of 100 MultiJail ones. On the 58 clearly harmful ones the pin works as often as on all 100 (0.76–0.90 against 0.75–0.88). So borderline requests are not why fewer refusals are switched off. They are why the guard judges give low numbers: an answer to a borderline request is not harmful, so the guards do not count it. What is left is real refusal that survives the pin (about one in four clearly harmful English requests on MultiJail, one in nine on PolyRefuse). Whether a larger pin removes it is running now.
+
 ## 9. Caveats
 - English answers have one judge (Llama-Guard-3), which doesn't check that answers make sense. Arabic answers have two that agree (Qwen3Guard, and Llama-Guard on a translation).
 - Capability is measured on subsets of MMLU and GSM8K.
