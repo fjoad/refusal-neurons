@@ -131,8 +131,50 @@ A language counts when the model refuses at least half of its 128 harmful search
 - **Worst rank is too strict once one list disagrees.** On MultiJail, Bengali and Javanese (L14:F13014 is 41st and 150th there) decide it, and it then picks a neuron that is in no list's top 2 and in one list's top 5 (L16:F12478, ranks 3 to 58). On text and pictures together Thai pictures decide it (L14:F8431, ranks 16 to 203).
 - **The pooled search is stable.** It returns L14:F13014 first on all five sets of lists, and also when Yoruba and Swahili are put back (ten scopes in all). The average of 1/rank returns it on four of the five.
 - **With Yoruba counted, no neuron is in every PolyRefuse list's top 100.** The condition on refusal is what makes a shared neuron visible; it is set from the model's behaviour, not from the neuron.
-- **Proposed reporting rule (to agree with the group):** the pooled search names the neuron, and its worst rank says how strict the agreement is (3 on PolyRefuse text; 150 on MultiJail text, second worst 41).
+- **First proposal, replaced by the vote below:** the pooled search names the neuron, and its worst rank says how strict the agreement is (3 on PolyRefuse text; 150 on MultiJail text, second worst 41).
 - Limits: one model; typed text and pictures of text only (speech rankings would be more lists in the same table); ranks come from searches whose refusal phrases differ per language.
+
+**The picker: a vote over shortlists that one language cannot veto** (`omni_champion.py`, "shortlist vote"; CPU job 484315). Asked by Faaiz on 28 November: the picking rule must not break because of one under-represented language. In each list a neuron gets 5 points for 1st place, 4, 3, 2, and 1 for 5th place, and 0 below that (5 is the shortlist size of Kazemi et al.); its score is its points averaged over the lists and divided by 5, so 1.0 = first in every list. One list can cost a neuron at most that list's own points, however far down the neuron is there. With the winner we report in how many lists it is in the top 5 and which lists it is not. Checks: shortlists of 3, 10 and 20; each list left out in turn; the lists drawn again at random with replacement 2,000 times (seed 0).
+
+| Lists | Number | Winner (score) | In the top 5 of | Not in the top 5 in | Runner-up (score) | Wins when the lists are redrawn | Same winner with one list left out |
+|---|---|---|---|---|---|---|---|
+| PolyRefuse, text | 13 | **L14:F13014** (0.938) | 13 of 13 | none | L16:F8383 (0.508) | 100.0% | 13 of 13 |
+| MultiJail, text | 9 | **L14:F13014** (0.689) | 7 of 9 | Bengali (41st), Javanese (150th) | L13:F4787 (0.489) | 97.7% | 9 of 9 |
+| Both datasets, text | 22 | **L14:F13014** (0.836) | 20 of 22 | Bengali, Javanese | L13:F4787 (0.364) | 100.0% | 22 of 22 |
+| PolyRefuse, pictures | 13 | **L14:F13014** (0.462) | 8 of 13 | Arabic (42nd), Japanese (389th), Thai (23,019th), Korean (9th), Polish (8th) | L16:F11620 (0.446) | 50.6% | 10 of 13 |
+| PolyRefuse, text and pictures | 26 | **L14:F13014** (0.700) | 21 of 26 | the five picture lists above | L16:F8383 (0.300) | 100.0% | 26 of 26 |
+| All 24 text lists (Yoruba and Swahili kept in) | 24 | **L14:F13014** (0.767) | 20 of 24 | Bengali, Javanese, Yoruba, Swahili | L13:F4787 (0.333) | 100.0% | 24 of 24 |
+
+- **The vote picks L14:F13014 on every set of lists**, including the sets where the worst rank broke (MultiJail; text and pictures), and with a shortlist of 3, 5, 10 or 20 on every text set.
+- **It does not need the rule that leaves out Yoruba and Swahili:** with all 24 text lists kept in, the winner and the margin are the same.
+- **On pictures alone it is close to a tie** with L16:F11620 (0.462 against 0.446; 51% against 40% of the redraws; with a shortlist of 20 the other neuron wins). With the text lists added it is clear (0.700 against 0.300).
+- **This replaces the proposal above** (pooled search as the pick). The pooled search agrees with the vote everywhere; the vote is preferred because every list counts equally, where a pooled search weights the languages in which the neuron fires hardest.
+- Worked example, MultiJail: ranks 1, 1, 1, 1, 1, 2, 4, 41, 150 give points 5, 5, 5, 5, 5, 4, 2, 0, 0 = 31 of 45 = 0.689.
+
+**The neuron as a guard on MultiJail, and the six shortlist neurons compared** (`omni_guard.py --track mj` and `--track poly` with all six neurons; CPU jobs 484316 and 484317; no GPU). Same method as the 26 November guard entry.
+
+| MultiJail, typed prompts (100 harmful, 100 harmless) | L14:F13014: AUROC (accuracy, one English cut-off) | L13:F4787 | Llama-Guard | Qwen3Guard |
+|---|---|---|---|---|
+| English | 0.963 (0.93) | 0.973 (0.93) | 0.967 (0.79) | 0.955 (0.90) |
+| Arabic | 0.911 (0.85) | 0.843 (0.59) | 0.910 (0.78) | 0.952 (0.85) |
+| Chinese | 0.956 (0.62) | 0.933 (0.56) | 0.954 (0.80) | 0.950 (0.87) |
+| Italian | 0.942 (0.91) | 0.940 (0.58) | 0.927 (0.81) | 0.950 (0.89) |
+| Vietnamese | 0.942 (0.90) | 0.886 (0.64) | 0.843 (0.76) | 0.963 (0.83) |
+| Korean | 0.952 (0.88) | 0.925 (0.74) | 0.937 (0.82) | 0.955 (0.84) |
+| Thai | 0.889 (0.83) | 0.745 (0.57) | 0.881 (0.82) | 0.965 (0.88) |
+| Bengali | 0.962 (0.90) | 0.800 (0.59) | 0.893 (0.78) | 0.938 (0.80) |
+| Javanese (91 harmless) | 0.920 (0.61) | 0.960 (0.83) | 0.900 (0.65) | 0.860 (0.56) |
+| Swahili | 0.747 (0.56) | 0.540 (0.49) | 0.873 (0.78) | 0.716 (0.53) |
+
+- **On MultiJail the neuron is level with Llama-Guard and a little under Qwen3Guard:** 0.89–0.96 in the nine languages the model refuses in, against 0.84–0.97 and 0.86–0.97. All three are lower than on PolyRefuse (borderline prompts).
+- **In Bengali and Javanese the neuron separates harmful from harmless as well as in English** (0.96 and 0.92), although those languages' searches rank it 41st and 150th and the pin of L13:F4787 does almost nothing there. So the neuron does respond to harm in those languages; "not found by the search" is not "does not fire".
+- **Of the six shortlist neurons, L14:F13014 is the best or equal-best guard in its worst language** (languages the model refuses in): PolyRefuse text 0.97 (the others 0.90–0.97), MultiJail text 0.89 (0.57–0.75), PolyRefuse pictures 0.73 (0.41–0.58). The vote and the function agree.
+
+**Started on 28 November for the 29 November meeting** (results are added to this entry as they finish):
+- Larger pins: jobs 484299–484303 (below).
+- L14:F13014 at +40 in the five MultiJail languages not yet run (Korean, Thai, Bengali, Javanese, Swahili): jobs 484320–484324 (`omni_ml_attack.sh`).
+- A second omni model, the languages: Qwen/Qwen2.5-Omni-3B downloaded (job 484318), then the 14-language PolyRefuse search on typed text and the vote (job 484319, `scripts/jobs/omni_model_search.sh`). The models for the paper are not chosen; this one runs with the same code.
+- Pin sweeps in Bengali and Javanese on their own search's top five: jobs 484325 and 484326 (`omni_ml_rerank.sh mj bn`, `mj jv`).
 
 **Clearly harmful prompts only** (`omni_clear.py`, CPU job 484306; no GPU; counts only). A prompt is clearly harmful when both guard models call its English text unsafe (Llama-Guard-3 and Qwen3Guard on the typed prompt alone, `guard_detect.py`'s saved verdicts). The split is made once on English and applied to the same prompts in every language.
 
